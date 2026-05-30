@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Glossary · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('web.index') }}" class="back-link">← 다이제스트로</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · GLOSSARY</div>
+<h1 class="page-title" style="font-size: 26px;">AI 용어 사전</h1>
+<div class="page-meta">
+  <span class="stats">총 {{ total }}개 용어</span>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <input type="text" id="search-input" placeholder="용어 검색 (영문/한글)..." style="
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+  ">
+</div>
+
+{% set cat_labels = {
+  'model': '🤖 모델',
+  'architecture': '🏗️ 아키텍처',
+  'training': '🎓 학습',
+  'rl': '🎮 강화학습',
+  'metric': '📊 평가/지표',
+  'general': '📌 일반'
+} %}
+
+{% for cat, terms in terms_by_category.items() %}
+<div class="glossary-section" data-category="{{ cat }}">
+  <h2 style="font-size: 13px; color: var(--text-dim); margin: 1.5rem 0 0.75rem; letter-spacing: 0.05em;">
+    {{ cat_labels.get(cat, cat|upper) }} <span style="color: var(--text-faint);">· {{ terms|length }}</span>
+  </h2>
+  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+    {% for t in terms %}
+    <div class="glossary-card" data-term="{{ t.term|lower }} {{ t.term_ko }} {{ (t.aliases|join(' '))|lower }}" style="
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+        <span style="font-size: 14px; font-weight: 700; color: var(--text);">{{ t.term }}</span>
+        <span style="font-size: 12px; color: var(--accent); font-weight: 600;">{{ t.term_ko }}</span>
+      </div>
+      {% if t.aliases %}
+      <div style="font-size: 10px; color: var(--text-faint); margin-bottom: 6px;">
+        {{ t.aliases|join(' · ') }}
+      </div>
+      {% endif %}
+      <p style="margin: 0; font-size: 12px; line-height: 1.65; color: var(--text-muted);">{{ t.explain_ko }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<script>
+const input = document.getElementById('search-input');
+input.addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('.glossary-card').forEach(card => {
+    const hit = q === '' || card.dataset.term.includes(q);
+    card.style.display = hit ? 'block' : 'none';
+  });
+  // 섹션도 빈 거 숨기기
+  document.querySelectorAll('.glossary-section').forEach(sec => {
+    const visible = sec.querySelectorAll('.glossary-card:not([style*="display: none"])').length;
+    sec.style.display = visible > 0 ? 'block' : 'none';
+  });
+});
+</script>
+
+{% endblock %}

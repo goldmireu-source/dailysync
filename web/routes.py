@@ -1,0 +1,834 @@
+"""Web dashboard routes — 다이제스트 + 클러스터 상세 + 숨김 기능 + admin."""
+from datetime import datetime, timedelta, timezone, date
+from functools import wraps
+
+from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, make_response, g
+
+from config import Config
+from models import db, Cluster, Article, Paper, Source, JobRun
+from web.cardnews import build_cluster_cards, build_paper_cards
+
+bp = Blueprint("web", __name__)
+
+KST = timezone(timedelta(hours=9))
+
+ADMIN_COOKIE_NAME = "ds_admin"
+
+
+def is_admin() -> bool:
+    """현재 요청이 admin 권한인지.
+
+    .env 의 ADMIN_TOKEN 이 비어 있으면 dev 모드 → 모두 admin.
+    설정돼 있으면 쿠키 'ds_admin' 값과 비교.
+    """
+    token = Config.ADMIN_TOKEN
+    if not token:
+        return True  # dev 모드
+    return request.cookies.get(ADMIN_COOKIE_NAME) == token
+
+
+def admin_required(f):
+    """admin 만 통과시키는 데코레이터.
+
+    API (JSON 응답) 라면 403, HTML 페이지면 홈으로 리다이렉트.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not is_admin():
+            # 경로 패턴으로 API/HTML 구분
+            is_api = request.path.startswith("/api/") or request.path.startswith("/admin/run/")
+            if is_api or request.method == "POST":
+                return jsonify({"ok": False, "error": "admin_only"}), 403
+            # HTML 페이지 → 홈으로
+            return redirect(url_for("web.index"))
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@bp.before_request
+def inject_admin_flag():
+    """모든 요청 시작 시 g.is_admin 세팅 (템플릿에서 쓸 수 있게)."""
+    g.is_admin = is_admin()
+
+
+@bp.app_context_processor
+def context_admin():
+    """모든 템플릿에서 is_admin + cardnews_bot URL 자동 노출."""
+    return {
+        "is_admin": is_admin(),
+        "cardnews_bot_url": Config.CARDNEWS_BOT_URL,
+    }
+
+
+# ---------- Admin Login ----------
+@bp.route("/admin-login")
+def admin_login():
+    """미르 씨가 /admin-login?token=xxx 로 접속하면 쿠키 set 후 / 로 리다이렉트."""
+    token = request.args.get("token", "")
+    if not Config.ADMIN_TOKEN:
+        return "ADMIN_TOKEN 미설정 (dev 모드). 모두 admin 입니다.", 200
+    if token != Config.ADMIN_TOKEN:
+        return "토큰 불일치", 403
+    resp = make_response(redirect(url_for("web.index")))
+    # 1년짜리 쿠키
+    resp.set_cookie(
+        ADMIN_COOKIE_NAME, token,
+        max_age=365 * 24 * 3600,
+        httponly=True,
+        samesite="Lax",
+    )
+    return resp
+
+
+@bp.route("/admin-logout")
+def admin_logout():
+    resp = make_response(redirect(url_for("web.index")))
+    resp.delete_cookie(ADMIN_COOKIE_NAME)
+    return resp
+
+
+# ---------- 우선순위 정렬 키 ----------
+def _cluster_score(cluster: Cluster) -> float:
+    """디버그/표시용 단일 점수 (실제 정렬엔 _cluster_sort_key 사용)."""
+    score = float(cluster.importance or 0)
+    members = cluster.articles.all()
+    n_sources = len(set(a.source_id for a in members))
+    if len(members) >= 2:
+        score += 3
+    if n_sources >= 2:
+        score += 2
+    if any((a.source and a.source.tier == 1) for a in members):
+        score += 1
+    return score
+
+
+def _cluster_sort_key(cluster: Cluster) -> tuple:
+    """기본 정렬 — 교차검증(매체수) 우선, 그 다음 중요도, 그 다음 최신.
+
+    내림차순 정렬을 위해 모두 -값.
+    """
+    members = cluster.articles.all()
+    n_sources = len(set(a.source_id for a in members))
+    importance = int(cluster.importance or 0)
+    has_tier1 = any((a.source and a.source.tier == 1) for a in members)
+    return (
+        -n_sources,            # 1차: 매체 수 (교차검증)
+        -importance,           # 2차: 중요도
+        -1 if has_tier1 else 0,  # 3차: Tier 1 포함 시 가산
+        -cluster.id,           # 4차: 최신
+    )
+
+
+# ---------- 날짜 헬퍼 ----------
+def _kst_day_bounds(d: date) -> tuple[datetime, datetime]:
+    start_kst = datetime(d.year, d.month, d.day, tzinfo=KST)
+    end_kst = start_kst + timedelta(days=1)
+    return (
+        start_kst.astimezone(timezone.utc).replace(tzinfo=None),
+        end_kst.astimezone(timezone.utc).replace(tzinfo=None),
+    )
+
+
+def _parse_date_arg(s: str | None) -> date:
+    if s:
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return datetime.now(KST).date()
+
+
+# ---------- 다이제스트 메인 ----------
+@bp.route("/")
+def index():
+    target = _parse_date_arg(request.args.get("date"))
+    show_hidden = request.args.get("hidden") == "1"
+    start_utc, end_utc = _kst_day_bounds(target)
+
+    # 해당 일에 발행된 article 들의 cluster
+    arts_today = (
+        Article.query
+        .filter(Article.published_at >= start_utc, Article.published_at < end_utc)
+        .filter(Article.cluster_id.isnot(None))
+        .all()
+    )
+    cluster_ids = sorted(set(a.cluster_id for a in arts_today))
+
+    base_q = (
+        Cluster.query
+        .filter(Cluster.id.in_(cluster_ids))
+        .filter(Cluster.summary_ko.isnot(None), Cluster.summary_ko != "")
+    )
+
+    # first_shown_date 중복 필터링:
+    # - 이미 다른 날짜에 표시된 클러스터는 제외 (그 날짜 페이지에서만 보임)
+    # - first_shown_date 가 NULL 인 클러스터는 이번에 target 으로 set 됨
+    # - first_shown_date == target 인 클러스터는 표시
+    base_q = base_q.filter(
+        (Cluster.first_shown_date == target) | (Cluster.first_shown_date.is_(None))
+    )
+
+    if show_hidden:
+        visible_clusters = base_q.filter(Cluster.hidden_at.isnot(None)).all()
+    else:
+        # 일반 모드: 숨김 안 됨 + 저장 안 됨 (저장된 건 saved 페이지에서만)
+        visible_clusters = base_q.filter(
+            Cluster.hidden_at.is_(None), Cluster.saved_at.is_(None)
+        ).all()
+
+    # 숨김 카운트 (배지용) — 같은 날짜 필터 안에서
+    hidden_count = base_q.filter(Cluster.hidden_at.isnot(None)).count()
+
+    # first_shown_date 가 NULL 인 클러스터들에 target 박기 (한 번만)
+    today_kst = datetime.now(KST).date()
+    if target == today_kst:
+        unstamped_ids = [c.id for c in visible_clusters if c.first_shown_date is None]
+        if unstamped_ids:
+            Cluster.query.filter(Cluster.id.in_(unstamped_ids)).update(
+                {Cluster.first_shown_date: target},
+                synchronize_session=False,
+            )
+            db.session.commit()
+            # 메모리 객체도 갱신
+            for c in visible_clusters:
+                if c.id in unstamped_ids:
+                    c.first_shown_date = target
+
+    # 정렬용 베이스 (cluster, score) — score 는 디버그/표시용
+    scored = [(c, _cluster_score(c)) for c in visible_clusters]
+
+    # ========== 정렬 옵션 ==========
+    # sort: score (기본 — 교차검증→중요도) | recent | importance
+    sort_mode = request.args.get("sort", "score")
+    if sort_mode == "recent":
+        scored.sort(key=lambda x: (-(x[0].updated_at.timestamp() if x[0].updated_at else 0), -(x[0].importance or 0)))
+    elif sort_mode == "importance":
+        scored.sort(key=lambda x: (-(x[0].importance or 0), -x[0].articles.count(), -x[0].id))
+    else:
+        # score (기본): 교차검증(매체수) → 중요도 → Tier1 → 최신
+        scored.sort(key=lambda x: _cluster_sort_key(x[0]))
+        sort_mode = "score"
+
+    # ========== 카테고리 필터 ==========
+    # cat: all (기본) | 정책/규제 | 산업/기업 | 연구/모델 | 윤리/사회
+    cat_filter = request.args.get("cat", "all")
+    if cat_filter != "all":
+        scored = [
+            (c, sc) for c, sc in scored
+            if c.categories and cat_filter in c.categories
+        ]
+
+    # 전체(필터 적용 후) 클러스터 수
+    total_filtered = len(scored)
+
+    # ========== 페이지네이션 ==========
+    PAGE_SIZE = 12
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    total_pages = max(1, (total_filtered + PAGE_SIZE - 1) // PAGE_SIZE)
+    if page > total_pages:
+        page = total_pages
+    start_idx = (page - 1) * PAGE_SIZE
+    end_idx = start_idx + PAGE_SIZE
+    page_scored = scored[start_idx:end_idx]
+
+    # 인라인 캐러셀용 카드 데이터 생성 — 현재 페이지만
+    inline_clusters = []
+    for c, score in page_scored:
+        inline_clusters.append({
+            "cluster": c,
+            "cards": build_cluster_cards(c),
+            "score": score,
+        })
+
+    # 카테고리별 카운트 (필터 칩 옆에 숫자 표시용)
+    cat_counts = {"all": 0, "정책/규제": 0, "산업/기업": 0, "연구/모델": 0, "윤리/사회": 0}
+    all_scored_for_count = [(c, sc) for c, sc in [(c, _cluster_score(c)) for c in visible_clusters]]
+    for c, _sc in all_scored_for_count:
+        cat_counts["all"] += 1
+        for cat in (c.categories or []):
+            if cat in cat_counts:
+                cat_counts[cat] += 1
+
+    # ========== 탭 ==========
+    # tab: news (기본) | papers
+    tab = request.args.get("tab", "news")
+    if tab not in ("news", "papers"):
+        tab = "news"
+
+    # 논문 — 숨김·저장 필터
+    paper_window_start = start_utc - timedelta(days=Config.PAPER_RECENT_DAYS - 1)
+    papers_q = (
+        Paper.query
+        .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
+        .filter(Paper.published_at >= paper_window_start)
+    )
+    if show_hidden:
+        papers_all = papers_q.filter(Paper.hidden_at.isnot(None)).order_by(
+            Paper.hidden_at.desc()
+        ).all()
+    else:
+        papers_all = papers_q.filter(
+            Paper.hidden_at.is_(None), Paper.saved_at.is_(None)
+        ).order_by(
+            Paper.hf_featured.desc(), Paper.hf_upvotes.desc(), Paper.published_at.desc()
+        ).all()
+
+    hidden_papers_count = papers_q.filter(Paper.hidden_at.isnot(None)).count()
+    total_papers_filtered = len(papers_all)
+
+    # 논문 탭이면 페이지네이션 12개씩 + total_pages 덮어쓰기
+    PAPER_PAGE_SIZE = 12
+    if tab == "papers":
+        paper_total_pages = max(1, (total_papers_filtered + PAPER_PAGE_SIZE - 1) // PAPER_PAGE_SIZE)
+        if page > paper_total_pages:
+            page = paper_total_pages
+        p_start = (page - 1) * PAPER_PAGE_SIZE
+        papers = papers_all[p_start:p_start + PAPER_PAGE_SIZE]
+        total_pages = paper_total_pages  # 페이저는 논문 페이지로
+    else:
+        papers = []
+
+    # 뉴스 탭이 아니면 inline_clusters 비움 (논문 탭에서 클러스터 안 보임)
+    if tab == "papers":
+        inline_clusters = []
+
+    # 저장 카운트 (전역 — 날짜 무관)
+    saved_clusters_count = Cluster.query.filter(Cluster.saved_at.isnot(None)).count()
+    saved_papers_count = Paper.query.filter(Paper.saved_at.isnot(None)).count()
+    saved_total = saved_clusters_count + saved_papers_count
+
+    # 논문 카드뉴스 데이터
+    paper_cardsets = [{"paper": p, "cards": build_paper_cards(p)} for p in papers]
+
+    total_articles = len(arts_today)
+
+    return render_template(
+        "digest.html",
+        target_date=target,
+        inline_clusters=inline_clusters,
+        papers=papers,
+        paper_cardsets=paper_cardsets,
+        total_clusters=total_filtered,
+        total_papers=total_papers_filtered,
+        total_articles=total_articles,
+        prev_date=target - timedelta(days=1),
+        next_date=target + timedelta(days=1),
+        today=datetime.now(KST).date(),
+        show_hidden=show_hidden,
+        hidden_count=hidden_count,
+        hidden_papers_count=hidden_papers_count,
+        saved_total=saved_total,
+        # 탭/페이지/필터/정렬
+        tab=tab,
+        page=page,
+        total_pages=total_pages,
+        sort_mode=sort_mode,
+        cat_filter=cat_filter,
+        cat_counts=cat_counts,
+    )
+
+
+# ---------- 클러스터 상세 → 카드뉴스 ----------
+@bp.route("/cluster/<int:cluster_id>")
+def cluster_detail(cluster_id: int):
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        abort(404)
+    cards = build_cluster_cards(cluster)
+    return render_template(
+        "cardnews.html",
+        kind="cluster",
+        cluster=cluster,
+        cards=cards,
+        total=len(cards),
+    )
+
+
+@bp.route("/paper/<int:paper_id>")
+def paper_detail(paper_id: int):
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        abort(404)
+    cards = build_paper_cards(paper)
+    return render_template(
+        "cardnews.html",
+        kind="paper",
+        paper=paper,
+        cards=cards,
+        total=len(cards),
+    )
+
+
+# ---------- 숨김/복구 API (JS 호출용) ----------
+@bp.route("/api/cluster/<int:cluster_id>/hide", methods=["POST"])
+@admin_required
+def hide_cluster(cluster_id: int):
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    cluster.hidden_at = datetime.utcnow()
+    cluster.saved_at = None  # 배타: 숨기면 저장 해제
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/cluster/<int:cluster_id>/show", methods=["POST"])
+@admin_required
+def show_cluster(cluster_id: int):
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    cluster.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/cluster/<int:cluster_id>/save", methods=["POST"])
+@admin_required
+def save_cluster(cluster_id: int):
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    cluster.saved_at = datetime.utcnow()
+    cluster.hidden_at = None  # 배타: 저장하면 숨김 해제
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/cluster/<int:cluster_id>/unsave", methods=["POST"])
+@admin_required
+def unsave_cluster(cluster_id: int):
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    cluster.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/paper/<int:paper_id>/hide", methods=["POST"])
+@admin_required
+def hide_paper(paper_id: int):
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    paper.hidden_at = datetime.utcnow()
+    paper.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/paper/<int:paper_id>/show", methods=["POST"])
+@admin_required
+def show_paper(paper_id: int):
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    paper.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/paper/<int:paper_id>/save", methods=["POST"])
+@admin_required
+def save_paper(paper_id: int):
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    paper.saved_at = datetime.utcnow()
+    paper.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/paper/<int:paper_id>/unsave", methods=["POST"])
+@admin_required
+def unsave_paper(paper_id: int):
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    paper.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/restore-all", methods=["POST"])
+@admin_required
+def restore_all():
+    """모든 숨김 복구."""
+    n_c = Cluster.query.filter(Cluster.hidden_at.isnot(None)).update(
+        {"hidden_at": None}, synchronize_session=False
+    )
+    n_p = Paper.query.filter(Paper.hidden_at.isnot(None)).update(
+        {"hidden_at": None}, synchronize_session=False
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "clusters": n_c, "papers": n_p})
+
+
+@bp.route("/api/clear-saved", methods=["POST"])
+@admin_required
+def clear_saved():
+    """모든 저장 해제."""
+    n_c = Cluster.query.filter(Cluster.saved_at.isnot(None)).update(
+        {"saved_at": None}, synchronize_session=False
+    )
+    n_p = Paper.query.filter(Paper.saved_at.isnot(None)).update(
+        {"saved_at": None}, synchronize_session=False
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "clusters": n_c, "papers": n_p})
+
+
+@bp.route("/api/counts", methods=["GET"])
+def api_counts():
+    """숨김·저장 카운트 (실시간 배지 갱신용)."""
+    hidden_clusters = Cluster.query.filter(Cluster.hidden_at.isnot(None)).count()
+    hidden_papers = Paper.query.filter(Paper.hidden_at.isnot(None)).count()
+    saved_clusters = Cluster.query.filter(Cluster.saved_at.isnot(None)).count()
+    saved_papers = Paper.query.filter(Paper.saved_at.isnot(None)).count()
+    return jsonify({
+        "ok": True,
+        "hidden": {"clusters": hidden_clusters, "papers": hidden_papers, "total": hidden_clusters + hidden_papers},
+        "saved": {"clusters": saved_clusters, "papers": saved_papers, "total": saved_clusters + saved_papers},
+    })
+
+
+def _parse_iso_date(s: str):
+    """YYYY-MM-DD 문자열 파싱 — 실패 시 None."""
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except (ValueError, TypeError):
+        return None
+
+
+def _resolve_search_preset(preset: str, from_str: str, to_str: str):
+    """preset 키를 (from_date, to_date, normalized_preset) 으로 해석."""
+    today_kst = datetime.now(KST).date()
+    if preset == "today":
+        return today_kst, today_kst, "today"
+    if preset == "7d":
+        return today_kst - timedelta(days=6), today_kst, "7d"
+    if preset == "30d":
+        return today_kst - timedelta(days=29), today_kst, "30d"
+    if preset == "custom":
+        f = _parse_iso_date(from_str)
+        t = _parse_iso_date(to_str)
+        if f or t:
+            return f, t, "custom"
+        return None, None, "all"
+    return None, None, "all"
+
+
+def _run_cluster_search(q: str, from_date, to_date, limit: int | None = None):
+    """검색 본 쿼리 — 페이지 라우트·API 공통.
+
+    return: (cluster_cardsets, total_count, truncated)
+    """
+    from sqlalchemy import cast, String, or_, func
+
+    pat = f"%{q.lower()}%"
+    keyword_filter = or_(
+        func.lower(Cluster.topic).like(pat),
+        func.lower(Cluster.summary_ko).like(pat),
+        func.lower(cast(Cluster.agreed_facts, String)).like(pat),
+        func.lower(cast(Cluster.divergences, String)).like(pat),
+    )
+    title_match_cids = (
+        db.session.query(Article.cluster_id)
+        .filter(Article.cluster_id.isnot(None))
+        .filter(func.lower(Article.title).like(pat))
+        .distinct()
+        .subquery()
+    )
+    full_filter = or_(
+        keyword_filter,
+        Cluster.id.in_(db.session.query(title_match_cids.c.cluster_id)),
+    )
+
+    base_q = (
+        Cluster.query
+        .filter(full_filter)
+        .filter(Cluster.summary_ko.isnot(None), Cluster.summary_ko != "")
+        .filter(Cluster.hidden_at.is_(None))
+    )
+    if from_date:
+        base_q = base_q.filter(Cluster.first_shown_date >= from_date)
+    if to_date:
+        base_q = base_q.filter(Cluster.first_shown_date <= to_date)
+
+    total = base_q.count()
+    ordered = base_q.order_by(
+        Cluster.first_shown_date.desc().nullslast(),
+        Cluster.importance.desc(),
+        Cluster.id.desc(),
+    )
+    results = ordered.limit(limit).all() if limit else ordered.all()
+    cardsets = [{"cluster": c, "cards": build_cluster_cards(c)} for c in results]
+    return cardsets, total, (limit is not None and total > limit)
+
+
+@bp.route("/search")
+def search_page():
+    """카드뉴스 본문 키워드 검색 + 기간 필터 (풀페이지, 페이저 포함)."""
+    q = (request.args.get("q") or "").strip()
+    preset = request.args.get("preset") or "all"
+    from_str = (request.args.get("from") or "").strip()
+    to_str = (request.args.get("to") or "").strip()
+    from_date, to_date, preset = _resolve_search_preset(preset, from_str, to_str)
+
+    cluster_cardsets = []
+    total = 0
+    total_pages = 1
+    page = 1
+    PAGE_SIZE = 12
+
+    if q:
+        all_cardsets, total, _ = _run_cluster_search(q, from_date, to_date, limit=None)
+        try:
+            page = max(1, int(request.args.get("page", 1)))
+        except (TypeError, ValueError):
+            page = 1
+        total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        if page > total_pages:
+            page = total_pages
+        start = (page - 1) * PAGE_SIZE
+        cluster_cardsets = all_cardsets[start:start + PAGE_SIZE]
+
+    return render_template(
+        "search.html",
+        q=q,
+        preset=preset,
+        from_str=(from_date.isoformat() if (preset == "custom" and from_date) else from_str),
+        to_str=(to_date.isoformat() if (preset == "custom" and to_date) else to_str),
+        from_date=from_date,
+        to_date=to_date,
+        cluster_cardsets=cluster_cardsets,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        today=datetime.now(KST).date(),
+    )
+
+
+@bp.route("/api/search")
+def api_search():
+    """인라인 라이브 검색용 HTML 조각 반환. 상위 INLINE_LIMIT 만 보여줌."""
+    INLINE_LIMIT = 30
+    q = (request.args.get("q") or "").strip()
+    preset = request.args.get("preset") or "all"
+    from_str = (request.args.get("from") or "").strip()
+    to_str = (request.args.get("to") or "").strip()
+    from_date, to_date, preset = _resolve_search_preset(preset, from_str, to_str)
+
+    if not q:
+        return ("", 200, {"Content-Type": "text/html; charset=utf-8"})
+
+    cardsets, total, truncated = _run_cluster_search(q, from_date, to_date, limit=INLINE_LIMIT)
+    html = render_template(
+        "_search_results.html",
+        cluster_cardsets=cardsets,
+        total=total,
+        truncated=truncated,
+        q=q,
+        preset=preset,
+    )
+    return (html, 200, {"Content-Type": "text/html; charset=utf-8"})
+
+
+@bp.route("/saved")
+def saved_page():
+    """저장된 사건 + 논문 모음 페이지."""
+    saved_clusters = (
+        Cluster.query
+        .filter(Cluster.saved_at.isnot(None))
+        .filter(Cluster.summary_ko.isnot(None), Cluster.summary_ko != "")
+        .order_by(Cluster.saved_at.desc())
+        .all()
+    )
+    saved_papers = (
+        Paper.query
+        .filter(Paper.saved_at.isnot(None))
+        .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
+        .order_by(Paper.saved_at.desc())
+        .all()
+    )
+
+    cluster_cardsets = [
+        {"cluster": c, "cards": build_cluster_cards(c)}
+        for c in saved_clusters
+    ]
+    paper_cardsets = [
+        {"paper": p, "cards": build_paper_cards(p)}
+        for p in saved_papers
+    ]
+
+    return render_template(
+        "saved.html",
+        cluster_cardsets=cluster_cardsets,
+        paper_cardsets=paper_cardsets,
+        total_clusters=len(saved_clusters),
+        total_papers=len(saved_papers),
+    )
+
+
+# ---------- Admin (Day 6) ----------
+JOB_LABELS = {
+    "refresh_now": "🔄 지금 새로고침 (전체)",
+    "collect_news": "뉴스 수집 (RSS 9개 폴링)",
+    "fetch_bodies": "본문 페치 (30건)",
+    "collect_papers": "논문 수집 (arXiv + HF)",
+    "embed_and_cluster": "임베딩 + 클러스터링",
+    "summarize_news": "뉴스 요약 (Claude)",
+    "summarize_papers": "논문 요약 (Claude)",
+    "morning_pipeline": "전체 묶음 (논문→임베딩→요약)",
+    "backfill_papers": "📚 논문 백필 (dirty 전부)",
+    "cleanup_old_data": "🗑️ 4일 이상 데이터 삭제",
+}
+
+
+@bp.route("/admin")
+@admin_required
+def admin():
+    from scheduler import get_scheduler
+
+    recent_runs = (
+        JobRun.query.order_by(JobRun.started_at.desc()).limit(30).all()
+    )
+
+    last_success: dict = {}
+    for job_id in JOB_LABELS.keys():
+        last = (
+            JobRun.query.filter_by(job_name=job_id, status="success")
+            .order_by(JobRun.started_at.desc()).first()
+        )
+        if last:
+            last_success[job_id] = last
+
+    sched = get_scheduler()
+    scheduled_jobs = []
+    if sched:
+        for job in sched.get_jobs():
+            if job.id.startswith("manual_"):
+                continue
+            scheduled_jobs.append({
+                "id": job.id,
+                "name": job.name,
+                "next_run": job.next_run_time,
+                "trigger": str(job.trigger),
+            })
+
+    return render_template(
+        "admin.html",
+        recent_runs=recent_runs,
+        last_success=last_success,
+        scheduled_jobs=scheduled_jobs,
+        job_labels=JOB_LABELS,
+        scheduler_active=sched is not None,
+        kst_offset=timedelta(hours=9),
+    )
+
+
+@bp.route("/admin/run/<job_id>", methods=["POST"])
+@admin_required
+def admin_run_job(job_id: str):
+    from flask import current_app
+    from scheduler import trigger_job_now
+    from jobs.pipeline import create_job_run
+
+    if job_id not in JOB_LABELS:
+        return jsonify({"ok": False, "error": "unknown_job"}), 404
+
+    # JobRun 을 queued 상태로 미리 만들고 ID 확보 → 프론트가 정확한 row 폴링
+    pre_run_id = create_job_run(job_id, triggered_by="manual")
+
+    # 백그라운드로 잡 실행 (run_id 전달)
+    trigger_job_now(job_id, current_app._get_current_object(), run_id=pre_run_id)
+
+    return jsonify({
+        "ok": True,
+        "job_id": job_id,
+        "run_id": pre_run_id,
+    })
+
+
+@bp.route("/api/job/<job_id>/latest", methods=["GET"])
+def api_job_latest(job_id: str):
+    """가장 최근 JobRun 상태 조회 (폴링용)."""
+    if job_id not in JOB_LABELS:
+        return jsonify({"ok": False, "error": "unknown_job"}), 404
+
+    run = (
+        JobRun.query
+        .filter_by(job_name=job_id)
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    if not run:
+        return jsonify({"ok": True, "run": None})
+
+    duration = None
+    if run.finished_at and run.started_at:
+        duration = round((run.finished_at - run.started_at).total_seconds(), 1)
+
+    return jsonify({
+        "ok": True,
+        "run": {
+            "id": run.id,
+            "status": run.status,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            "duration": duration,
+            "stats": run.stats or {},
+            "error": (run.error[:300] if run.error else None),
+            "triggered_by": run.triggered_by,
+        },
+    })
+
+
+@bp.route("/api/job/run/<int:run_id>", methods=["GET"])
+def api_job_run(run_id: int):
+    """특정 run_id 상태 조회."""
+    run = JobRun.query.get(run_id)
+    if not run:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    duration = None
+    if run.finished_at and run.started_at:
+        duration = round((run.finished_at - run.started_at).total_seconds(), 1)
+
+    return jsonify({
+        "ok": True,
+        "run": {
+            "id": run.id,
+            "job_name": run.job_name,
+            "status": run.status,
+            "duration": duration,
+            "stats": run.stats or {},
+            "error": (run.error[:300] if run.error else None),
+        },
+    })
+
+
+# ---------- Glossary ----------
+@bp.route("/api/glossary", methods=["GET"])
+def api_glossary_all():
+    """전체 글로서리 (사이드바 초기 로딩)."""
+    from services.glossary import get_all_terms
+    return jsonify({"ok": True, "terms": get_all_terms()})
+
+
+@bp.route("/glossary", methods=["GET"])
+def glossary_page():
+    """글로서리 전체 페이지 (카테고리별)."""
+    from models import GlossaryTerm
+    terms = GlossaryTerm.query.order_by(GlossaryTerm.category, GlossaryTerm.term).all()
+    by_cat = {}
+    for t in terms:
+        by_cat.setdefault(t.category, []).append(t)
+    return render_template("glossary.html", terms_by_category=by_cat, total=len(terms))

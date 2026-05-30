@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}DAILY SYNC{% endblock %}</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    /* 컨테이너 폭 인라인 강제 — 외부 CSS 충돌 방지 */
+    html { overflow-y: scroll; }
+    body { margin: 0; padding: 0; }
+    .ds-container {
+      width: 100% !important;
+      max-width: 1380px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      padding: 2rem 1.5rem 5rem !important;
+      box-sizing: border-box !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="ds-container">
+    {% block content %}{% endblock %}
+    <footer>
+      DAILY SYNC · 본인 전용 다이제스트 · {{ now_year }}
+      · <a href="{{ url_for('web.admin') }}">admin</a>
+    </footer>
+  </div>
+</body>
+</html>

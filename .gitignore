@@ -1,0 +1,37 @@
+# ===== 비밀 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+*.local
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+*.egg-info/
+
+# ===== ML 모델 캐시 (hf_cache = 약 11GB, 절대 커밋 금지) =====
+hf_cache/
+.cache/
+transformers_cache/
+sentence_transformers/
+
+# ===== 런타임 데이터/DB (init_db.py 로 생성) =====
+data/
+
+# ===== 로그 =====
+*.log
+*.log.prev
+
+# ===== 사고로 생긴 파일/임시 압축 =====
+/-w
+*.zip
+
+# ===== OS/에디터 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

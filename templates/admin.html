@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% block title %}Admin · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('web.index') }}" class="back-link">← 다이제스트로</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · ADMIN</div>
+<h1 class="page-title" style="font-size: 22px;">잡 상태 · 스케줄</h1>
+
+<div class="page-meta" style="margin-bottom: 1.5rem;">
+  스케줄러 상태:
+  {% if scheduler_active %}
+    <span style="color: #34d399;">● 가동 중</span>
+  {% else %}
+    <span style="color: var(--danger);">● 비활성</span>
+  {% endif %}
+  <button onclick="window.location.reload()" style="margin-left: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; color: var(--text-muted);">
+    ↻ 페이지 새로고침
+  </button>
+</div>
+
+<div class="detail-section">
+  <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 0 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">등록된 잡 · 수동 실행</h2>
+  <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); border-radius: 12px; overflow: hidden;">
+    <thead>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">잡</th>
+        <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">다음 실행</th>
+        <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">마지막 성공</th>
+        <th style="text-align: right; padding: 10px 14px; color: var(--text-dim); font-weight: 600; min-width: 180px;">실행</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job_id, label in job_labels.items() %}
+      {% set scheduled = (scheduled_jobs|selectattr('id', 'eq', job_id+'_hourly')|list + scheduled_jobs|selectattr('id', 'eq', job_id)|list)|first %}
+      <tr style="border-bottom: 1px solid var(--border-soft);" data-job-id="{{ job_id }}">
+        <td style="padding: 12px 14px;">
+          <div style="font-weight: 600; color: var(--text);">{{ label }}</div>
+          <div style="font-size: 11px; color: var(--text-dim); font-family: monospace;">{{ job_id }}</div>
+        </td>
+        <td style="padding: 12px 14px; font-size: 12px; color: var(--text-muted);">
+          {% if scheduled %}
+            {{ scheduled.next_run.strftime('%m-%d %H:%M') if scheduled.next_run else '대기' }}
+          {% else %}
+            <span style="color: var(--text-faint);">묶음/수동 전용</span>
+          {% endif %}
+        </td>
+        <td style="padding: 12px 14px; font-size: 12px;" class="last-success-cell">
+          {% if last_success.get(job_id) %}
+            {% set ls = last_success[job_id] %}
+            {# UTC datetime → KST 표시 (DB 저장은 utcnow() 라 +9시간 보정) #}
+            {% set kst_time = ls.started_at + kst_offset %}
+            <span style="color: var(--text-muted);">{{ kst_time.strftime('%m-%d %H:%M') }} KST</span>
+            <span style="color: var(--text-faint); font-size: 10.5px; margin-left: 4px;">
+              ({{ '수동' if ls.triggered_by == 'manual' else '자동' }})
+            </span>
+            {% if ls.stats %}
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+                {% for k, v in ls.stats.items() %}{{ k }}={{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
+              </div>
+            {% endif %}
+          {% else %}
+            <span style="color: var(--text-faint);">없음</span>
+          {% endif %}
+        </td>
+        <td style="text-align: right; padding: 12px 14px;">
+          <button class="run-btn" data-job="{{ job_id }}" onclick="runJob('{{ job_id }}')"
+                  style="background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600; min-width: 110px;">
+            실행 ▶
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="active-jobs-panel" style="display: none; margin: 1.5rem 0; padding: 1rem 1.25rem; background: var(--accent-bg); border: 1px solid var(--accent-dim); border-radius: 12px;">
+  <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; letter-spacing: 0.05em;">⚙ 실행 중인 잡</div>
+  <div id="active-jobs-list" style="font-size: 12px; color: var(--text-body);"></div>
+</div>
+
+<div class="detail-section">
+  <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 1.5rem 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">최근 실행 이력</h2>
+  <div style="font-size: 12px;">
+    {% if not recent_runs %}
+      <p style="color: var(--text-dim); padding: 1rem 0;">아직 실행된 잡이 없습니다.</p>
+    {% else %}
+      {% for r in recent_runs %}
+      <div style="padding: 8px 0; border-bottom: 1px solid var(--border-soft); display: flex; align-items: flex-start; gap: 12px;">
+        <span style="
+          display: inline-block;
+          width: 8px; height: 8px; border-radius: 50%;
+          margin-top: 6px;
+          background: {% if r.status == 'success' %}#34d399{% elif r.status == 'failed' %}var(--danger){% else %}var(--amber){% endif %};
+          flex-shrink: 0;
+        "></span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; gap: 8px; align-items: baseline;">
+            <span style="font-weight: 600; color: var(--text);">{{ job_labels.get(r.job_name, r.job_name) }}</span>
+            <span style="color: var(--text-dim); font-size: 11px;">{{ (r.started_at + kst_offset).strftime('%m-%d %H:%M:%S') }} KST</span>
+            {% if r.triggered_by == 'manual' %}
+              <span style="background: var(--bg-soft); color: var(--text-muted); padding: 1px 6px; border-radius: 3px; font-size: 10px;">manual</span>
+            {% endif %}
+            {% if r.finished_at %}
+              {% set dur = (r.finished_at - r.started_at).total_seconds() %}
+              <span style="color: var(--text-dim); font-size: 11px;">{{ '%.1f' % dur }}s</span>
+            {% endif %}
+          </div>
+          {% if r.stats %}
+          <div style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">
+            {% for k, v in r.stats.items() %}{{ k }}={{ v }}{% if not loop.last %} · {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+          {% if r.error %}
+          <div style="color: var(--danger); font-size: 11px; margin-top: 4px; font-family: monospace; white-space: pre-wrap; max-height: 80px; overflow: hidden;">{{ r.error[:300] }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+
+<div style="margin-top: 2rem; padding: 1rem 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 12px; color: var(--text-muted);">
+  <strong style="color: var(--text);">📌 운영 메모</strong><br>
+  <ul style="margin: 8px 0 0; padding-left: 20px; line-height: 1.7;">
+    <li>스케줄러는 Flask 앱이 실행 중일 때만 동작 (PC 켜져 있어야 함)</li>
+    <li>매일 06:30~07:10 자동 파이프라인 → 08:00 확인용으로 준비</li>
+    <li>수동 실행은 백그라운드에서 처리됨 — 상태 변화는 위 버튼에서 자동 표시</li>
+    <li>여러 잡을 동시에 실행할 수 있으나, Claude/임베딩은 순차 처리가 안정적</li>
+  </ul>
+</div>
+
+<style>
+.run-btn.starting,
+.run-btn.running {
+  background: #fff7e0 !important;
+  color: #b08968 !important;
+  border-color: #d4b88a !important;
+  cursor: not-allowed;
+}
+.run-btn.success {
+  background: #dfe9da !important;
+  color: #4a6041 !important;
+  border-color: #8a9b76 !important;
+}
+.run-btn.failed {
+  background: #f4d4d0 !important;
+  color: #c44 !important;
+  border-color: #d49a92 !important;
+}
+.spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.active-job-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+.go-digest-btn {
+  display: inline-block;
+  margin-left: 8px;
+  background: var(--bg-dark);
+  color: #f5e8c8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.go-digest-btn:hover {
+  background: var(--text);
+  color: white;
+}
+</style>
+
+<script>
+// 추적 중인 잡: { jobId: { runId, label, startedAt } }
+const tracking = {};
+
+const JOB_LABELS = {
+  {% for jid, lab in job_labels.items() %}
+  "{{ jid }}": "{{ lab }}",
+  {% endfor %}
+};
+
+async function runJob(jobId) {
+  const btn = document.querySelector(`.run-btn[data-job="${jobId}"]`);
+  if (!btn || btn.classList.contains('running') || btn.classList.contains('starting')) return;
+
+  // 1. 시작 중 상태
+  btn.classList.add('starting');
+  btn.innerHTML = '<span class="spinner"></span>시작 중...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`/admin/run/${jobId}`, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'failed');
+
+    // 2. 실행 중 상태
+    btn.classList.remove('starting');
+    btn.classList.add('running');
+    btn.innerHTML = '<span class="spinner"></span>실행 중...';
+
+    tracking[jobId] = {
+      runId: data.run_id,
+      startedAt: Date.now(),
+      label: JOB_LABELS[jobId] || jobId,
+    };
+    updateActivePanel();
+    pollJob(jobId);
+  } catch (e) {
+    btn.classList.remove('starting', 'running');
+    btn.classList.add('failed');
+    btn.innerHTML = '✗ 시작 실패';
+    setTimeout(() => resetBtn(btn), 4000);
+    console.error(e);
+  }
+}
+
+async function pollJob(jobId) {
+  const t = tracking[jobId];
+  if (!t) return;
+
+  try {
+    // run_id가 있으면 그걸로 조회, 없으면 잡 이름으로 최근 것
+    const url = t.runId
+      ? `/api/job/run/${t.runId}`
+      : `/api/job/${jobId}/latest`;
+    const r = await fetch(url);
+    const data = await r.json();
+
+    if (data.ok && data.run) {
+      const run = data.run;
+      const btn = document.querySelector(`.run-btn[data-job="${jobId}"]`);
+
+      if (run.status === 'success') {
+        btn.classList.remove('running');
+        btn.classList.add('success');
+        const dur = run.duration || '?';
+        btn.innerHTML = `✓ 완료 (${dur}초)`;
+
+        // 통계
+        const statsStr = Object.entries(run.stats || {})
+          .map(([k, v]) => `${k}=${v}`).join(' · ');
+        showFinishedNotice(jobId, t.label, 'success', dur, statsStr);
+
+        delete tracking[jobId];
+        updateActivePanel();
+        setTimeout(() => resetBtn(btn), 6000);
+        return;
+      } else if (run.status === 'failed') {
+        btn.classList.remove('running');
+        btn.classList.add('failed');
+        btn.innerHTML = '✗ 실패';
+        showFinishedNotice(jobId, t.label, 'failed', null, run.error || '');
+        delete tracking[jobId];
+        updateActivePanel();
+        setTimeout(() => resetBtn(btn), 8000);
+        return;
+      }
+
+      // 아직 실행 중 — 경과 시간 업데이트
+      const elapsed = Math.round((Date.now() - t.startedAt) / 1000);
+      btn.innerHTML = `<span class="spinner"></span>실행 중 ${elapsed}초`;
+    }
+  } catch (e) {
+    console.error('poll error:', e);
+  }
+
+  // 5초마다 폴링 (3초는 도배 심함)
+  setTimeout(() => pollJob(jobId), 5000);
+}
+
+function resetBtn(btn) {
+  btn.classList.remove('starting', 'running', 'success', 'failed');
+  btn.innerHTML = '실행 ▶';
+  btn.disabled = false;
+}
+
+function updateActivePanel() {
+  const panel = document.getElementById('active-jobs-panel');
+  const list = document.getElementById('active-jobs-list');
+  const ids = Object.keys(tracking);
+  if (ids.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  list.innerHTML = ids.map(id => {
+    const t = tracking[id];
+    const elapsed = Math.round((Date.now() - t.startedAt) / 1000);
+    return `<div class="active-job-item"><span><span class="spinner"></span> ${t.label}</span><span style="color: var(--text-muted);">${elapsed}초 경과</span></div>`;
+  }).join('');
+  setTimeout(updateActivePanel, 1000);
+}
+
+function showFinishedNotice(jobId, label, status, duration, info) {
+  // 화면 하단에 토스트
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed; bottom: 24px; right: 24px;
+    background: ${status === 'success' ? 'var(--bg-dark)' : '#7a2a2a'};
+    color: ${status === 'success' ? '#f5e8c8' : 'white'};
+    padding: 14px 18px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    font-size: 13px;
+    max-width: 360px;
+    z-index: 1000;
+  `;
+  let html = `<div style="font-weight: 700; margin-bottom: 4px;">${status === 'success' ? '✓' : '✗'} ${label}</div>`;
+  if (duration) html += `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px;">${duration}초 소요</div>`;
+  if (info) html += `<div style="font-size: 11px; opacity: 0.8;">${info.substring(0, 200)}</div>`;
+  if (status === 'success' && ['summarize_news', 'summarize_papers', 'morning_pipeline'].includes(jobId)) {
+    html += `<a class="go-digest-btn" href="/">다이제스트 확인 →</a>`;
+  }
+  toast.innerHTML = html;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.4s';
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 400);
+  }, 6000);
+}
+</script>
+
+{% endblock %}

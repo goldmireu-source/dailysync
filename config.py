@@ -1,0 +1,61 @@
+"""Application configuration loaded from environment variables (.env)."""
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+
+class Config:
+    # Flask
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-me")
+
+    # Database
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        f"sqlite:///{BASE_DIR / 'data' / 'app.db'}",
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # --- 로컬 임베딩 (BGE-M3) ---
+    LOCAL_EMBEDDING_MODEL = os.getenv("LOCAL_EMBEDDING_MODEL", "BAAI/bge-m3")
+    EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE") or None
+    EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "16"))
+
+    # --- Claude API (요약 메인) ---
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    # Haiku 4.5: 한국어 강함, $1/M in, $5/M out, 분당 50회+
+    CLAUDE_SUMMARY_MODEL = os.getenv("CLAUDE_SUMMARY_MODEL", "claude-haiku-4-5")
+
+    # --- Gemini API (예비, 현재 비사용) ---
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_SUMMARY_MODEL = os.getenv("GEMINI_SUMMARY_MODEL", "gemini-2.5-flash")
+
+    # --- (선택) Voyage AI ---
+    VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
+    VOYAGE_EMBEDDING_MODEL = os.getenv("VOYAGE_EMBEDDING_MODEL", "voyage-3.5-lite")
+
+    # Gmail SMTP
+    GMAIL_USER = os.getenv("GMAIL_USER", "")
+    GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+    GMAIL_SENDER_NAME = os.getenv("GMAIL_SENDER_NAME", "AI News Digest")
+
+    # Clustering
+    CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.80"))
+    CLUSTER_TIME_WINDOW_HOURS = int(os.getenv("CLUSTER_TIME_WINDOW_HOURS", "72"))
+
+    # 논문
+    PAPER_RECENT_DAYS = int(os.getenv("PAPER_RECENT_DAYS", "3"))
+    DAILY_PAPER_PICK = int(os.getenv("DAILY_PAPER_PICK", "5"))
+
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
+
+    # --- 관리자 권한 ---
+    # .env 에 ADMIN_TOKEN=xxx 설정. 비어 있으면 (개발 모드) 모두가 admin.
+    ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+
+    # --- 카드뉴스 스튜디오 단축 링크 ---
+    # 데일리싱크 카드의 "📐 카드뉴스" 버튼이 여는 URL.
+    # 기본: 로컬 cardnews_bot 서버. 다른 호스트면 .env 에 CARDNEWS_BOT_URL=https://... 설정.
+    CARDNEWS_BOT_URL = os.getenv("CARDNEWS_BOT_URL", "http://localhost:5050")

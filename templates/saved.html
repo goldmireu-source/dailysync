@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% from "_slides.html" import render_carousel %}
+
+{% block title %}저장됨 · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="/" class="back-link">← 다이제스트로</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · SAVED</div>
+<h1 class="page-title">저장된 항목</h1>
+<div class="page-meta">
+  <span class="stats">
+    {% if total_clusters > 0 or total_papers > 0 %}
+      사건 {{ total_clusters }}개 · 논문 {{ total_papers }}편
+    {% else %}
+      저장된 항목이 없습니다
+    {% endif %}
+  </span>
+</div>
+
+<div class="toolbar">
+  <a href="/search" class="toolbar-btn">🔍 검색</a>
+  {% if total_clusters > 0 or total_papers > 0 %}
+    <button class="toolbar-btn danger" onclick="clearAllSaved()">↻ 전체 비우기</button>
+  {% endif %}
+</div>
+
+{% if total_clusters == 0 and total_papers == 0 %}
+<div class="empty">
+  아직 저장된 항목이 없습니다.<br>
+  <span style="font-size: 12px; opacity: 0.6;">사건 또는 논문 카드 우상단의 ☆ 버튼을 눌러 저장하세요.</span>
+</div>
+{% endif %}
+
+{% if cluster_cardsets %}
+<div class="section-heading">🗞 저장된 사건 <span class="count">· {{ total_clusters }}</span></div>
+<div class="carousel-grid">
+  {% for item in cluster_cardsets %}
+    {% set c = item.cluster %}
+    {% set members = c.articles.all() %}
+    {% set src_count = members|map(attribute='source_id')|unique|list|length %}
+    {% set caption_meta = {
+      'topic': c.topic,
+      'meta': (src_count|string + '매체') if src_count >= 2 else (members[0].source.name if members else '')
+    } %}
+    {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, false, caption_meta, loop.index, true) }}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if paper_cardsets %}
+<div class="section-heading" style="margin-top: 2.5rem;">📄 저장된 논문 <span class="count">· {{ total_papers }}</span></div>
+<div class="carousel-grid">
+  {% for item in paper_cardsets %}
+    {% set p = item.paper %}
+    {% set caption_meta = {
+      'topic': p.title_ko or p.title,
+      'meta': ('⭐ ' ~ p.hf_upvotes) if (p.hf_upvotes and p.hf_upvotes > 0) else 'arXiv'
+    } %}
+    {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, false, caption_meta, loop.index, true) }}
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ===== 카드 확대 모달 ===== #}
+<div class="card-modal-overlay" id="card-modal-overlay" onclick="closeCardModal(event)">
+  <div class="card-modal" onclick="event.stopPropagation()">
+    <div class="card-modal-head">
+      <span class="label" id="card-modal-label">카드 상세</span>
+      <button class="card-modal-close" onclick="closeCardModal()" title="닫기 (ESC)">×</button>
+    </div>
+    <div class="card-modal-body" id="card-modal-body"></div>
+    <div class="card-modal-caption">
+      <span class="topic" id="card-modal-topic"></span>
+      <span class="meta" id="card-modal-meta"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 캐러셀 + 모달 ==========
+function initCarousel(carousel) {
+  const stage = carousel.querySelector('.carousel-stage');
+  const slides = carousel.querySelectorAll('.slide');
+  const dots = carousel.querySelectorAll('.slide-dots .dot');
+  const prevBtn = carousel.querySelector('.slide-nav.prev');
+  const nextBtn = carousel.querySelector('.slide-nav.next');
+  const total = slides.length;
+  let current = 0;
+
+  function show(idx) {
+    if (idx < 0 || idx >= total) return;
+    current = idx;
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    const curSlide = slides[idx];
+    stage.dataset.cover = (curSlide.classList.contains('cover') || curSlide.classList.contains('paper-cover')) ? '1' : '0';
+    if (prevBtn) prevBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === total - 1;
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current - 1); });
+  if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current + 1); });
+  dots.forEach((d, i) => d.addEventListener('click', (e) => { e.stopPropagation(); show(i); }));
+
+  let touchStartX = 0;
+  stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) show(current + 1);
+      else show(current - 1);
+    }
+  });
+}
+
+(function() {
+  document.querySelectorAll('.carousel').forEach(initCarousel);
+
+  // 카드 클릭 → 모달
+  document.querySelectorAll('.carousel').forEach(function(carousel) {
+    const stage = carousel.querySelector('.carousel-stage');
+    if (!stage) return;
+    stage.addEventListener('click', function(e) {
+      const target = e.target;
+      if (target.closest('.card-action-btn')) return;
+      if (target.closest('.slide-nav')) return;
+      if (target.closest('.slide-dots')) return;
+      if (target.closest('a')) return;
+      openCardModal(carousel);
+    });
+  });
+})();
+
+function openCardModal(carousel) {
+  const overlay = document.getElementById('card-modal-overlay');
+  const body = document.getElementById('card-modal-body');
+  const label = document.getElementById('card-modal-label');
+  const topicEl = document.getElementById('card-modal-topic');
+  const metaEl = document.getElementById('card-modal-meta');
+
+  const caption = carousel.querySelector('.carousel-caption');
+  if (caption) {
+    const topic = caption.querySelector('.topic-link');
+    const meta = caption.querySelector('.meta-right');
+    topicEl.textContent = topic ? topic.textContent : '';
+    metaEl.textContent = meta ? meta.textContent : '';
+  }
+  const isCluster = carousel.hasAttribute('data-cluster-id');
+  label.textContent = isCluster ? '🗞 뉴스 상세' : '📄 논문 상세';
+
+  const stage = carousel.querySelector('.carousel-stage');
+  const cloned = stage.cloneNode(true);
+  cloned.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('active', i === 0));
+  cloned.querySelectorAll('.slide-dots .dot').forEach((d, i) => d.classList.toggle('active', i === 0));
+  const firstSlide = cloned.querySelector('.slide');
+  if (firstSlide) {
+    cloned.dataset.cover = (firstSlide.classList.contains('cover') || firstSlide.classList.contains('paper-cover')) ? '1' : '0';
+  }
+  cloned.style.cursor = 'default';
+
+  body.innerHTML = '';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'carousel';
+  wrapper.appendChild(cloned);
+  body.appendChild(wrapper);
+  initCarousel(wrapper);
+
+  document.body.dataset.scrollY = String(window.scrollY);
+  document.body.style.top = `-${window.scrollY}px`;
+
+  overlay.classList.add('visible');
+  document.body.classList.add('modal-open');
+  if (!window.history.state || !window.history.state.cardModal) {
+    window.history.pushState({ cardModal: true }, '', window.location.href);
+  }
+}
+
+function closeCardModal(e) {
+  if (e && e.target && !e.target.classList.contains('card-modal-overlay')) {
+    if (e.target.closest && e.target.closest('.card-modal-close')) {
+      // 통과
+    } else if (e.target.closest && e.target.closest('.card-modal')) {
+      return;
+    }
+  }
+  const overlay = document.getElementById('card-modal-overlay');
+  if (!overlay.classList.contains('visible')) return;
+  overlay.classList.remove('visible');
+
+  const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+  document.body.classList.remove('modal-open');
+  document.body.style.top = '';
+  window.scrollTo(0, savedY);
+
+  if (window.history.state && window.history.state.cardModal) {
+    window.history.back();
+  }
+}
+
+window.addEventListener('popstate', function(e) {
+  const overlay = document.getElementById('card-modal-overlay');
+  if (overlay && overlay.classList.contains('visible')) {
+    overlay.classList.remove('visible');
+    const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, savedY);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('card-modal-overlay');
+    if (overlay && overlay.classList.contains('visible')) closeCardModal();
+  }
+});
+
+function vanish(el) {
+  el.classList.add('card-vanishing');
+  setTimeout(() => { el.remove(); }, 250);
+}
+
+async function unsaveItem(kind, id) {
+  const sel = `[data-${kind}-id="${id}"]`;
+  const el = document.querySelector(sel);
+  try {
+    const r = await fetch(`/api/${kind}/${id}/unsave`, { method: 'POST' });
+    if (r.ok && el) {
+      vanish(el);
+      setTimeout(() => {
+        // 카드가 다 사라지면 페이지 새로고침
+        if (document.querySelectorAll('.carousel').length === 0) {
+          window.location.reload();
+        }
+      }, 300);
+    }
+  } catch (e) { console.error(e); }
+}
+
+// saved 페이지에선 hide/show는 안 씀 (호환용 stub)
+function hideItem() {}
+function showItem() {}
+function saveItem() {}
+
+async function clearAllSaved() {
+  if (!confirm('저장된 모든 항목을 비우시겠습니까?')) return;
+  try {
+    const r = await fetch('/api/clear-saved', { method: 'POST' });
+    if (r.ok) {
+      const data = await r.json();
+      alert(`전체 비움: 사건 ${data.clusters}개, 논문 ${data.papers}편`);
+      window.location.href = '/';
+    }
+  } catch (e) { console.error(e); }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,253 @@
+{#
+  슬라이드 카드 렌더링 매크로.
+#}
+
+{% macro _cat_to_label(categories) %}
+  {%- if not categories -%}
+    일반
+  {%- else -%}
+    {%- set parts = [] -%}
+    {%- for c in categories[:2] -%}
+      {%- if c in ['정책/규제', '산업/기업', '연구/모델', '윤리/사회'] -%}{%- set _ = parts.append(c) -%}{%- endif -%}
+    {%- endfor -%}
+    {{- parts|join(' · ') or '일반' -}}
+  {%- endif -%}
+{% endmacro %}
+
+
+{% macro render_slide(card, idx, total, seq_num=0) %}
+{% set is_active = idx == 0 %}
+
+{% if card.type == 'cover' %}
+<div class="slide cover {{ card.category }} {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="watermark">{{ '%02d' % seq_num }}</div>
+
+  <div class="cover-top">
+    <span class="cat-label">{{ _cat_to_label(card.categories) }}</span>
+    {# 액션 버튼은 .card-actions 가 carousel-stage 안에 absolute 로 박힘 #}
+  </div>
+
+  <div class="cover-stars-row">
+    <span class="stars">{{ '★' * card.importance }}{{ '☆' * (5 - card.importance) }}</span>
+  </div>
+
+  <div class="cover-title">
+    <h1>{{ card.title }}</h1>
+  </div>
+
+  <div class="cover-foot">
+    <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
+      <span class="source-name" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ card.sources[0] if card.sources else '' }}{% if card.sources|length > 1 %} +{{ card.sources|length - 1 }}{% endif %}</span>
+      {% if card.n_sources >= 2 %}
+        <span class="cross-pill">교차검증</span>
+      {% endif %}
+    </div>
+    <span class="date">{{ card.date_str }}</span>
+  </div>
+</div>
+
+{% elif card.type == 'facts' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 핵심 사실</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+  <div class="fact-items">
+    {% for fact in card.facts %}
+    <div class="fact-row">
+      <p>{{ fact }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% elif card.type == 'detail' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 디테일</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+
+  {% if card.quote %}
+  <div class="quote-large">
+    <div class="mark">"</div>
+    <p>{{ card.quote.text }}</p>
+    {% if card.quote.attr %}<p class="attr">— {{ card.quote.attr }}</p>{% endif %}
+  </div>
+  {% else %}
+  <h2>{{ card.title }}</h2>
+  {% endif %}
+
+  <p class="body-text">{{ card.summary }}</p>
+</div>
+
+{% elif card.type == 'sources' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 매체별</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+
+  <div class="src-grid">
+    {% for src in card.sources_detail %}
+    <div class="src-card-mini {{ card.category }}">
+      <div class="head">
+        <span class="src-pill">{{ src.name }}</span>
+        {% if src.time %}<span class="src-time">{{ src.time }} 보도</span>{% endif %}
+      </div>
+      <p>{{ src.claim }}</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if card.links %}
+  <div class="links-mini">
+    <div class="label">📎 원문</div>
+    {% for link in card.links %}
+      <a href="{{ link.url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ {{ link.name }} ↗</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% elif card.type == 'links' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 더 알아보기</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+
+  <p class="body-text">기사의 원문을 직접 확인하실 수 있습니다.</p>
+
+  <div class="links-mini" style="margin-top: 12px;">
+    <div class="label">📎 원문 보기</div>
+    {% for link in card.links %}
+      <a href="{{ link.url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ {{ link.name }} ↗</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% elif card.type == 'paper_cover' %}
+<div class="slide paper-cover {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="watermark">{{ '%02d' % seq_num }}</div>
+
+  <div class="cover-top">
+    <span class="paper-tag">논문</span>
+    {# 액션 버튼이 .card-actions 로 들어감 #}
+  </div>
+
+  <div class="cover-stars-row">
+    {% if card.upvotes and card.upvotes > 0 %}
+      <span class="upvotes-pill">⭐ {{ card.upvotes }}</span>
+    {% endif %}
+  </div>
+
+  <div class="paper-mid">
+    {% if card.title_ko %}
+      <h1>{{ card.title_ko }}</h1>
+      <div class="paper-subtitle">{{ card.title }}</div>
+    {% else %}
+      <h1>{{ card.title }}</h1>
+    {% endif %}
+    <div class="authors">{{ card.authors }}</div>
+  </div>
+
+  <div class="cover-foot">
+    <span>{% if card.categories %}{{ card.categories|join(' · ') }}{% else %}arXiv{% endif %}</span>
+    <span>SWIPE →</span>
+  </div>
+</div>
+
+{% elif card.type == 'paper_section' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · {{ card.label }}</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+
+  <p class="body-text">{{ card.body }}</p>
+  {% if card.extra %}
+  <div class="quote-large" style="margin-top: 8px;">
+    <div class="mark">!</div>
+    <p style="font-style: normal;">{{ card.extra }}</p>
+    <p class="attr">— 의의</p>
+  </div>
+  {% endif %}
+</div>
+
+{% elif card.type == 'paper_links' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 원문</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+
+  <p class="body-text">아래 링크로 원문을 직접 확인하실 수 있습니다.</p>
+
+  <div class="links-mini">
+    <div class="label">📎 원문 링크</div>
+    {% if card.html_url %}<a href="{{ card.html_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ arXiv HTML ↗</a>{% endif %}
+    {% if card.pdf_url %}<a href="{{ card.pdf_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ PDF ↗</a>{% endif %}
+    {% if card.source_type == 'huggingface' %}<a href="https://huggingface.co/papers/{{ card.arxiv_id }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ HF Daily ↗</a>{% endif %}
+  </div>
+</div>
+
+{% endif %}
+{% endmacro %}
+
+
+{% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false) %}
+<div class="carousel" id="car-{{ cid }}" data-{{ hide_kind }}-id="{{ hide_id }}">
+  <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover'] %}1{% else %}0{% endif %}">
+    {# Jinja 매크로는 호출 템플릿의 context 변수(is_admin)에 접근 불가.
+       Flask 의 g 글로벌은 매크로 안에서도 보이므로 g.is_admin 사용.
+       routes.py 의 inject_admin_flag before_request 에서 g.is_admin 세팅. #}
+    {% if g.is_admin %}
+    <div class="card-actions">
+      <button class="card-action-btn save-btn {% if is_saved %}saved{% endif %}"
+              onclick="event.stopPropagation(); {% if is_saved %}unsaveItem('{{ hide_kind }}', {{ hide_id }}){% else %}saveItem('{{ hide_kind }}', {{ hide_id }}){% endif %}"
+              title="{% if is_saved %}저장 해제{% else %}저장{% endif %}">
+        {% if is_saved %}★{% else %}☆{% endif %}
+      </button>
+      <button class="card-action-btn hide-btn {% if show_hidden %}show-btn{% endif %}"
+              onclick="event.stopPropagation(); {% if show_hidden %}showItem('{{ hide_kind }}', {{ hide_id }}){% else %}hideItem('{{ hide_kind }}', {{ hide_id }}){% endif %}"
+              title="{% if show_hidden %}복구{% else %}숨기기{% endif %}">
+        {% if show_hidden %}↻{% else %}×{% endif %}
+      </button>
+      {# cluster 만 — paper 는 cardnews 변환 대상 아님 #}
+      {% if hide_kind == 'cluster' %}
+      <a class="card-action-btn cardnews-btn"
+         href="{{ cardnews_bot_url }}/auto?prefill_cluster={{ hide_id }}"
+         target="_blank" rel="noopener"
+         onclick="event.stopPropagation();"
+         title="이 클러스터로 카드뉴스 생성">📐</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% for card in cards %}
+      {{ render_slide(card, loop.index0, cards|length, seq_num) }}
+    {% endfor %}
+
+    {% if cards|length > 1 %}
+    <button class="slide-nav prev" data-action="prev" disabled>‹</button>
+    <button class="slide-nav next" data-action="next">›</button>
+    <div class="slide-dots">
+      {% for i in range(cards|length) %}
+        <span class="dot {% if i == 0 %}active{% endif %}" data-idx="{{ i }}"></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="carousel-caption">
+    <a class="topic-link" href="/{{ 'cluster' if kind == 'cluster' else 'paper' }}/{{ hide_id }}" title="{{ caption_meta.topic }}">{{ caption_meta.topic }}</a>
+    <span class="meta-right">{{ caption_meta.meta }}</span>
+  </div>
+</div>
+{% endmacro %}

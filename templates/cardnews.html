@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_slides.html" import render_slide %}
+{% block title %}{% if kind == 'cluster' %}{{ cluster.topic[:50] }}{% else %}{{ paper.title[:50] }}{% endif %} · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('web.index') }}" class="back-link">← 다이제스트로</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · {% if kind == 'cluster' %}CLUSTER #{{ cluster.id }}{% else %}PAPER {{ paper.arxiv_id }}{% endif %}</div>
+
+<div class="big-carousel">
+  <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover'] %}1{% else %}0{% endif %}" style="max-width: 480px; margin: 1rem auto;">
+    {% for card in cards %}
+      {{ render_slide(card, loop.index0, cards|length) }}
+    {% endfor %}
+
+    {% if cards|length > 1 %}
+    <button class="slide-nav prev" data-action="prev" disabled>‹</button>
+    <button class="slide-nav next" data-action="next">›</button>
+    <div class="slide-dots">
+      {% for i in range(cards|length) %}
+        <span class="dot {% if i == 0 %}active{% endif %}" data-idx="{{ i }}"></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div style="text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px;">
+    ← / → 키, 좌우 화살표, 또는 좌우 스와이프로 슬라이드
+  </div>
+</div>
+
+<style>
+.big-carousel .slide-nav {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  opacity: 1;
+}
+.big-carousel .carousel-stage {
+  box-shadow: 0 10px 32px rgba(26, 18, 8, 0.1);
+}
+.big-carousel .slide.cover h1 {
+  font-size: 26px;
+}
+.big-carousel .slide.body h2 {
+  font-size: 19px;
+}
+.big-carousel .slide.body h2,
+.big-carousel .slide .body-text,
+.big-carousel .slide .fact-item p,
+.big-carousel .slide .quote-mini p {
+  font-size: 14px;
+}
+.big-carousel .slide .fact-item .num {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+.big-carousel .slide.paper-cover h1 {
+  font-size: 22px;
+}
+</style>
+
+<script>
+(function() {
+  const stage = document.querySelector('.big-carousel .carousel-stage');
+  if (!stage) return;
+  const slides = stage.querySelectorAll('.slide');
+  const dots = stage.querySelectorAll('.slide-dots .dot');
+  const prevBtn = stage.querySelector('.slide-nav.prev');
+  const nextBtn = stage.querySelector('.slide-nav.next');
+  const total = slides.length;
+  let current = 0;
+
+  function show(idx) {
+    if (idx < 0 || idx >= total) return;
+    current = idx;
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    const curSlide = slides[idx];
+    stage.dataset.cover = (curSlide.classList.contains('cover') || curSlide.classList.contains('paper-cover')) ? '1' : '0';
+    if (prevBtn) prevBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === total - 1;
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', () => show(current - 1));
+  if (nextBtn) nextBtn.addEventListener('click', () => show(current + 1));
+  dots.forEach((d, i) => d.addEventListener('click', () => show(i)));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') show(current - 1);
+    else if (e.key === 'ArrowRight') show(current + 1);
+    else if (e.key === 'Escape') window.location.href = "{{ url_for('web.index') }}";
+  });
+
+  let touchStartX = 0;
+  stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) show(current + 1);
+      else show(current - 1);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

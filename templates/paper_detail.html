@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ paper.title[:50] }} · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('web.index') }}" class="back-link">← 다이제스트로</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · PAPER {{ paper.arxiv_id }}</div>
+<h1 class="page-title" style="font-size: 22px;">{{ paper.title }}</h1>
+
+<div class="meta-row" style="margin-top: 8px; margin-bottom: 1rem;">
+  {% if paper.hf_featured %}
+    <span style="color: var(--amber);">⭐ HF Daily</span>
+    {% if paper.hf_upvotes %}<span>upvotes {{ paper.hf_upvotes }}</span>{% endif %}
+    <span class="sep">·</span>
+  {% endif %}
+  <span>{{ paper.published_at.strftime('%Y-%m-%d') if paper.published_at else '' }}</span>
+  {% if paper.categories %}
+    <span class="sep">·</span>
+    {% for c in paper.categories %}<span class="cat-tag">{{ c }}</span>{% endfor %}
+  {% endif %}
+</div>
+
+<div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2rem;">
+  {{ (paper.authors or [])|join(', ') }}
+</div>
+
+<div class="detail-section">
+  <h2>종합 요약</h2>
+  <p style="font-size: 15px; line-height: 1.8;">{{ paper.summary_ko }}</p>
+</div>
+
+<div class="detail-section">
+  <h2>문제</h2>
+  <p style="font-size: 14px; line-height: 1.75;">{{ paper.problem_ko }}</p>
+</div>
+
+<div class="detail-section">
+  <h2>방법</h2>
+  <p style="font-size: 14px; line-height: 1.75;">{{ paper.method_ko }}</p>
+</div>
+
+<div class="detail-section">
+  <h2>결과</h2>
+  <p style="font-size: 14px; line-height: 1.75;">{{ paper.results_ko }}</p>
+</div>
+
+<div class="detail-section">
+  <h2>의의</h2>
+  <p style="font-size: 14px; line-height: 1.75;">{{ paper.significance_ko }}</p>
+</div>
+
+{% if paper.limitations_ko %}
+<div class="detail-section">
+  <h2>한계</h2>
+  <p style="font-size: 14px; line-height: 1.75; color: var(--text-muted);">{{ paper.limitations_ko }}</p>
+</div>
+{% endif %}
+
+<div class="detail-section">
+  <h2>원문</h2>
+  <div style="display: flex; gap: 16px; font-size: 13px;">
+    <a href="{{ paper.html_url }}" target="_blank" rel="noopener">arXiv ↗</a>
+    {% if paper.pdf_url %}<a href="{{ paper.pdf_url }}" target="_blank" rel="noopener">PDF ↗</a>{% endif %}
+    {% if paper.source_type == 'huggingface' %}
+      <a href="https://huggingface.co/papers/{{ paper.arxiv_id }}" target="_blank" rel="noopener">HF Daily ↗</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if paper.abstract %}
+<div class="detail-section">
+  <h2>원문 초록 (Abstract)</h2>
+  <p style="font-size: 13px; line-height: 1.75; color: var(--text-muted); font-family: 'Georgia', serif;">{{ paper.abstract }}</p>
+</div>
+{% endif %}
+
+{% endblock %}

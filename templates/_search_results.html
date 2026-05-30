@@ -1,0 +1,26 @@
+{% from "_slides.html" import render_carousel %}
+
+{% if cluster_cardsets %}
+<div class="carousel-grid" id="search-grid">
+  {% for item in cluster_cardsets %}
+    {% set c = item.cluster %}
+    {% set members = c.articles.all() %}
+    {% set src_count = members|map(attribute='source_id')|unique|list|length %}
+    {% set date_str = c.first_shown_date.strftime('%Y.%m.%d') if c.first_shown_date else '(미표시)' %}
+    {% set src_str = (src_count|string + '매체') if src_count >= 2 else (members[0].source.name if members else '') %}
+    {% set caption_meta = {'topic': c.topic, 'meta': date_str ~ ' · ' ~ src_str} %}
+    {{ render_carousel('cs' ~ c.id, 'cluster', item.cards, 'cluster', c.id, false, caption_meta, loop.index, c.saved_at is not none) }}
+  {% endfor %}
+</div>
+{% if truncated %}
+  <div class="pager-info" style="margin-top: 16px;">
+    전체 {{ total }}개 중 상위 {{ cluster_cardsets|length }}개 표시.
+    <a href="/search?q={{ q|urlencode }}&preset={{ preset }}" style="margin-left: 8px;">전체 결과 페이지로 →</a>
+  </div>
+{% endif %}
+{% else %}
+<div class="empty">
+  "<strong>{{ q }}</strong>" 결과 없음.<br>
+  <span style="font-size: 12px; opacity: 0.6;">다른 키워드로 시도해 보세요.</span>
+</div>
+{% endif %}

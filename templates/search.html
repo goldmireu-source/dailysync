@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% from "_slides.html" import render_carousel %}
+
+{% block title %}검색 · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="/" class="back-link">← 다이제스트로</a>
+<div class="brand">DAILY <span class="accent">SYNC</span> · SEARCH</div>
+<h1 class="page-title">검색</h1>
+
+<form method="get" action="/search" id="search-form" style="margin: 14px 0 22px;">
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <input
+      type="text" name="q" value="{{ q }}" {% if not q %}autofocus{% endif %}
+      placeholder="키워드 (예: GPT-5, 규제, 멀티모달, OpenAI ...)"
+      style="flex: 1; padding: 10px 14px; font-size: 15px; border: 1px solid #ddd; border-radius: 8px;">
+    <button type="submit" class="toolbar-btn"
+      style="padding: 0 22px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">검색</button>
+  </div>
+
+  <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+    <span style="font-size: 13px; color: #888; margin-right: 4px;">기간:</span>
+    {% for key, label in [('all','전체'),('today','오늘'),('7d','최근 7일'),('30d','최근 30일'),('custom','사용자 지정')] %}
+      <label class="preset-chip" data-key="{{ key }}"
+        style="display: inline-block; padding: 6px 12px; border: 1px solid {{ '#3b82f6' if preset == key else '#ddd' }}; border-radius: 16px; background: {{ '#eff6ff' if preset == key else 'transparent' }}; color: {{ '#1d4ed8' if preset == key else '#444' }}; cursor: pointer; font-size: 13px; user-select: none;">
+        <input type="radio" name="preset" value="{{ key }}" {% if preset == key %}checked{% endif %} style="display: none;">
+        {{ label }}
+      </label>
+    {% endfor %}
+  </div>
+
+  <div id="search-custom"
+    style="margin-top: 10px; display: {% if preset == 'custom' %}flex{% else %}none{% endif %}; gap: 12px; align-items: center; font-size: 13px;">
+    <label style="display: flex; gap: 6px; align-items: center;">시작
+      <input type="date" name="from" value="{{ from_str }}" max="{{ today.isoformat() }}"
+        style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px;">
+    </label>
+    <label style="display: flex; gap: 6px; align-items: center;">종료
+      <input type="date" name="to" value="{{ to_str }}" max="{{ today.isoformat() }}"
+        style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px;">
+    </label>
+  </div>
+</form>
+
+{% if q %}
+  <div class="page-meta">
+    <span class="stats">
+      "<strong>{{ q }}</strong>" 검색 결과 — 사건 {{ total }}개
+      {% if from_date or to_date %}
+        · {{ from_date.isoformat() if from_date else '~' }} ~ {{ to_date.isoformat() if to_date else '~' }}
+      {% elif preset == 'all' %}
+        · 전체 기간
+      {% endif %}
+    </span>
+  </div>
+
+  {% if cluster_cardsets %}
+    <div class="carousel-grid">
+      {% for item in cluster_cardsets %}
+        {% set c = item.cluster %}
+        {% set members = c.articles.all() %}
+        {% set src_count = members|map(attribute='source_id')|unique|list|length %}
+        {% set date_str = c.first_shown_date.strftime('%Y.%m.%d') if c.first_shown_date else '(미표시)' %}
+        {% set src_str = (src_count|string + '매체') if src_count >= 2 else (members[0].source.name if members else '') %}
+        {% set caption_meta = {
+          'topic': c.topic,
+          'meta': date_str ~ ' · ' ~ src_str
+        } %}
+        {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, false, caption_meta, ((page - 1) * 12 + loop.index), c.saved_at is not none) }}
+      {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+      {% set query_args = 'q=' ~ q|urlencode ~ '&preset=' ~ preset ~ '&from=' ~ from_str ~ '&to=' ~ to_str %}
+      <div style="display: flex; gap: 8px; justify-content: center; margin: 30px 0 10px;">
+        {% if page > 1 %}<a href="?{{ query_args }}&page={{ page - 1 }}" class="toolbar-btn">← 이전</a>{% endif %}
+        <span style="padding: 6px 12px; color: #888;">{{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}<a href="?{{ query_args }}&page={{ page + 1 }}" class="toolbar-btn">다음 →</a>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="empty">
+      "<strong>{{ q }}</strong>" 와(과) 일치하는 결과 없음.<br>
+      <span style="font-size: 12px; opacity: 0.6;">다른 키워드를 시도하거나 기간을 "전체"로 넓혀보세요.</span>
+    </div>
+  {% endif %}
+{% else %}
+  <div class="empty" style="margin-top: 30px;">
+    카드뉴스 본문에서 키워드를 검색합니다.<br>
+    <span style="font-size: 12px; opacity: 0.7;">제목·요약·핵심 사실·매체 인용·기사 제목 전체가 매칭 대상.</span>
+  </div>
+{% endif %}
+
+{# ===== 카드 확대 모달 ===== #}
+<div class="card-modal-overlay" id="card-modal-overlay" onclick="closeCardModal(event)">
+  <div class="card-modal" onclick="event.stopPropagation()">
+    <div class="card-modal-head">
+      <span class="label" id="card-modal-label">카드 상세</span>
+      <button class="card-modal-close" onclick="closeCardModal()" title="닫기 (ESC)">×</button>
+    </div>
+    <div class="card-modal-body" id="card-modal-body"></div>
+    <div class="card-modal-caption">
+      <span class="topic" id="card-modal-topic"></span>
+      <span class="meta" id="card-modal-meta"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 프리셋 칩 — 'custom'이 아닌 값 클릭 시 자동 제출 ==========
+document.querySelectorAll('.preset-chip').forEach(chip => {
+  chip.addEventListener('click', (e) => {
+    const key = chip.dataset.key;
+    const radio = chip.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+    if (key === 'custom') {
+      e.preventDefault();
+      document.getElementById('search-custom').style.display = 'flex';
+    } else {
+      document.getElementById('search-custom').style.display = 'none';
+      document.getElementById('search-form').submit();
+    }
+  });
+});
+
+// ========== 캐러셀 + 모달 (saved.html 과 동일 패턴) ==========
+function initCarousel(carousel) {
+  const stage = carousel.querySelector('.carousel-stage');
+  const slides = carousel.querySelectorAll('.slide');
+  const dots = carousel.querySelectorAll('.slide-dots .dot');
+  const prevBtn = carousel.querySelector('.slide-nav.prev');
+  const nextBtn = carousel.querySelector('.slide-nav.next');
+  const total = slides.length;
+  let current = 0;
+
+  function show(idx) {
+    if (idx < 0 || idx >= total) return;
+    current = idx;
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    const cur = slides[idx];
+    stage.dataset.cover = (cur.classList.contains('cover') || cur.classList.contains('paper-cover')) ? '1' : '0';
+    if (prevBtn) prevBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === total - 1;
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current - 1); });
+  if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current + 1); });
+  dots.forEach((d, i) => d.addEventListener('click', (e) => { e.stopPropagation(); show(i); }));
+
+  let touchStartX = 0;
+  stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) { if (dx < 0) show(current + 1); else show(current - 1); }
+  });
+}
+
+(function() {
+  document.querySelectorAll('.carousel').forEach(initCarousel);
+  document.querySelectorAll('.carousel').forEach(function(carousel) {
+    const stage = carousel.querySelector('.carousel-stage');
+    if (!stage) return;
+    stage.addEventListener('click', function(e) {
+      const t = e.target;
+      if (t.closest('.card-action-btn') || t.closest('.slide-nav') || t.closest('.slide-dots') || t.closest('a')) return;
+      openCardModal(carousel);
+    });
+  });
+})();
+
+function openCardModal(carousel) {
+  const overlay = document.getElementById('card-modal-overlay');
+  const body = document.getElementById('card-modal-body');
+  const label = document.getElementById('card-modal-label');
+  const topicEl = document.getElementById('card-modal-topic');
+  const metaEl = document.getElementById('card-modal-meta');
+
+  const caption = carousel.querySelector('.carousel-caption');
+  if (caption) {
+    const topic = caption.querySelector('.topic-link');
+    const meta = caption.querySelector('.meta-right');
+    topicEl.textContent = topic ? topic.textContent : '';
+    metaEl.textContent = meta ? meta.textContent : '';
+  }
+  const isCluster = carousel.hasAttribute('data-cluster-id');
+  label.textContent = isCluster ? '🗞 뉴스 상세' : '📄 논문 상세';
+
+  const stage = carousel.querySelector('.carousel-stage');
+  const cloned = stage.cloneNode(true);
+  cloned.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('active', i === 0));
+  cloned.querySelectorAll('.slide-dots .dot').forEach((d, i) => d.classList.toggle('active', i === 0));
+  const firstSlide = cloned.querySelector('.slide');
+  if (firstSlide) {
+    cloned.dataset.cover = (firstSlide.classList.contains('cover') || firstSlide.classList.contains('paper-cover')) ? '1' : '0';
+  }
+  cloned.style.cursor = 'default';
+
+  body.innerHTML = '';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'carousel';
+  wrapper.appendChild(cloned);
+  body.appendChild(wrapper);
+  initCarousel(wrapper);
+
+  document.body.dataset.scrollY = String(window.scrollY);
+  document.body.style.top = `-${window.scrollY}px`;
+  overlay.classList.add('visible');
+  document.body.classList.add('modal-open');
+  if (!window.history.state || !window.history.state.cardModal) {
+    window.history.pushState({ cardModal: true }, '', window.location.href);
+  }
+}
+
+function closeCardModal(e) {
+  if (e && e.target && !e.target.classList.contains('card-modal-overlay')) {
+    if (e.target.closest && e.target.closest('.card-modal-close')) {/* 통과 */}
+    else if (e.target.closest && e.target.closest('.card-modal')) return;
+  }
+  const overlay = document.getElementById('card-modal-overlay');
+  if (!overlay.classList.contains('visible')) return;
+  overlay.classList.remove('visible');
+  const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+  document.body.classList.remove('modal-open');
+  document.body.style.top = '';
+  window.scrollTo(0, savedY);
+  if (window.history.state && window.history.state.cardModal) window.history.back();
+}
+
+window.addEventListener('popstate', function() {
+  const overlay = document.getElementById('card-modal-overlay');
+  if (overlay && overlay.classList.contains('visible')) {
+    overlay.classList.remove('visible');
+    const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, savedY);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('card-modal-overlay');
+    if (overlay && overlay.classList.contains('visible')) closeCardModal();
+  }
+});
+
+// 검색 페이지에선 hide/show/save는 인덱스/세부 페이지에서 수행 — 여기선 stub
+function vanish(el) { el.classList.add('card-vanishing'); setTimeout(() => el.remove(), 250); }
+function hideItem() {}
+function showItem() {}
+function saveItem() {}
+function unsaveItem() {}
+</script>
+
+{% endblock %}
