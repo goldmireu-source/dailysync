@@ -35,3 +35,6 @@ data/
 Thumbs.db
 .vscode/
 .idea/
+
+# ===== 사용자 업로드 이미지 =====
+static/uploads/

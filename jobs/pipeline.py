@@ -126,6 +126,18 @@ def job_collect_papers(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
+def job_collect_contests(triggered_by: str = "scheduler") -> dict:
+    from jobs.contest_collector import collect_all_contests
+    with _track("collect_contests", triggered_by) as stats:
+        s = collect_all_contests()
+        stats["total_fetched"] = s.get("total_fetched", 0)
+        stats["total_new"] = s.get("total_new", 0)
+        stats["total_updated"] = s.get("total_updated", 0)
+        stats["rejected"] = s.get("rejected", {})
+        stats["sources"] = s.get("sources", {})
+        return stats
+
+
 def job_embed_and_cluster(triggered_by: str = "scheduler") -> dict:
     from jobs.embedder import embed_articles, embed_papers, cluster_articles
     with _track("embed_and_cluster", triggered_by) as stats:
@@ -242,6 +254,7 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
         from jobs.embedder import embed_articles, embed_papers, cluster_articles
         from jobs.news_summarizer import summarize_pending
         from jobs.paper_summarizer import summarize_today_picks
+        from jobs.contest_collector import collect_all_contests
         from models import Cluster, Paper
 
         # 1. 뉴스 RSS 수집
@@ -318,12 +331,22 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             logger.exception("summarize_today_picks failed in refresh_now")
             stats["papers_summarized"] = 0
 
+        # 8. 공모전 수집 (느리게 바뀜 — best-effort)
+        _update_phase(run_id, "공모전 수집 중")
+        try:
+            c_res = collect_all_contests()
+            stats["contests_new"] = c_res.get("total_new", 0)
+        except Exception:
+            logger.exception("collect_all_contests failed in refresh_now")
+            stats["contests_new"] = 0
+
         _update_phase(run_id, "완료")
         stats["anything_new"] = (
             stats.get("news_new", 0) > 0
             or stats.get("papers_new", 0) > 0
             or stats.get("clusters_summarized", 0) > 0
             or stats.get("papers_summarized", 0) > 0
+            or stats.get("contests_new", 0) > 0
         )
 
         return stats

@@ -163,6 +163,52 @@ class Paper(db.Model):
         return f"<Paper {self.arxiv_id} {self.title[:40]!r}>"
 
 
+# ---------- Contest ----------
+class Contest(db.Model):
+    """AI 공모전·취창업 경진대회 — 뉴스/논문과 완전히 별도 트랙.
+
+    여러 플랫폼(위비티·씽굿·요즘것들·데이콘·K-Startup 등)에서 수집한
+    AI 관련 공고를 통합. 수집·표시 모두 마감이 남은 것만 노출.
+    """
+    __tablename__ = "contests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    source = db.Column(db.String(30), nullable=False, index=True)  # wevity | thinkcontest | allforyoung | dacon | kstartup
+    external_id = db.Column(db.String(120))  # 소스 native id (보조 dedup)
+
+    url = db.Column(db.String(1000), nullable=False)
+    url_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)  # sha256(url)
+    title = db.Column(db.String(500), nullable=False)
+    host = db.Column(db.String(300))  # 주최/주관
+
+    image_url = db.Column(db.String(1000))  # 포스터 썸네일 (핫링크 or 업로드 경로, nullable)
+    # 관리자 업로드 이미지의 타일 내 표시 조정 (object-position % + 확대 배율)
+    image_pos_x = db.Column(db.Float, default=50.0, nullable=False)  # 0~100 (좌→우)
+    image_pos_y = db.Column(db.Float, default=50.0, nullable=False)  # 0~100 (위→아래)
+    image_scale = db.Column(db.Float, default=1.0, nullable=False)   # 1.0~ (확대)
+    category = db.Column(db.String(40))  # 공모전 | 창업경진대회 | 해커톤 | 취업/채용 | 기타
+    field_tags = db.Column(db.JSON, default=list)  # 원천 분야 라벨 ["AI", "빅데이터"]
+    target = db.Column(db.String(300))  # 참가대상
+    prize = db.Column(db.String(300))   # 시상/상금
+
+    start_at = db.Column(db.Date)                       # 접수 시작
+    deadline = db.Column(db.Date, index=True)           # 접수 마감 ← 핵심 필터 키
+    posted_at = db.Column(db.Date)                      # 등록일
+    fetched_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    is_ai_relevant = db.Column(db.Boolean, default=True, nullable=False)
+
+    # LLM 정규화 (선택, Phase 2) — Paper.summary_dirty 패턴
+    summary_ko = db.Column(db.Text)
+    summary_dirty = db.Column(db.Boolean, default=True, nullable=False)
+
+    hidden_at = db.Column(db.DateTime, nullable=True, index=True)  # NULL = 표시, 값 = 숨김
+    saved_at = db.Column(db.DateTime, nullable=True, index=True)   # NULL = 미저장, 값 = 저장됨
+
+    def __repr__(self):
+        return f"<Contest {self.id} {self.source} {self.title[:30]!r}>"
+
+
 # ---------- JobRun ----------
 class JobRun(db.Model):
     """백그라운드 잡 실행 이력 (스케줄러용)."""

@@ -51,6 +51,18 @@ class Config:
 
     BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
+    # --- 공모전 수집 ---
+    # data.go.kr 서비스키 (K-Startup 공고 API용). 비어 있으면 해당 소스만 skip.
+    DATA_GO_KR_KEY = os.getenv("DATA_GO_KR_KEY", "")
+    # 라우드(loud.kr) 로그인 — 로그인 시에만 실제 공모전 포스터·참여가능 여부가 보임.
+    # 비어 있으면 비로그인 동작(이미지 fallback). .env 에 직접 입력(비커밋).
+    LOUD_EMAIL = os.getenv("LOUD_EMAIL", "")
+    LOUD_PASSWORD = os.getenv("LOUD_PASSWORD", "")
+    # 마감 지난 공모전 보존 유예일 (cleanup 시 deadline 이 N일 이상 지난 것만 삭제)
+    CONTEST_RETENTION_DAYS = int(os.getenv("CONTEST_RETENTION_DAYS", "2"))
+    # 공모전 이미지 업로드 한도 (8MB)
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(8 * 1024 * 1024)))
+
     # --- 관리자 권한 ---
     # .env 에 ADMIN_TOKEN=xxx 설정. 비어 있으면 (개발 모드) 모두가 admin.
     ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")

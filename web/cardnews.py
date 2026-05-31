@@ -17,9 +17,9 @@ CATEGORY_KEYS = {
 # ====== 슬라이드 분할 — 텍스트 길이 기반 ======
 # 카드 460px 컨텐츠 예산 ~340px. 짧으면 5~6개, 길면 2~3개 자동 조절.
 
-FACT_BUDGET = 340      # 한 슬라이드의 fact 영역 가용 픽셀
+FACT_BUDGET = 300      # 한 슬라이드의 fact 영역 가용 픽셀 (카드 높이 420 기준)
 FACT_MIN_LEN = 5       # 5자 미만은 무효 fact (LLM 빈 응답 방지)
-SRC_BUDGET = 280       # source-card 한 장 가용 픽셀 (links-mini 80px 빼고)
+SRC_BUDGET = 240       # source-card 한 장 가용 픽셀 (links-mini 80px 빼고)
 
 
 def _fact_cost(text: str) -> int:
@@ -140,12 +140,23 @@ def build_cluster_cards(cluster) -> list[dict]:
                 quote = {"text": claim, "attr": d.get("source", "")}
                 break
 
+    # 표지 리드 — 첫 핵심 사실(없으면 요약 앞부분)로 표지 공백 메움
+    lead = ""
+    facts0 = [f for f in (cluster.agreed_facts or []) if f and len(f.strip()) >= 5]
+    if facts0:
+        lead = facts0[0].strip()
+    elif cluster.summary_ko:
+        lead = cluster.summary_ko.strip()
+    if len(lead) > 115:
+        lead = lead[:114].rstrip() + "…"
+
     # ----- Card 1: Cover -----
     cards.append({
         "type": "cover",
         "category": cat_key,
         "categories": cluster.categories or [],
         "title": cluster.topic or "(제목 없음)",
+        "lead": lead,
         "sources": sources,
         "n_sources": len(sources),
         "n_members": len(members),
@@ -234,6 +245,59 @@ def build_cluster_cards(cluster) -> list[dict]:
         })
 
     return cards
+
+
+# 카테고리 → 그라데이션/아이콘 fallback (포스터 이미지 없을 때)
+_CONTEST_FALLBACK = {
+    "공모전": ("🏆", "#6366f1", "#8b5cf6"),
+    "창업경진대회": ("🚀", "#0ea5e9", "#2563eb"),
+    "경진대회": ("📊", "#059669", "#10b981"),
+    "해커톤": ("💻", "#db2777", "#f43f5e"),
+    "취업/채용": ("💼", "#d97706", "#f59e0b"),
+}
+
+
+def build_contest_tile(contest) -> dict:
+    """공모전 → 정사각형 타일용 dict (위 ⅔ 이미지 / 아래 ⅓ 제목).
+
+    캐러셀이 아닌 단일 타일. 클릭 시 /contest/<id> 상세로 이동.
+    """
+    icon, c1, c2 = _CONTEST_FALLBACK.get(contest.category or "공모전", _CONTEST_FALLBACK["공모전"])
+
+    # D-day 계산 (KST)
+    dday = None
+    dday_label = "상시"
+    urgent = False
+    if contest.deadline:
+        days = (contest.deadline - datetime.now(KST).date()).days
+        dday = days
+        if days <= 0:
+            dday_label = "D-DAY"
+        else:
+            dday_label = f"D-{days}"
+        urgent = days <= 7
+
+    return {
+        "id": contest.id,
+        "title": contest.title,
+        "host": contest.host or "",
+        "image_url": contest.image_url,
+        "image_pos_x": contest.image_pos_x if contest.image_pos_x is not None else 50.0,
+        "image_pos_y": contest.image_pos_y if contest.image_pos_y is not None else 50.0,
+        "image_scale": contest.image_scale if contest.image_scale is not None else 1.0,
+        "category": contest.category or "공모전",
+        "deadline": contest.deadline,
+        "deadline_str": contest.deadline.strftime("%Y.%m.%d") if contest.deadline else "마감 미정",
+        "dday": dday,
+        "dday_label": dday_label,
+        "urgent": urgent,
+        "url": contest.url,
+        "source": contest.source,
+        "fallback_icon": icon,
+        "fallback_c1": c1,
+        "fallback_c2": c2,
+        "saved": contest.saved_at is not None,
+    }
 
 
 def build_paper_cards(paper) -> list[dict]:

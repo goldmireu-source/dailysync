@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contest.title }} · 공모전 · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="/?tab=contests" class="back-link">← 공모전 목록</a>
+
+<div class="brand">DAILY <span class="accent">SYNC</span> · 공모전</div>
+
+<div class="contest-detail">
+  <div class="cd-left">
+    {# ===== 타일 모양 미리보기 (그리드에서 보이는 그대로) ===== #}
+    <div class="cd-poster" id="cd-poster"
+         style="{% if not contest.image_url %}background: linear-gradient(135deg, {{ tile.fallback_c1 }}, {{ tile.fallback_c2 }});{% endif %}">
+      {% if contest.image_url %}
+        <img id="cd-preview-img" src="{{ contest.image_url }}" alt="{{ contest.title }}"
+             style="object-position: {{ tile.image_pos_x }}% {{ tile.image_pos_y }}%; transform: scale({{ tile.image_scale }});">
+      {% else %}
+        <span class="cd-poster-icon" id="cd-fallback-icon">{{ tile.fallback_icon }}</span>
+      {% endif %}
+    </div>
+
+    {% if is_admin %}
+    {# ===== 관리자: 이미지 첨부 + 위치/크기 편집 ===== #}
+    <div class="cd-edit" data-contest-id="{{ contest.id }}">
+      <div class="cd-edit-row">
+        <label class="cd-upload-btn">
+          📎 이미지 첨부
+          <input type="file" id="cd-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        </label>
+        <button class="cd-remove-btn" id="cd-remove" {% if not contest.image_url %}style="display:none;"{% endif %}>제거</button>
+        <span class="cd-edit-status" id="cd-status"></span>
+      </div>
+
+      <div class="cd-sliders" id="cd-sliders" {% if not contest.image_url %}style="display:none;"{% endif %}>
+        <label>가로 위치 <input type="range" id="cd-posx" min="0" max="100" step="1" value="{{ tile.image_pos_x }}"></label>
+        <label>세로 위치 <input type="range" id="cd-posy" min="0" max="100" step="1" value="{{ tile.image_pos_y }}"></label>
+        <label>확대 <input type="range" id="cd-scale" min="1" max="4" step="0.05" value="{{ tile.image_scale }}"></label>
+      </div>
+      <p class="cd-edit-hint">이미지를 첨부하면 타일에 보이는 모양을 위 슬라이더로 맞출 수 있어요. (자동 저장)</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="cd-info">
+    <div class="cd-badges">
+      <span class="cd-cat">{{ contest.category or '공모전' }}</span>
+      {% if tile.dday_label %}
+        <span class="cd-dday {% if tile.urgent %}urgent{% endif %}">{{ tile.dday_label }}</span>
+      {% endif %}
+      <span class="cd-source">{{ contest.source }}</span>
+    </div>
+
+    <h1 class="cd-title">{{ contest.title }}</h1>
+
+    {% if contest.summary_ko %}<p class="cd-summary">{{ contest.summary_ko }}</p>{% endif %}
+
+    <dl class="cd-fields">
+      {% if contest.host %}<div><dt>주최/주관</dt><dd>{{ contest.host }}</dd></div>{% endif %}
+      <div>
+        <dt>접수 기간</dt>
+        <dd>
+          {% if contest.start_at %}{{ contest.start_at.strftime('%Y.%m.%d') }} ~ {% endif %}
+          {% if contest.deadline %}{{ contest.deadline.strftime('%Y.%m.%d') }}{% else %}마감 미정{% endif %}
+          {% if d_left is not none and d_left >= 0 %}<span class="cd-dleft">(마감까지 {{ d_left }}일)</span>{% endif %}
+        </dd>
+      </div>
+      {% if contest.target %}<div><dt>참가 대상</dt><dd>{{ contest.target }}</dd></div>{% endif %}
+      {% if contest.prize %}<div><dt>시상</dt><dd>{{ contest.prize }}</dd></div>{% endif %}
+      {% if contest.field_tags %}<div><dt>분야</dt><dd>{{ contest.field_tags | join(' · ') }}</dd></div>{% endif %}
+    </dl>
+
+    <a class="cd-cta" href="{{ contest.url }}" target="_blank" rel="noopener">원문에서 자세히 보기 ↗</a>
+    <p class="cd-note">※ 접수 방법·세부 요강은 주최 측 원문 공고를 확인하세요.</p>
+  </div>
+</div>
+
+{% if is_admin %}
+<script>
+(function() {
+  const cid = {{ contest.id }};
+  const poster = document.getElementById('cd-poster');
+  const fileInput = document.getElementById('cd-file');
+  const removeBtn = document.getElementById('cd-remove');
+  const sliders = document.getElementById('cd-sliders');
+  const status = document.getElementById('cd-status');
+  const px = document.getElementById('cd-posx');
+  const py = document.getElementById('cd-posy');
+  const sc = document.getElementById('cd-scale');
+
+  function imgEl() { return document.getElementById('cd-preview-img'); }
+
+  function applyLive() {
+    const img = imgEl();
+    if (!img) return;
+    img.style.objectPosition = px.value + '% ' + py.value + '%';
+    img.style.transform = 'scale(' + sc.value + ')';
+  }
+
+  async function saveAdjust() {
+    try {
+      await fetch(`/api/contest/${cid}/image-adjust`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ pos_x: +px.value, pos_y: +py.value, scale: +sc.value })
+      });
+      status.textContent = '저장됨';
+      setTimeout(() => { status.textContent = ''; }, 1200);
+    } catch (e) { status.textContent = '저장 실패'; }
+  }
+
+  [px, py, sc].forEach(el => {
+    if (!el) return;
+    el.addEventListener('input', applyLive);
+    el.addEventListener('change', saveAdjust);
+  });
+
+  if (fileInput) fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    status.textContent = '업로드 중...';
+    const fd = new FormData();
+    fd.append('image', f);
+    try {
+      const r = await fetch(`/api/contest/${cid}/image`, { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!d.ok) { status.textContent = '실패: ' + (d.error || ''); return; }
+      // 미리보기 갱신 (img 없으면 만들기)
+      poster.style.background = '';
+      let img = imgEl();
+      if (!img) {
+        const fb = document.getElementById('cd-fallback-icon');
+        if (fb) fb.remove();
+        img = document.createElement('img');
+        img.id = 'cd-preview-img';
+        poster.appendChild(img);
+      }
+      img.src = d.image_url + '?t=' + Date.now();
+      px.value = d.pos_x; py.value = d.pos_y; sc.value = d.scale;
+      applyLive();
+      sliders.style.display = '';
+      removeBtn.style.display = '';
+      status.textContent = '첨부됨';
+      setTimeout(() => { status.textContent = ''; }, 1500);
+    } catch (e) { status.textContent = '업로드 실패'; }
+    fileInput.value = '';
+  });
+
+  if (removeBtn) removeBtn.addEventListener('click', async () => {
+    if (!confirm('첨부 이미지를 제거할까요?')) return;
+    try {
+      const r = await fetch(`/api/contest/${cid}/image-remove`, { method: 'POST' });
+      if (r.ok) window.location.reload();
+    } catch (e) {}
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

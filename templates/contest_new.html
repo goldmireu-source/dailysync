@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}공모전 직접 추가 · DAILY SYNC{% endblock %}
+
+{% block content %}
+
+<a href="/?tab=contests" class="back-link">← 공모전 목록</a>
+<div class="brand">DAILY <span class="accent">SYNC</span> · 공모전 추가</div>
+<h1 class="page-title">공모전 직접 추가</h1>
+<p class="page-meta"><span class="stats">자동 수집이 안 되는 공모전을 직접 등록합니다. 등록 후 상세에서 이미지를 첨부·조정할 수 있어요.</span></p>
+
+{% if error %}<div class="cn-error">{{ error }}</div>{% endif %}
+
+<form method="post" action="/contest/new" class="cn-form">
+  <label class="cn-field cn-url">
+    <span>원문 URL <em>*</em></span>
+    <div class="cn-url-row">
+      <input type="text" name="url" id="cn-url" required value="{{ form.url or '' }}"
+             placeholder="https://… (공모전 공식 페이지 주소)">
+      <button type="button" class="cn-fetch-btn" id="cn-fetch">URL에서 불러오기</button>
+    </div>
+    <span class="cn-hint" id="cn-fetch-status">공식 페이지 주소를 넣고 누르면 제목·포스터를 자동으로 채워줍니다.</span>
+  </label>
+
+  <label class="cn-field">
+    <span>제목 <em>*</em></span>
+    <input type="text" name="title" id="cn-title" required value="{{ form.title or '' }}" placeholder="공모전 이름">
+  </label>
+
+  <div class="cn-grid2">
+    <label class="cn-field">
+      <span>주최/주관</span>
+      <input type="text" name="host" value="{{ form.host or '' }}" placeholder="예: KT">
+    </label>
+    <label class="cn-field">
+      <span>카테고리</span>
+      <select name="category">
+        {% for c in categories %}<option value="{{ c }}" {% if form.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="cn-grid2">
+    <label class="cn-field">
+      <span>접수 시작</span>
+      <input type="date" name="start_at" value="{{ form.start_at or '' }}">
+    </label>
+    <label class="cn-field">
+      <span>접수 마감</span>
+      <input type="date" name="deadline" value="{{ form.deadline or '' }}">
+    </label>
+  </div>
+
+  <label class="cn-field">
+    <span>참가 대상</span>
+    <input type="text" name="target" value="{{ form.target or '' }}" placeholder="예: 대학생, 일반인 누구나">
+  </label>
+
+  <label class="cn-field">
+    <span>시상</span>
+    <input type="text" name="prize" value="{{ form.prize or '' }}" placeholder="예: 대상 500만원">
+  </label>
+
+  <input type="hidden" name="image_url" id="cn-image-url" value="{{ form.image_url or '' }}">
+  <div class="cn-preview" id="cn-preview" {% if not form.image_url %}style="display:none;"{% endif %}>
+    <span class="cn-hint">불러온 포스터 (등록 후 상세에서 교체·조정 가능)</span>
+    <img id="cn-preview-img" src="{{ form.image_url or '' }}" alt="poster preview">
+  </div>
+
+  <div class="cn-actions">
+    <button type="submit" class="cn-submit">등록하기</button>
+    <a href="/?tab=contests" class="cn-cancel">취소</a>
+  </div>
+</form>
+
+<script>
+(function() {
+  const urlIn = document.getElementById('cn-url');
+  const titleIn = document.getElementById('cn-title');
+  const imgUrl = document.getElementById('cn-image-url');
+  const preview = document.getElementById('cn-preview');
+  const previewImg = document.getElementById('cn-preview-img');
+  const status = document.getElementById('cn-fetch-status');
+
+  document.getElementById('cn-fetch').addEventListener('click', async () => {
+    const u = urlIn.value.trim();
+    if (!u) { status.textContent = '먼저 URL을 입력하세요.'; return; }
+    status.textContent = '불러오는 중...';
+    try {
+      const r = await fetch('/api/contest/fetch-meta?url=' + encodeURIComponent(u));
+      const d = await r.json();
+      if (!d.ok) { status.textContent = '불러오기 실패: ' + (d.error || ''); return; }
+      if (d.title && !titleIn.value.trim()) titleIn.value = d.title;
+      if (d.image_url) {
+        imgUrl.value = d.image_url;
+        previewImg.src = d.image_url;
+        preview.style.display = '';
+      }
+      status.textContent = '불러왔어요. 내용을 확인하고 필요하면 수정하세요.';
+    } catch (e) { status.textContent = '불러오기 실패'; }
+  });
+})();
+</script>
+
+{% endblock %}

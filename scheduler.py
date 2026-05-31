@@ -67,6 +67,7 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         job_fetch_bodies,
         job_refresh_now,
         job_cleanup_old_data,
+        job_collect_contests,
     )
 
     sched = BackgroundScheduler(timezone=KST)
@@ -115,6 +116,17 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         coalesce=True,
     )
 
+    # 07:30, 19:30 KST — 공모전 수집 (하루 2회면 충분 — 시간단위로 안 바뀜)
+    sched.add_job(
+        _wrap(app, job_collect_contests, triggered_by="scheduler"),
+        CronTrigger(hour="7,19", minute=30, timezone=KST),
+        id="collect_contests_daily",
+        name="공모전 수집 (07:30, 19:30)",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
     sched.start()
     _scheduler = sched
 
@@ -146,6 +158,7 @@ def trigger_job_now(job_id: str, app, run_id: int | None = None) -> bool:
         "refresh_now": pipeline.job_refresh_now,
         "backfill_papers": pipeline.job_backfill_papers,
         "cleanup_old_data": pipeline.job_cleanup_old_data,
+        "collect_contests": pipeline.job_collect_contests,
     }
     fn = mapping.get(job_id)
     if not fn:

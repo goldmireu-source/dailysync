@@ -1,0 +1,20 @@
+<svg viewBox="0 0 132 104" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- brain (white) -->
+  <path d="M62 16 C47 7 24 11 19 29 C6 33 6 52 19 58 C15 75 32 88 48 79 C56 88 67 81 64 68 L64 24 Z" fill="#ffffff"/>
+  <g stroke="#b9a8ff" stroke-width="3.2" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M41 23 C34 34 46 40 40 51 C35 61 45 67 42 77"/>
+    <path d="M53 27 C48 38 57 43 52 56"/>
+    <path d="M25 41 C31 45 33 51 28 56"/>
+  </g>
+  <!-- circuit (purple) -->
+  <g stroke="#7c4dff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 30 H86"/>
+    <path d="M64 52 H106"/>
+    <path d="M64 74 H82 V85 H98"/>
+  </g>
+  <g fill="#7c4dff">
+    <circle cx="94" cy="30" r="8.5"/>
+    <circle cx="114" cy="52" r="8.5"/>
+    <circle cx="106" cy="85" r="8.5"/>
+  </g>
+</svg>

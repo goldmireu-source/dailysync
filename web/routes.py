@@ -1,12 +1,15 @@
 """Web dashboard routes — 다이제스트 + 클러스터 상세 + 숨김 기능 + admin."""
+import os
+import secrets
 from datetime import datetime, timedelta, timezone, date
 from functools import wraps
 
-from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, make_response, g
+from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, make_response, g, current_app
+from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun
-from web.cardnews import build_cluster_cards, build_paper_cards
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest
+from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
 
@@ -253,10 +256,10 @@ def index():
                 cat_counts[cat] += 1
 
     # ========== 탭 ==========
-    # tab: news (기본) | papers
-    tab = request.args.get("tab", "news")
-    if tab not in ("news", "papers"):
-        tab = "news"
+    # tab: contests (기본/메인) | news | papers
+    tab = request.args.get("tab", "contests")
+    if tab not in ("news", "papers", "contests"):
+        tab = "contests"
 
     # 논문 — 숨김·저장 필터
     paper_window_start = start_utc - timedelta(days=Config.PAPER_RECENT_DAYS - 1)
@@ -298,10 +301,45 @@ def index():
     # 저장 카운트 (전역 — 날짜 무관)
     saved_clusters_count = Cluster.query.filter(Cluster.saved_at.isnot(None)).count()
     saved_papers_count = Paper.query.filter(Paper.saved_at.isnot(None)).count()
-    saved_total = saved_clusters_count + saved_papers_count
+    saved_contests_count = Contest.query.filter(Contest.saved_at.isnot(None)).count()
+    saved_total = saved_clusters_count + saved_papers_count + saved_contests_count
 
     # 논문 카드뉴스 데이터
     paper_cardsets = [{"paper": p, "cards": build_paper_cards(p)} for p in papers]
+
+    # ========== 공모전 탭 ==========
+    # 마감 남은(deadline >= 오늘 또는 미정) + 숨김·저장 안 됨, 마감 임박순.
+    today_kst_d = datetime.now(KST).date()
+    contests_q = (
+        Contest.query
+        .filter(Contest.hidden_at.is_(None), Contest.saved_at.is_(None))
+        .filter((Contest.deadline >= today_kst_d) | (Contest.deadline.is_(None)))
+    )
+    contests_all = contests_q.order_by(
+        Contest.deadline.asc().nullslast(), Contest.id.desc()
+    ).all()
+    total_contests = len(contests_all)
+    hidden_contests_count = Contest.query.filter(Contest.hidden_at.isnot(None)).count()
+
+    # 3D 쇼케이스 — 마감 임박(deadline 가까운) 상위 N개
+    contest_showcase = []
+    if tab == "contests":
+        _urgent = [c for c in contests_all if c.deadline is not None][:9]
+        contest_showcase = [build_contest_tile(c) for c in _urgent]
+
+    CONTEST_PAGE_SIZE = 12
+    contest_tiles = []
+    if tab == "contests":
+        c_total_pages = max(1, (total_contests + CONTEST_PAGE_SIZE - 1) // CONTEST_PAGE_SIZE)
+        if page > c_total_pages:
+            page = c_total_pages
+        c_start = (page - 1) * CONTEST_PAGE_SIZE
+        page_contests = contests_all[c_start:c_start + CONTEST_PAGE_SIZE]
+        contest_tiles = [build_contest_tile(c) for c in page_contests]
+        total_pages = c_total_pages
+        # 다른 탭 카드 비움
+        inline_clusters = []
+        paper_cardsets = []
 
     total_articles = len(arts_today)
 
@@ -313,6 +351,9 @@ def index():
         paper_cardsets=paper_cardsets,
         total_clusters=total_filtered,
         total_papers=total_papers_filtered,
+        total_contests=total_contests,
+        contest_tiles=contest_tiles,
+        contest_showcase=contest_showcase,
         total_articles=total_articles,
         prev_date=target - timedelta(days=1),
         next_date=target + timedelta(days=1),
@@ -359,6 +400,105 @@ def paper_detail(paper_id: int):
         paper=paper,
         cards=cards,
         total=len(cards),
+    )
+
+
+# ---------- 공모전 수동 추가 ----------
+CONTEST_CATEGORIES = ["공모전", "창업경진대회", "경진대회", "해커톤", "취업/채용", "기타"]
+
+
+@bp.route("/api/contest/fetch-meta")
+@admin_required
+def contest_fetch_meta():
+    """사용자가 붙여넣은 공모전 URL 의 og:title/og:image 추출(자동 채움용)."""
+    import re
+    import requests
+    url = (request.args.get("url") or "").strip()
+    if not url:
+        return jsonify({"ok": False, "error": "no_url"}), 400
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AINewsDigest/0.1)"}, timeout=12)
+        html = r.content.decode(r.apparent_encoding or "utf-8", errors="replace")
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:120]}), 200
+
+    def og(prop):
+        m = (re.search(rf'property=["\']og:{prop}["\'][^>]*content=["\']([^"\']*)["\']', html)
+             or re.search(rf'content=["\']([^"\']*)["\'][^>]*property=["\']og:{prop}["\']', html))
+        return m.group(1).strip() if m else None
+
+    title = og("title")
+    if not title:
+        m = re.search(r"<title[^>]*>([^<]*)</title>", html, re.I)
+        title = m.group(1).strip() if m else None
+    image = og("image")
+    if image and image.startswith("//"):
+        image = "https:" + image
+    return jsonify({"ok": True, "title": title, "image_url": image, "url": url})
+
+
+@bp.route("/contest/new", methods=["GET", "POST"])
+@admin_required
+def contest_new():
+    if request.method == "POST":
+        import hashlib
+        f = request.form
+        title = (f.get("title") or "").strip()
+        url = (f.get("url") or "").strip()
+        if url and not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        if not title or not url:
+            return render_template(
+                "contest_new.html", categories=CONTEST_CATEGORIES,
+                error="제목과 원문 URL은 필수입니다.", form=f,
+            )
+
+        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+        existing = Contest.query.filter_by(url_hash=url_hash).first()
+        if existing:
+            # 이미 있으면 그 상세로 (중복 방지)
+            return redirect(url_for("web.contest_detail", contest_id=existing.id))
+
+        cat = f.get("category") or "공모전"
+        contest = Contest(
+            source="manual",
+            url=url,
+            url_hash=url_hash,
+            title=title[:500],
+            host=(f.get("host") or "").strip() or None,
+            image_url=(f.get("image_url") or "").strip() or None,
+            category=cat if cat in CONTEST_CATEGORIES else "공모전",
+            field_tags=[],
+            target=(f.get("target") or "").strip() or None,
+            prize=(f.get("prize") or "").strip() or None,
+            start_at=_parse_iso_date(f.get("start_at")),
+            deadline=_parse_iso_date(f.get("deadline")),
+            is_ai_relevant=True,
+            summary_dirty=False,
+        )
+        db.session.add(contest)
+        db.session.commit()
+        # 이미지 첨부·위치/크기 조정은 상세페이지에서
+        return redirect(url_for("web.contest_detail", contest_id=contest.id))
+
+    return render_template("contest_new.html", categories=CONTEST_CATEGORIES, form={})
+
+
+# ---------- 공모전 상세 ----------
+@bp.route("/contest/<int:contest_id>")
+def contest_detail(contest_id: int):
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        abort(404)
+    today = datetime.now(KST).date()
+    d_left = (contest.deadline - today).days if contest.deadline else None
+    return render_template(
+        "contest_detail.html",
+        contest=contest,
+        tile=build_contest_tile(contest),
+        d_left=d_left,
     )
 
 
@@ -455,6 +595,150 @@ def unsave_paper(paper_id: int):
     return jsonify({"ok": True})
 
 
+@bp.route("/api/contest/<int:contest_id>/hide", methods=["POST"])
+@admin_required
+def hide_contest(contest_id: int):
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    contest.hidden_at = datetime.utcnow()
+    contest.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/contest/<int:contest_id>/show", methods=["POST"])
+@admin_required
+def show_contest(contest_id: int):
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    contest.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/contest/<int:contest_id>/save", methods=["POST"])
+@admin_required
+def save_contest(contest_id: int):
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    contest.saved_at = datetime.utcnow()
+    contest.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/contest/<int:contest_id>/unsave", methods=["POST"])
+@admin_required
+def unsave_contest(contest_id: int):
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    contest.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+ALLOWED_IMAGE_EXT = {"png", "jpg", "jpeg", "webp", "gif"}
+
+
+def _contest_upload_dir() -> str:
+    d = os.path.join(current_app.static_folder, "uploads", "contests")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+@bp.route("/api/contest/<int:contest_id>/image", methods=["POST"])
+@admin_required
+def upload_contest_image(contest_id: int):
+    """관리자 이미지 첨부 (multipart 'image'). 저장 후 image_url 세팅 + 위치/배율 초기화."""
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    file = request.files.get("image")
+    if not file or not file.filename:
+        return jsonify({"ok": False, "error": "no_file"}), 400
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_IMAGE_EXT:
+        return jsonify({"ok": False, "error": "bad_ext", "allowed": sorted(ALLOWED_IMAGE_EXT)}), 400
+
+    fname = f"contest_{contest_id}_{secrets.token_hex(6)}.{ext}"
+    fname = secure_filename(fname)
+    path = os.path.join(_contest_upload_dir(), fname)
+
+    # 이전 업로드 파일 삭제 (uploads 안의 것만)
+    _delete_uploaded_image(contest.image_url)
+
+    file.save(path)
+    contest.image_url = url_for("static", filename=f"uploads/contests/{fname}")
+    contest.image_pos_x = 50.0
+    contest.image_pos_y = 50.0
+    contest.image_scale = 1.0
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "image_url": contest.image_url,
+        "pos_x": contest.image_pos_x, "pos_y": contest.image_pos_y, "scale": contest.image_scale,
+    })
+
+
+@bp.route("/api/contest/<int:contest_id>/image-adjust", methods=["POST"])
+@admin_required
+def adjust_contest_image(contest_id: int):
+    """이미지 위치(pos_x/pos_y 0~100) + 확대 배율(scale 1~4) 저장."""
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    data = request.get_json(silent=True) or {}
+
+    def _clamp(v, lo, hi, default):
+        try:
+            return max(lo, min(hi, float(v)))
+        except (TypeError, ValueError):
+            return default
+
+    if "pos_x" in data:
+        contest.image_pos_x = _clamp(data["pos_x"], 0, 100, 50.0)
+    if "pos_y" in data:
+        contest.image_pos_y = _clamp(data["pos_y"], 0, 100, 50.0)
+    if "scale" in data:
+        contest.image_scale = _clamp(data["scale"], 1.0, 4.0, 1.0)
+    db.session.commit()
+    return jsonify({"ok": True, "pos_x": contest.image_pos_x, "pos_y": contest.image_pos_y, "scale": contest.image_scale})
+
+
+def _delete_uploaded_image(image_url: str | None):
+    """image_url 이 우리 업로드 경로면 파일 삭제 (외부 핫링크는 건드리지 않음)."""
+    if not image_url or "/uploads/contests/" not in image_url:
+        return
+    fname = os.path.basename(image_url)
+    try:
+        p = os.path.join(_contest_upload_dir(), fname)
+        if os.path.exists(p):
+            os.remove(p)
+    except OSError:
+        pass
+
+
+@bp.route("/api/contest/<int:contest_id>/image-remove", methods=["POST"])
+@admin_required
+def remove_contest_image(contest_id: int):
+    """첨부 이미지 제거 → fallback 타일로 복귀."""
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    _delete_uploaded_image(contest.image_url)
+    contest.image_url = None
+    contest.image_pos_x = 50.0
+    contest.image_pos_y = 50.0
+    contest.image_scale = 1.0
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @bp.route("/api/restore-all", methods=["POST"])
 @admin_required
 def restore_all():
@@ -465,8 +749,11 @@ def restore_all():
     n_p = Paper.query.filter(Paper.hidden_at.isnot(None)).update(
         {"hidden_at": None}, synchronize_session=False
     )
+    n_ct = Contest.query.filter(Contest.hidden_at.isnot(None)).update(
+        {"hidden_at": None}, synchronize_session=False
+    )
     db.session.commit()
-    return jsonify({"ok": True, "clusters": n_c, "papers": n_p})
+    return jsonify({"ok": True, "clusters": n_c, "papers": n_p, "contests": n_ct})
 
 
 @bp.route("/api/clear-saved", methods=["POST"])
@@ -479,8 +766,11 @@ def clear_saved():
     n_p = Paper.query.filter(Paper.saved_at.isnot(None)).update(
         {"saved_at": None}, synchronize_session=False
     )
+    n_ct = Contest.query.filter(Contest.saved_at.isnot(None)).update(
+        {"saved_at": None}, synchronize_session=False
+    )
     db.session.commit()
-    return jsonify({"ok": True, "clusters": n_c, "papers": n_p})
+    return jsonify({"ok": True, "clusters": n_c, "papers": n_p, "contests": n_ct})
 
 
 @bp.route("/api/counts", methods=["GET"])
@@ -488,12 +778,20 @@ def api_counts():
     """숨김·저장 카운트 (실시간 배지 갱신용)."""
     hidden_clusters = Cluster.query.filter(Cluster.hidden_at.isnot(None)).count()
     hidden_papers = Paper.query.filter(Paper.hidden_at.isnot(None)).count()
+    hidden_contests = Contest.query.filter(Contest.hidden_at.isnot(None)).count()
     saved_clusters = Cluster.query.filter(Cluster.saved_at.isnot(None)).count()
     saved_papers = Paper.query.filter(Paper.saved_at.isnot(None)).count()
+    saved_contests = Contest.query.filter(Contest.saved_at.isnot(None)).count()
     return jsonify({
         "ok": True,
-        "hidden": {"clusters": hidden_clusters, "papers": hidden_papers, "total": hidden_clusters + hidden_papers},
-        "saved": {"clusters": saved_clusters, "papers": saved_papers, "total": saved_clusters + saved_papers},
+        "hidden": {
+            "clusters": hidden_clusters, "papers": hidden_papers, "contests": hidden_contests,
+            "total": hidden_clusters + hidden_papers + hidden_contests,
+        },
+        "saved": {
+            "clusters": saved_clusters, "papers": saved_papers, "contests": saved_contests,
+            "total": saved_clusters + saved_papers + saved_contests,
+        },
     })
 
 
@@ -659,6 +957,13 @@ def saved_page():
         .all()
     )
 
+    saved_contests = (
+        Contest.query
+        .filter(Contest.saved_at.isnot(None))
+        .order_by(Contest.saved_at.desc())
+        .all()
+    )
+
     cluster_cardsets = [
         {"cluster": c, "cards": build_cluster_cards(c)}
         for c in saved_clusters
@@ -667,13 +972,16 @@ def saved_page():
         {"paper": p, "cards": build_paper_cards(p)}
         for p in saved_papers
     ]
+    contest_tiles = [build_contest_tile(c) for c in saved_contests]
 
     return render_template(
         "saved.html",
         cluster_cardsets=cluster_cardsets,
         paper_cardsets=paper_cardsets,
+        contest_tiles=contest_tiles,
         total_clusters=len(saved_clusters),
         total_papers=len(saved_papers),
+        total_contests=len(saved_contests),
     )
 
 
@@ -689,6 +997,7 @@ JOB_LABELS = {
     "morning_pipeline": "전체 묶음 (논문→임베딩→요약)",
     "backfill_papers": "📚 논문 백필 (dirty 전부)",
     "cleanup_old_data": "🗑️ 4일 이상 데이터 삭제",
+    "collect_contests": "🏆 공모전 수집 (위비티·데이콘 등)",
 }
 
 

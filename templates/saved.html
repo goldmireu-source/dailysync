@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_slides.html" import render_carousel %}
+{% from "_contest_tile.html" import render_contest_tile %}
 
 {% block title %}저장됨 · DAILY SYNC{% endblock %}
 
@@ -11,8 +12,8 @@
 <h1 class="page-title">저장된 항목</h1>
 <div class="page-meta">
   <span class="stats">
-    {% if total_clusters > 0 or total_papers > 0 %}
-      사건 {{ total_clusters }}개 · 논문 {{ total_papers }}편
+    {% if total_clusters > 0 or total_papers > 0 or total_contests > 0 %}
+      사건 {{ total_clusters }}개 · 논문 {{ total_papers }}편 · 공모전 {{ total_contests }}개
     {% else %}
       저장된 항목이 없습니다
     {% endif %}
@@ -26,10 +27,10 @@
   {% endif %}
 </div>
 
-{% if total_clusters == 0 and total_papers == 0 %}
+{% if total_clusters == 0 and total_papers == 0 and total_contests == 0 %}
 <div class="empty">
   아직 저장된 항목이 없습니다.<br>
-  <span style="font-size: 12px; opacity: 0.6;">사건 또는 논문 카드 우상단의 ☆ 버튼을 눌러 저장하세요.</span>
+  <span style="font-size: 12px; opacity: 0.6;">사건·논문·공모전 카드 우상단의 ☆ 버튼을 눌러 저장하세요.</span>
 </div>
 {% endif %}
 
@@ -59,6 +60,15 @@
       'meta': ('⭐ ' ~ p.hf_upvotes) if (p.hf_upvotes and p.hf_upvotes > 0) else 'arXiv'
     } %}
     {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, false, caption_meta, loop.index, true) }}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if contest_tiles %}
+<div class="section-heading" style="margin-top: 2.5rem;">🏆 저장된 공모전 <span class="count">· {{ total_contests }}</span></div>
+<div class="contest-grid">
+  {% for t in contest_tiles %}
+    {{ render_contest_tile(t, false) }}
   {% endfor %}
 </div>
 {% endif %}

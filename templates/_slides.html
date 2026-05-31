@@ -33,6 +33,7 @@
 
   <div class="cover-title">
     <h1>{{ card.title }}</h1>
+    {% if card.lead %}<p class="cover-lead">{{ card.lead }}</p>{% endif %}
   </div>
 
   <div class="cover-foot">

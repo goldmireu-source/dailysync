@@ -1,0 +1,45 @@
+{#
+  공모전 정사각형 타일 매크로.
+  위 ⅔ = 포스터 이미지(없으면 카테고리 그라데이션+아이콘), 아래 ⅓ = 제목.
+  타일 클릭 → /contest/<id> 상세. admin 은 우상단 저장/숨김 버튼.
+#}
+{% macro render_contest_tile(t, show_hidden=false) %}
+<div class="contest-tile {% if t.urgent %}urgent{% endif %}" data-contest-id="{{ t.id }}">
+  <a class="ct-link" href="/contest/{{ t.id }}">
+    <div class="ct-image">
+      {% if t.image_url %}
+        <img src="{{ t.image_url }}" alt="{{ t.title }}" loading="lazy"
+             style="object-position: {{ t.image_pos_x }}% {{ t.image_pos_y }}%; transform: scale({{ t.image_scale }});"
+             onerror="this.classList.add('img-failed');">
+      {% endif %}
+      <div class="ct-fallback" style="background: linear-gradient(135deg, {{ t.fallback_c1 }}, {{ t.fallback_c2 }});">
+        <span class="ct-fallback-icon">{{ t.fallback_icon }}</span>
+      </div>
+      <span class="ct-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
+      <span class="ct-cat">{{ t.category }}</span>
+    </div>
+    <div class="ct-body">
+      <div class="ct-title">{{ t.title }}</div>
+      <div class="ct-meta">
+        <span class="ct-host">{{ t.host or t.source }}</span>
+        <span class="ct-deadline">~{{ t.deadline_str }}</span>
+      </div>
+    </div>
+  </a>
+
+  {% if g.is_admin %}
+  <div class="ct-actions">
+    <button class="ct-action-btn save-btn {% if t.saved %}saved{% endif %}"
+            title="{% if t.saved %}저장 해제{% else %}저장{% endif %}"
+            onclick="event.preventDefault(); event.stopPropagation(); {% if t.saved %}unsaveItem('contest', {{ t.id }}){% else %}saveItem('contest', {{ t.id }}){% endif %}">
+      {% if t.saved %}★{% else %}☆{% endif %}
+    </button>
+    <button class="ct-action-btn hide-btn"
+            title="{% if show_hidden %}복구{% else %}숨기기{% endif %}"
+            onclick="event.preventDefault(); event.stopPropagation(); {% if show_hidden %}showItem('contest', {{ t.id }}){% else %}hideItem('contest', {{ t.id }}){% endif %}">
+      {% if show_hidden %}↻{% else %}×{% endif %}
+    </button>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

@@ -1,145 +1,91 @@
 {% extends "base.html" %}
 {% from "_slides.html" import render_carousel %}
+{% from "_contest_tile.html" import render_contest_tile %}
 
 {% block title %}{{ target_date.strftime('%Y-%m-%d') }} · DAILY SYNC{% endblock %}
 
 {% block content %}
 
-<a href="/" class="brand" style="text-decoration: none;">DAILY <span class="accent">SYNC</span>{% if show_hidden %} · 숨김 목록{% endif %}</a>
-<div class="title-row">
-  <h1 class="page-title">
-    {% if show_hidden %}숨긴 항목{% else %}오늘의 AI뉴스 / 논문{% endif %}
-  </h1>
-  {% if is_admin and target_date == today and not show_hidden %}
-  <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()">
-    <span class="refresh-icon">🔄</span>
-    <span class="refresh-label">새로 가져오기</span>
-  </button>
-  {% endif %}
-</div>
-<div class="page-meta">
-  <span class="date">{{ target_date.strftime('%Y.%m.%d') }} ({{ ['월','화','수','목','금','토','일'][target_date.weekday()] }})</span>
-  <span class="stats">
-    {% if show_hidden %}
-      숨긴 사건 {{ hidden_count }}개 · 숨긴 논문 {{ hidden_papers_count }}편
-    {% else %}
-      뉴스 {{ total_clusters }}개 · 논문 {{ total_papers }}편
-    {% endif %}
-  </span>
-</div>
-
-<div class="date-nav">
-  <a href="?date={{ prev_date }}{% if show_hidden %}&hidden=1{% endif %}{% if tab == 'papers' %}&tab=papers{% endif %}">← 어제</a>
-  <form method="get" action="/" style="margin: 0; flex: 1;">
-    <input type="date" name="date" value="{{ target_date.isoformat() }}" max="{{ today.isoformat() }}" onchange="this.form.submit()">
-    {% if show_hidden %}<input type="hidden" name="hidden" value="1">{% endif %}
-    {% if tab == 'papers' %}<input type="hidden" name="tab" value="papers">{% endif %}
-  </form>
-  {% if target_date < today %}
-    <a href="?date={{ next_date }}{% if show_hidden %}&hidden=1{% endif %}{% if tab == 'papers' %}&tab=papers{% endif %}">내일 →</a>
-  {% else %}
-    <span style="color: var(--text-faint); padding: 4px 10px;">내일 →</span>
-  {% endif %}
-</div>
-
-{# ===== Refresh 상태 메시지 (admin 전용) ===== #}
-{% if is_admin and target_date == today and not show_hidden %}
-<div class="refresh-status" id="refresh-status"></div>
-{% endif %}
-
-{# ===== 인라인 라이브 검색 ===== #}
-{% if not show_hidden %}
-<div class="inline-search" style="margin: 10px 0 14px;">
-  <input
-    type="search" id="inline-search-input" autocomplete="off"
-    placeholder="🔍 키워드로 카드뉴스 검색 (입력 즉시 반영)"
-    style="width: 100%; padding: 10px 14px; font-size: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
-
-  <div id="inline-search-presets" style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
-    <span style="font-size: 13px; color: #888; margin-right: 2px;">기간:</span>
-    <button type="button" class="inline-preset-chip active" data-key="all">전체</button>
-    <button type="button" class="inline-preset-chip" data-key="today">오늘</button>
-    <button type="button" class="inline-preset-chip" data-key="7d">최근 7일</button>
-    <button type="button" class="inline-preset-chip" data-key="30d">최근 30일</button>
-    <button type="button" class="inline-preset-chip" data-key="custom">사용자 지정</button>
+{# ===== Site header — 간판 ===== #}
+{% set news_active = tab in ['news', 'papers'] %}
+<header class="site-header">
+  <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'">DAILY <span class="ds-accent">SYNC</span></a>
+  {% if is_admin and not show_hidden %}
+  <div class="site-actions">
+    <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>⭐ <span class="hd-num" id="saved-count">{{ saved_total }}</span></a>
+    <a href="?tab={{ tab }}&hidden=1" class="hd-chip" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display:none;"{% endif %}>👁 <span class="hd-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span></a>
+    <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
   </div>
-
-  <div id="inline-search-custom" style="display: none; gap: 12px; align-items: center; margin-top: 8px; font-size: 13px;">
-    <label style="display: flex; gap: 6px; align-items: center;">시작
-      <input type="date" id="inline-from" max="{{ today.isoformat() }}"
-        style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px;">
-    </label>
-    <label style="display: flex; gap: 6px; align-items: center;">종료
-      <input type="date" id="inline-to" max="{{ today.isoformat() }}"
-        style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px;">
-    </label>
-  </div>
-
-  <div id="inline-search-status" style="font-size: 12px; color: #888; margin-top: 6px; min-height: 16px;"></div>
-</div>
-
-<style>
-  .inline-preset-chip {
-    padding: 6px 12px; border: 1px solid #ddd; border-radius: 16px;
-    background: transparent; color: #444; cursor: pointer; font-size: 13px;
-    font-family: inherit;
-  }
-  .inline-preset-chip:hover { border-color: #aaa; }
-  .inline-preset-chip.active {
-    background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; font-weight: 600;
-  }
-</style>
-{% endif %}
-
-<div class="toolbar">
-  {% if show_hidden %}
-    <a href="?date={{ target_date }}" class="toolbar-btn">← 일반 목록으로</a>
-    {% if is_admin and (hidden_count > 0 or hidden_papers_count > 0) %}
-      <button class="toolbar-btn danger" onclick="restoreAll()">↻ 전체 복구</button>
-    {% endif %}
-  {% elif is_admin %}
-    <a href="/saved" class="toolbar-btn" id="saved-link" {% if saved_total == 0 %}style="display: none;"{% endif %}>
-      ⭐ 저장됨
-      <span class="badge-num" id="saved-count">{{ saved_total }}</span>
-    </a>
-    <a href="?date={{ target_date }}&hidden=1" class="toolbar-btn" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display: none;"{% endif %}>
-      👁 숨긴 항목
-      <span class="badge-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span>
-    </a>
   {% endif %}
-</div>
+</header>
+<div class="site-tagline">AI 공모전 · 뉴스 · 논문을 한곳에서</div>
+
+{% if is_admin and not show_hidden %}<div class="refresh-status" id="refresh-status"></div>{% endif %}
 
 {% if show_hidden %}
-  <div class="hidden-mode-banner">
-    숨김 모드입니다. 카드뉴스의 <strong>↻</strong> 버튼으로 개별 복구하거나, "전체 복구"로 한 번에 되돌릴 수 있습니다.
-  </div>
+<div class="hidden-bar">
+  <a href="?tab={{ tab }}" class="toolbar-btn">← 일반 목록으로</a>
+  {% if is_admin and (hidden_count > 0 or hidden_papers_count > 0) %}
+    <button class="toolbar-btn danger" onclick="restoreAll()">↻ 전체 복구</button>
+  {% endif %}
+</div>
+<div class="hidden-mode-banner">숨김 모드입니다. 카드의 <strong>↻</strong> 버튼으로 개별 복구하거나, "전체 복구"로 한 번에 되돌릴 수 있습니다.</div>
 {% endif %}
 
-{% if not inline_clusters and not others and not papers %}
+{# ===== Top nav: 공모전(메인) / 뉴스·논문 ===== #}
+{% if not show_hidden %}
+<nav class="main-nav">
+  <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">🏆 공모전<span class="nav-num">{{ total_contests }}</span></a>
+  <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">📰 뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span></a>
+</nav>
+{% endif %}
+
+{% if tab != 'contests' and not inline_clusters and not others and not papers %}
   <div class="empty">
-    {% if show_hidden %}
-      이 날짜에 숨긴 항목이 없습니다.
-    {% else %}
-      이 날짜에 수집된 다이제스트가 아직 없습니다.<br>
-      <span style="font-size: 12px; opacity: 0.6;">수집 → 임베딩 → 요약 잡을 먼저 돌려주세요.</span>
-    {% endif %}
+    {% if show_hidden %}이 날짜에 숨긴 항목이 없습니다.
+    {% else %}이 날짜에 수집된 다이제스트가 아직 없습니다.<br><span style="font-size:12px; opacity:0.6;">수집 → 임베딩 → 요약 잡을 먼저 돌려주세요.</span>{% endif %}
   </div>
 {% endif %}
 
-{# ===== main-grid: 본문 + 사이드바 ===== #}
-<div class="main-grid">
+{# ===== main-grid (공모전 메인은 풀와이드, 글로서리 사이드바 숨김) ===== #}
+<div class="main-grid {% if tab == 'contests' %}main-grid--full{% endif %}">
   <div class="main-col">
 
-{# ===== 뉴스/논문 탭 ===== #}
-{% if not show_hidden %}
-{% set tab_base = '?date=' ~ target_date.isoformat() %}
-<div class="content-tabs">
-  <a href="{{ tab_base }}&tab=news" class="content-tab {% if tab == 'news' %}active{% endif %}">
-    📰 뉴스 <span class="tab-num">{{ total_clusters }}</span>
-  </a>
-  <a href="{{ tab_base }}&tab=papers" class="content-tab {% if tab == 'papers' %}active{% endif %}">
-    📄 논문 <span class="tab-num">{{ total_papers }}</span>
-  </a>
+{# ===== 뉴스·논문 페이지: 서브 토글 + 날짜 ===== #}
+{% if not show_hidden and news_active %}
+<div class="subtab-row">
+  <div class="subtabs">
+    <a href="?date={{ target_date.isoformat() }}&tab=news" class="subtab {% if tab == 'news' %}active{% endif %}">📰 뉴스<span class="st-num">{{ total_clusters }}</span></a>
+    <a href="?date={{ target_date.isoformat() }}&tab=papers" class="subtab {% if tab == 'papers' %}active{% endif %}">📄 논문<span class="st-num">{{ total_papers }}</span></a>
+  </div>
+  <div class="date-mini">
+    <a href="?date={{ prev_date }}&tab={{ tab }}" title="어제">‹</a>
+    <form method="get" action="/" style="margin:0;">
+      <input type="date" name="date" value="{{ target_date.isoformat() }}" max="{{ today.isoformat() }}" onchange="this.form.submit()">
+      <input type="hidden" name="tab" value="{{ tab }}">
+    </form>
+    {% if target_date < today %}<a href="?date={{ next_date }}&tab={{ tab }}" title="내일">›</a>{% else %}<span class="disabled">›</span>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ===== 인라인 라이브 검색 (뉴스 탭) ===== #}
+{% if not show_hidden and tab == 'news' %}
+<div class="inline-search">
+  <input type="search" id="inline-search-input" autocomplete="off" placeholder="🔍 키워드로 카드뉴스 검색">
+  <div id="inline-search-presets">
+    <span class="ip-label">기간</span>
+    <button type="button" class="inline-preset-chip active" data-key="all">전체</button>
+    <button type="button" class="inline-preset-chip" data-key="today">오늘</button>
+    <button type="button" class="inline-preset-chip" data-key="7d">7일</button>
+    <button type="button" class="inline-preset-chip" data-key="30d">30일</button>
+    <button type="button" class="inline-preset-chip" data-key="custom">지정</button>
+  </div>
+  <div id="inline-search-custom" style="display:none;">
+    <label>시작 <input type="date" id="inline-from" max="{{ today.isoformat() }}"></label>
+    <label>종료 <input type="date" id="inline-to" max="{{ today.isoformat() }}"></label>
+  </div>
+  <div id="inline-search-status"></div>
 </div>
 {% endif %}
 
@@ -286,6 +232,94 @@
 <div class="empty">
   논문이 없습니다.
 </div>
+{% endif %}
+
+{# ===== 공모전 탭 ===== #}
+{% if tab == 'contests' %}
+  {% if is_admin %}
+  <div class="contest-toolbar">
+    <a href="/contest/new" class="contest-add-btn">＋ 공모전 직접 추가</a>
+    <span class="contest-add-hint">자동 수집이 안 되는 공모전을 직접 올릴 수 있어요.</span>
+  </div>
+  {% endif %}
+
+  {# ===== 3D 코버플로우 쇼케이스 (마감 임박) ===== #}
+  {% if contest_showcase and page == 1 %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+  <section class="contest-showcase">
+    <div class="cs-head"><span class="cs-fire">🔥</span> 마감 임박 공모전</div>
+    <div class="swiper contest-swiper">
+      <div class="swiper-wrapper">
+        {% for t in contest_showcase %}
+        <div class="swiper-slide cs-slide">
+          <a class="cs-card" href="/contest/{{ t.id }}">
+            <div class="cs-img" style="background-image: {% if t.image_url %}url('{{ t.image_url }}'), {% endif %}linear-gradient(135deg, {{ t.fallback_c1 }}, {{ t.fallback_c2 }});">
+              {% if not t.image_url %}<span class="cs-fallback">{{ t.fallback_icon }}</span>{% endif %}
+              <span class="cs-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
+            </div>
+            <div class="cs-meta">
+              <div class="cs-title">{{ t.title }}</div>
+              <div class="cs-host">{{ t.host or t.source }} · ~{{ t.deadline_str }}</div>
+            </div>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="swiper-pagination cs-pag"></div>
+  </section>
+  {% endif %}
+
+  {% if contest_tiles %}
+  <div class="contest-help">마감 임박순 · AI 관련 공모전·경진대회만 모았어요. 타일을 누르면 상세로 이동합니다.</div>
+  <div class="contest-grid">
+    {% for t in contest_tiles %}
+      {{ render_contest_tile(t, show_hidden) }}
+    {% endfor %}
+  </div>
+
+  {# 공모전 페이저 #}
+  {% if total_pages > 1 %}
+  {% set page_base = '?date=' ~ target_date.isoformat() ~ '&tab=contests' %}
+  <div class="pager">
+    {% if page > 1 %}
+      <a href="{{ page_base }}&page={{ page - 1 }}" class="pager-btn">← 이전</a>
+    {% else %}
+      <span class="pager-btn disabled">← 이전</span>
+    {% endif %}
+    <div class="pager-nums">
+      {% set start_p = [1, page - 2]|max %}
+      {% set end_p = [total_pages, page + 2]|min %}
+      {% if start_p > 1 %}
+        <a href="{{ page_base }}&page=1" class="pager-num">1</a>
+        {% if start_p > 2 %}<span class="pager-ellip">…</span>{% endif %}
+      {% endif %}
+      {% for p in range(start_p, end_p + 1) %}
+        {% if p == page %}
+          <span class="pager-num active">{{ p }}</span>
+        {% else %}
+          <a href="{{ page_base }}&page={{ p }}" class="pager-num">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if end_p < total_pages %}
+        {% if end_p < total_pages - 1 %}<span class="pager-ellip">…</span>{% endif %}
+        <a href="{{ page_base }}&page={{ total_pages }}" class="pager-num">{{ total_pages }}</a>
+      {% endif %}
+    </div>
+    {% if page < total_pages %}
+      <a href="{{ page_base }}&page={{ page + 1 }}" class="pager-btn">다음 →</a>
+    {% else %}
+      <span class="pager-btn disabled">다음 →</span>
+    {% endif %}
+  </div>
+  <div class="pager-info">{{ (page - 1) * 12 + 1 }}–{{ [(page * 12), total_contests]|min }} of {{ total_contests }}</div>
+  {% endif %}
+  {% else %}
+  <div class="empty">
+    현재 접수 중인 AI 공모전이 없습니다.<br>
+    <span style="font-size: 12px; opacity: 0.6;">admin → "🏆 공모전 수집" 을 돌려보세요.</span>
+  </div>
+  {% endif %}
 {% endif %}
 
   </div>{# /main-col #}
@@ -1005,5 +1039,27 @@ function resetRefresh() {
   }
 })();
 </script>
+
+{# ===== 3D 코버플로우 쇼케이스 init ===== #}
+{% if contest_showcase and page == 1 %}
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+(function () {
+  if (typeof Swiper === 'undefined') return;
+  new Swiper('.contest-swiper', {
+    effect: 'coverflow',
+    grabCursor: true,
+    centeredSlides: true,
+    slidesPerView: 'auto',
+    loop: true,
+    speed: 700,
+    autoplay: { delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true },
+    coverflowEffect: { rotate: 34, stretch: 0, depth: 220, modifier: 1, slideShadows: true },
+    pagination: { el: '.cs-pag', clickable: true },
+    keyboard: { enabled: true },
+  });
+})();
+</script>
+{% endif %}
 
 {% endblock %}

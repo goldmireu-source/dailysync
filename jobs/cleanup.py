@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select
 
-from models import db, Article, Cluster, Paper
+from models import db, Article, Cluster, Paper, Contest
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,26 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
     )
     stats["papers_deleted"] = deleted_papers
 
+    # 5. 마감 지난 공모전 삭제 — deadline 이 (오늘 - grace) 이전, 저장 안 된 것만.
+    #    deadline=None(마감 미상)은 보존. saved_at 처리된 것도 보존.
+    from datetime import date, timezone, timedelta as _td
+    from config import Config
+    kst_today = (datetime.utcnow() + _td(hours=9)).date()
+    contest_cutoff = kst_today - _td(days=Config.CONTEST_RETENTION_DAYS)
+    stats["contests_before"] = Contest.query.count()
+    deleted_contests = (
+        Contest.query
+        .filter(Contest.deadline.isnot(None))
+        .filter(Contest.deadline < contest_cutoff)
+        .filter(Contest.saved_at.is_(None))
+        .delete(synchronize_session=False)
+    )
+    stats["contests_deleted"] = deleted_contests
+    stats["contest_cutoff"] = contest_cutoff.isoformat()
+
     db.session.commit()
 
+    stats["contests_after"] = Contest.query.count()
     stats["articles_after"] = Article.query.count()
     stats["clusters_after"] = Cluster.query.count()
     stats["papers_after"] = Paper.query.count()
