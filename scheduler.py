@@ -184,32 +184,3 @@ def trigger_job_now(job_id: str, app, run_id: int | None = None) -> bool:
         replace_existing=False,
     )
     return True
-
-
-def trigger_keyword_collection(keyword: str, app, run_id: int | None = None) -> bool:
-    """키워드 온디맨드 수집 잡을 즉시 1회 백그라운드 실행.
-
-    trigger_job_now 와 달리 keyword 인자를 클로저로 묶어 넘긴다.
-    """
-    from jobs import pipeline
-
-    def wrapped():
-        with app.app_context():
-            try:
-                pipeline.job_collect_keyword(keyword, triggered_by="manual", run_id=run_id)
-            except Exception:
-                logger.exception("keyword collection crashed")
-    wrapped.__name__ = "job_collect_keyword"
-
-    sched = get_scheduler()
-    if sched is None:
-        wrapped()  # 스케줄러 없는 환경 — 동기 실행
-        return True
-
-    from datetime import datetime
-    sched.add_job(
-        wrapped, "date", run_date=datetime.now(KST),
-        id=f"manual_keyword_{int(datetime.now().timestamp())}",
-        replace_existing=False,
-    )
-    return True

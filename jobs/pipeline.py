@@ -174,42 +174,6 @@ def job_summarize_papers(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
-# ---------- 키워드 온디맨드 수집 (사용자 트리거) ----------
-def job_collect_keyword(keyword: str, triggered_by: str = "manual", run_id: int | None = None) -> dict:
-    """키워드로 구글 뉴스 검색 → 임베딩 → 클러스터 → 요약 (전 과정 1회).
-
-    사용자가 검색창에서 '새로 수집'을 눌렀을 때 호출. 신규 0건이면 이후 단계 스킵.
-    """
-    with _track("collect_keyword", triggered_by, run_id=run_id) as stats:
-        from jobs.keyword_collector import collect_keyword
-        from jobs.embedder import embed_articles, cluster_articles
-        from jobs.news_summarizer import summarize_pending
-
-        stats["keyword"] = keyword
-        _update_phase(run_id, f"'{keyword}' 뉴스 검색 수집 중")
-        c = collect_keyword(keyword)
-        stats["fetched"] = c.get("fetched", 0)
-        stats["new"] = c.get("new", 0)
-        if c.get("error"):
-            stats["collect_error"] = c["error"]
-        if stats["new"] == 0:
-            _update_phase(run_id, "신규 기사 없음")
-            return stats
-
-        _update_phase(run_id, "임베딩·클러스터링 중")
-        a_emb = embed_articles(limit=500)
-        cl = cluster_articles()
-        stats["articles_embedded"] = a_emb.get("success", 0)
-        stats["clusters_created"] = cl.get("created", 0)
-        stats["clusters_joined"] = cl.get("joined", 0)
-
-        _update_phase(run_id, "요약 중")
-        s = summarize_pending(limit=200)
-        stats["summarized"] = s.get("success", 0)
-        _update_phase(run_id, "완료")
-        return stats
-
-
 # ---------- 묶음 (07:00 트리거) ----------
 def job_morning_pipeline(triggered_by: str = "scheduler") -> dict:
     """06:30 ~ 07:10 사이 한 번에 실행되는 묶음.
