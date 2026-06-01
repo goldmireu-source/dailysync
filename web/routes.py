@@ -1066,6 +1066,23 @@ def admin_run_job(job_id: str):
     })
 
 
+@bp.route("/admin/collect-keyword", methods=["POST"])
+@admin_required
+def admin_collect_keyword():
+    """키워드로 구글 뉴스 검색 → 수집·요약 잡 트리거. run_id 반환(프론트 폴링)."""
+    from flask import current_app
+    from scheduler import trigger_keyword_collection
+    from jobs.pipeline import create_job_run
+
+    keyword = (request.values.get("q") or "").strip()[:100]
+    if not keyword:
+        return jsonify({"ok": False, "error": "empty_keyword"}), 400
+
+    run_id = create_job_run("collect_keyword", triggered_by="manual")
+    trigger_keyword_collection(keyword, current_app._get_current_object(), run_id=run_id)
+    return jsonify({"ok": True, "run_id": run_id, "keyword": keyword})
+
+
 @bp.route("/api/job/<job_id>/latest", methods=["GET"])
 def api_job_latest(job_id: str):
     """가장 최근 JobRun 상태 조회 (폴링용)."""

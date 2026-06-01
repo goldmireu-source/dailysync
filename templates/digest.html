@@ -72,7 +72,13 @@
 {# ===== 인라인 라이브 검색 (뉴스 탭) ===== #}
 {% if not show_hidden and tab == 'news' %}
 <div class="inline-search">
-  <input type="search" id="inline-search-input" autocomplete="off" placeholder="🔍 키워드로 카드뉴스 검색">
+  <div class="inline-search-row">
+    <input type="search" id="inline-search-input" autocomplete="off" placeholder="🔍 키워드로 카드뉴스 검색">
+    {% if is_admin %}
+    <button type="button" id="inline-collect-btn" class="inline-collect-btn"
+      title="이 키워드로 구글 뉴스에서 새 기사를 수집해 카드뉴스로 만듭니다">＋ 새로 수집</button>
+    {% endif %}
+  </div>
   <div id="inline-search-presets">
     <span class="ip-label">기간</span>
     <button type="button" class="inline-preset-chip active" data-key="all">전체</button>
@@ -516,6 +522,55 @@ initCarouselsIn(document);
       if (preset === 'custom' && input.value.trim()) scheduleSearch(80);
     });
   });
+
+  // ----- '새로 수집': 키워드로 구글 뉴스에서 수집 → 요약 → 결과 재검색 -----
+  const collectBtn = document.getElementById('inline-collect-btn');
+  async function pollKeywordJob(runId, q) {
+    for (let i = 0; i < 240; i++) {              // 최대 ~6분 폴링 (CPU 임베딩이 느림)
+      await new Promise(r => setTimeout(r, 1500));
+      let run = null;
+      try {
+        const res = await fetch('/api/job/run/' + runId);
+        run = (await res.json()).run;
+      } catch (e) { continue; }
+      if (!run) continue;
+      const ph = (run.stats && run.stats.phase) || '진행 중';
+      if (status) status.textContent = '"' + q + '" — ' + ph + '…';
+      if (run.status === 'success') {
+        const n = (run.stats && run.stats.new) || 0;
+        if (n > 0) {
+          if (status) status.textContent = '"' + q + '" 신규 ' + n + '건 수집 완료 — 결과 표시';
+          input.value = q;
+          runSearch();
+        } else {
+          if (status) status.textContent = '"' + q + '" 관련 새 기사를 못 찾았습니다';
+        }
+        return;
+      }
+      if (run.status === 'failed') {
+        if (status) status.textContent = '수집 실패 — 잠시 후 다시 시도해 주세요';
+        return;
+      }
+    }
+    if (status) status.textContent = '수집이 오래 걸립니다 — 잠시 후 검색해 보세요';
+  }
+  async function collectKeyword() {
+    const q = input.value.trim();
+    if (!q) { input.focus(); return; }
+    collectBtn.disabled = true;
+    if (status) status.textContent = '"' + q + '" 뉴스 수집 시작… (수집→임베딩→요약, 수 분 걸릴 수 있어요)';
+    try {
+      const res = await fetch('/admin/collect-keyword?q=' + encodeURIComponent(q), { method: 'POST' });
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'failed');
+      await pollKeywordJob(j.run_id, q);
+    } catch (e) {
+      if (status) status.textContent = '수집 요청 실패: ' + e.message;
+    } finally {
+      collectBtn.disabled = false;
+    }
+  }
+  if (collectBtn) collectBtn.addEventListener('click', collectKeyword);
 })();
 
 function openCardModal(carousel) {

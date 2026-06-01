@@ -3063,11 +3063,20 @@ body.modal-open {
 
 /* 인라인 검색 — 모던 */
 .inline-search { margin: 0 0 18px; }
+.inline-search-row { display: flex; gap: 8px; align-items: stretch; }
+.inline-search-row #inline-search-input { flex: 1; }
 .inline-search #inline-search-input {
   width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 15px; font-family: inherit;
   border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text);
 }
 .inline-search #inline-search-input:focus { outline: none; border-color: var(--accent); }
+.inline-collect-btn {
+  flex: 0 0 auto; padding: 0 16px; border: 1px solid var(--accent-dim); border-radius: 12px;
+  background: var(--accent-bg); color: var(--accent); font-family: inherit; font-weight: 700;
+  font-size: 13.5px; cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.inline-collect-btn:hover { background: var(--accent); color: #fff; }
+.inline-collect-btn:disabled { opacity: .55; cursor: progress; }
 #inline-search-presets { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 #inline-search-presets .ip-label { font-size: 12px; color: var(--text-dim); margin-right: 2px; }
 .inline-preset-chip {
