@@ -155,6 +155,8 @@ def job_embed_and_cluster(triggered_by: str = "scheduler") -> dict:
         stats["clusters_processed"] = s_c.get("processed", 0)
         stats["clusters_created"] = s_c.get("created", 0)
         stats["clusters_joined"] = s_c.get("joined", 0)
+        stats["clusters_merged_groups"] = s_c.get("merged_groups", 0)
+        stats["clusters_absorbed"] = s_c.get("clusters_absorbed", 0)
         return stats
 
 
@@ -199,6 +201,8 @@ def job_morning_pipeline(triggered_by: str = "scheduler") -> dict:
         stats["papers_embedded"] = p_emb.get("success", 0)
         stats["clusters_created"] = cl.get("created", 0)
         stats["clusters_joined"] = cl.get("joined", 0)
+        stats["clusters_merged_groups"] = cl.get("merged_groups", 0)
+        stats["clusters_absorbed"] = cl.get("clusters_absorbed", 0)
 
         # 3. 뉴스 요약
         n_sum = summarize_pending(limit=200)
@@ -309,6 +313,8 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             stats["papers_embedded"] = p_emb.get("success", 0)
             stats["clusters_created"] = cl.get("created", 0)
             stats["clusters_joined"] = cl.get("joined", 0)
+            stats["clusters_merged_groups"] = cl.get("merged_groups", 0)
+            stats["clusters_absorbed"] = cl.get("clusters_absorbed", 0)
         except Exception as e:
             logger.exception("embed/cluster failed in refresh_now")
             stats["clusters_created"] = 0

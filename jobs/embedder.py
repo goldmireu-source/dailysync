@@ -171,6 +171,180 @@ def cluster_articles() -> dict:
         stats["processed"] += 1
 
     db.session.commit()
+
+    # 사후 머지 — 동일 사건이 여러 클러스터로 쪼개진 경우 흡수
+    merge_stats = merge_similar_clusters()
+    stats["merged_groups"] = merge_stats.get("groups_merged", 0)
+    stats["clusters_absorbed"] = merge_stats.get("clusters_absorbed", 0)
+    return stats
+
+
+# ---------- 사후 머지 (평행 클러스터 흡수) ----------
+# 한 그룹에 묶일 수 있는 최대 클러스터 수 (전이성으로 인한 메가-그룹 방지)
+MAX_MERGE_GROUP_SIZE = 4
+
+
+def merge_similar_clusters(
+    threshold: float | None = None,
+    window_hours: int | None = None,
+) -> dict:
+    """동일 사건이 여러 클러스터로 분리된 경우 사후 병합.
+
+    알고리즘: greedy pairwise.
+      - 윈도우 내 클러스터들의 centroid 쌍쌍 유사도 계산
+      - threshold 이상인 쌍을 유사도 내림차순 큐에 적재
+      - 가장 가까운 쌍부터 처리:
+          * 두 keeper 의 *현재* centroid 로 유사도 재계산 (이미 누가 흡수돼 centroid 갱신됐을 수 있음)
+          * 재계산 유사도가 여전히 ≥ threshold 이고
+          * 머지 후 그룹 size 가 MAX_MERGE_GROUP_SIZE 이하이며
+          * saved 충돌 아닐 때만 합침
+      - keeper 선택: saved_at 있는 쪽 > 멤버 수 많은 쪽 > id 작은 쪽
+
+    이 방식의 장점:
+      - 가장 강한 쌍부터 흡수하면서 centroid 가 평균쪽으로 이동
+      - "메가-토픽" 클러스터(예: 저작권 종합)와 구체 사건이 transitive 로 끌려 들어가는 현상 억제
+      - size cap 으로 한 그룹이 메가-클러스터가 되지 않게 마지막 안전장치
+
+    반환: {pairs_over_threshold, groups_merged, clusters_absorbed, skipped_size, skipped_saved}
+    """
+    if threshold is None:
+        threshold = Config.CLUSTER_MERGE_THRESHOLD
+    if window_hours is None:
+        window_hours = Config.CLUSTER_TIME_WINDOW_HOURS
+
+    cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+    candidates = (
+        Cluster.query
+        .filter(Cluster.updated_at >= cutoff)
+        .filter(Cluster.centroid.isnot(None))
+        .all()
+    )
+
+    n = len(candidates)
+    stats = {
+        "pairs_over_threshold": 0,
+        "groups_merged": 0,
+        "clusters_absorbed": 0,
+        "skipped_size": 0,
+        "skipped_saved": 0,
+    }
+    if n < 2:
+        return stats
+
+    centroids = [np.array(c.centroid, dtype=np.float32) for c in candidates]
+    sizes = [max(1, c.articles.count()) for c in candidates]
+    saved_flags = [c.saved_at is not None for c in candidates]
+
+    # 초기 모든 쌍 유사도 → threshold 이상만 큐에 적재
+    norm_matrix = np.array([v / (np.linalg.norm(v) or 1.0) for v in centroids])
+    sim = norm_matrix @ norm_matrix.T
+    pair_q: list[tuple[float, int, int]] = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if sim[i, j] >= threshold:
+                pair_q.append((float(sim[i, j]), i, j))
+    pair_q.sort(reverse=True, key=lambda x: x[0])
+    stats["pairs_over_threshold"] = len(pair_q)
+
+    # 인덱스 i 가 어느 keeper 로 흡수됐는지 — 없으면 자기 자신이 keeper
+    absorbed_into: dict[int, int] = {}
+    # keeper 별 현재 상태 (centroid·size·members)
+    cur_centroid = {i: centroids[i].copy() for i in range(n)}
+    cur_size = {i: sizes[i] for i in range(n)}
+    cur_members = {i: [i] for i in range(n)}
+    cur_saved = {i: saved_flags[i] for i in range(n)}
+
+    def root_of(x: int) -> int:
+        while x in absorbed_into:
+            x = absorbed_into[x]
+        return x
+
+    def cosine(a: np.ndarray, b: np.ndarray) -> float:
+        na = np.linalg.norm(a)
+        nb = np.linalg.norm(b)
+        if na == 0 or nb == 0:
+            return 0.0
+        return float(np.dot(a, b) / (na * nb))
+
+    for _orig_sim, i, j in pair_q:
+        ri, rj = root_of(i), root_of(j)
+        if ri == rj:
+            continue
+
+        # 사이즈 캡 — 합치면 MAX 초과면 skip
+        if len(cur_members[ri]) + len(cur_members[rj]) > MAX_MERGE_GROUP_SIZE:
+            stats["skipped_size"] += 1
+            continue
+
+        # 저장 충돌 — 양쪽 다 saved 면 skip
+        if cur_saved[ri] and cur_saved[rj]:
+            stats["skipped_saved"] += 1
+            continue
+
+        # 현재 centroid 로 유사도 재계산
+        s_now = cosine(cur_centroid[ri], cur_centroid[rj])
+        if s_now < threshold:
+            continue
+
+        # keeper 결정
+        if cur_saved[ri] and not cur_saved[rj]:
+            keep, absorb = ri, rj
+        elif cur_saved[rj] and not cur_saved[ri]:
+            keep, absorb = rj, ri
+        else:
+            # saved 동률 (둘 다 not saved) → 멤버 수 큰 쪽, 동률이면 id 작은 쪽
+            ki = candidates[ri]
+            kj = candidates[rj]
+            if cur_size[ri] > cur_size[rj]:
+                keep, absorb = ri, rj
+            elif cur_size[ri] < cur_size[rj]:
+                keep, absorb = rj, ri
+            else:
+                keep, absorb = (ri, rj) if ki.id <= kj.id else (rj, ri)
+
+        # centroid 가중 평균
+        new_size = cur_size[keep] + cur_size[absorb]
+        new_centroid = (
+            cur_centroid[keep] * cur_size[keep]
+            + cur_centroid[absorb] * cur_size[absorb]
+        ) / new_size
+
+        cur_centroid[keep] = new_centroid
+        cur_size[keep] = new_size
+        cur_members[keep].extend(cur_members[absorb])
+        absorbed_into[absorb] = keep
+        # 흡수된 keeper 의 상태 정리
+        del cur_centroid[absorb]
+        del cur_size[absorb]
+        del cur_members[absorb]
+        del cur_saved[absorb]
+
+    # 실제 DB 머지
+    for keep_idx, members in cur_members.items():
+        if len(members) < 2:
+            continue
+        keeper_cluster = candidates[keep_idx]
+        absorbed_clusters = [candidates[m] for m in members if m != keep_idx]
+        absorbed_ids = [c.id for c in absorbed_clusters]
+
+        Article.query.filter(Article.cluster_id.in_(absorbed_ids)).update(
+            {Article.cluster_id: keeper_cluster.id}, synchronize_session=False
+        )
+
+        keeper_cluster.centroid = cur_centroid[keep_idx].tolist()
+        keeper_cluster.summary_dirty = True
+        keeper_cluster.updated_at = datetime.utcnow()
+        # 머지 결과는 사실상 새 합본이므로 오늘 다시 노출 가능하게 리셋
+        # (keeper 가 saved_at 가지면 유지)
+        keeper_cluster.first_shown_date = None
+
+        for c in absorbed_clusters:
+            db.session.delete(c)
+
+        stats["groups_merged"] += 1
+        stats["clusters_absorbed"] += len(absorbed_clusters)
+
+    db.session.commit()
     return stats
 
 
@@ -178,7 +352,8 @@ if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         print(f"임베딩 모델: {Config.LOCAL_EMBEDDING_MODEL}")
-        print(f"클러스터 임계값: {Config.CLUSTER_SIMILARITY_THRESHOLD}")
+        print(f"클러스터 편입 임계값: {Config.CLUSTER_SIMILARITY_THRESHOLD}")
+        print(f"클러스터 머지 임계값: {Config.CLUSTER_MERGE_THRESHOLD}")
         print()
 
         print("=== 1. 뉴스 기사 임베딩 ===")
@@ -189,9 +364,10 @@ if __name__ == "__main__":
         s2 = embed_papers(limit=500)
         print(f"  total={s2['total']} success={s2['success']} failed={s2['failed']}")
 
-        print("\n=== 3. 뉴스 클러스터링 ===")
+        print("\n=== 3. 뉴스 클러스터링 + 사후 머지 ===")
         s3 = cluster_articles()
         print(f"  processed={s3['processed']} joined={s3['joined']} created={s3['created']}")
+        print(f"  merged_groups={s3.get('merged_groups', 0)} clusters_absorbed={s3.get('clusters_absorbed', 0)}")
 
         total_clusters = Cluster.query.count()
         multi = sum(1 for c in Cluster.query.all() if c.articles.count() >= 2)
