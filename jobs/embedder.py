@@ -104,10 +104,10 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
-    """미저장 클러스터에서 최신 기사 기준 max_gap_hours 초과 기사를 cluster_id=NULL 로 분리.
+    """미저장 클러스터에서 최신 기사 KST 날짜와 다른 날의 기사를 cluster_id=NULL 로 분리.
 
-    잘못 편입된 구형 기사를 정리해 cleanup 잡에서 삭제되도록 한다.
-    분리된 기사는 published_at 이 오래돼 unassigned 재처리 대상에도 포함되지 않음.
+    KST 날짜 기준으로 다른 날에 발행된 기사를 정리한다.
+    max_gap_hours 파라미터는 하위 호환을 위해 유지하되, 내부 로직은 KST 날짜 비교로 대체.
     """
     clusters = (
         Cluster.query
@@ -123,8 +123,9 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
         if not dated:
             continue
         latest_pub = max(m.published_at for m in dated)
-        cutoff_dt = latest_pub - timedelta(hours=max_gap_hours)
-        stale = [m for m in dated if m.published_at < cutoff_dt]
+        # KST 날짜 기준 — 최신 기사와 다른 KST 날짜의 기사는 분리
+        latest_kst_date = (latest_pub + timedelta(hours=9)).date()
+        stale = [m for m in dated if (m.published_at + timedelta(hours=9)).date() != latest_kst_date]
         if not stale:
             continue
         for a in stale:
@@ -167,11 +168,20 @@ def cluster_articles() -> dict:
     for c in active:
         if not c.centroid:
             continue
+        # KST 날짜 산출 — 클러스터 기사들 중 최신 기사의 KST 날짜
+        members_all = c.articles.all()
+        dated_members = [m for m in members_all if m.published_at]
+        if dated_members:
+            latest_pub = max(m.published_at for m in dated_members)
+            kst_date = (latest_pub + timedelta(hours=9)).date()
+        else:
+            kst_date = (c.updated_at + timedelta(hours=9)).date() if c.updated_at else (datetime.utcnow() + timedelta(hours=9)).date()
         state.append({
             "id": c.id,
             "centroid": np.array(c.centroid, dtype=np.float32),
-            "size": c.articles.count(),
+            "size": len(members_all),
             "updated_at": c.updated_at or datetime.utcnow(),
+            "kst_date": kst_date,
         })
 
     stats = {"processed": 0, "joined": 0, "created": 0}
@@ -180,10 +190,13 @@ def cluster_articles() -> dict:
         emb = np.array(art.embedding, dtype=np.float32)
         art_pub = art.published_at or datetime.utcnow()
 
+        # 기사의 KST 날짜 — 클러스터와 같은 날이어야만 편입 허용
+        art_kst_date = (art_pub + timedelta(hours=9)).date()
+
         best_idx, best_sim = -1, 0.0
         for i, cs in enumerate(state):
-            # 기사 발행 시점과 클러스터 최근 갱신 시점 차이가 24시간 초과면 다른 날의 사건으로 판단
-            if abs((art_pub - cs["updated_at"]).total_seconds()) > 24 * 3600:
+            # KST 날짜가 다르면 다른 날의 사건 → 편입 금지
+            if art_kst_date != cs["kst_date"]:
                 continue
             sim = _cosine(emb, cs["centroid"])
             if sim > best_sim:
@@ -212,7 +225,7 @@ def cluster_articles() -> dict:
             db.session.flush()
             art.cluster_id = cluster.id
 
-            state.append({"id": cluster.id, "centroid": emb, "size": 1, "updated_at": datetime.utcnow()})
+            state.append({"id": cluster.id, "centroid": emb, "size": 1, "updated_at": datetime.utcnow(), "kst_date": art_kst_date})
             stats["created"] += 1
 
         stats["processed"] += 1
@@ -283,7 +296,19 @@ def merge_similar_clusters(
     sizes = [max(1, c.articles.count()) for c in candidates]
     saved_flags = [c.saved_at is not None for c in candidates]
 
-    # 초기 모든 쌍 유사도 → threshold 이상 + 날짜 근접 + 미저장인 것만 큐에 적재
+    # 클러스터별 KST 날짜 사전 계산 (최신 기사 기준)
+    kst_dates = []
+    for c in candidates:
+        dated = [a for a in c.articles.all() if a.published_at]
+        if dated:
+            latest = max(a.published_at for a in dated)
+            kst_dates.append((latest + timedelta(hours=9)).date())
+        elif c.updated_at:
+            kst_dates.append((c.updated_at + timedelta(hours=9)).date())
+        else:
+            kst_dates.append((datetime.utcnow() + timedelta(hours=9)).date())
+
+    # 초기 모든 쌍 유사도 → threshold 이상 + 같은 KST 날짜 + 미저장인 것만 큐에 적재
     norm_matrix = np.array([v / (np.linalg.norm(v) or 1.0) for v in centroids])
     sim = norm_matrix @ norm_matrix.T
     pair_q: list[tuple[float, int, int]] = []
@@ -295,10 +320,8 @@ def merge_similar_clusters(
             if saved_flags[i] or saved_flags[j]:
                 stats["skipped_saved"] += 1
                 continue
-            # 두 클러스터의 최근 갱신 시점이 24시간 이상 차이나면 다른 날의 사건
-            ci_upd = candidates[i].updated_at or datetime.utcnow()
-            cj_upd = candidates[j].updated_at or datetime.utcnow()
-            if abs((ci_upd - cj_upd).total_seconds()) > 24 * 3600:
+            # 두 클러스터의 KST 날짜가 다르면 다른 날의 사건 — 머지 금지
+            if kst_dates[i] != kst_dates[j]:
                 stats["skipped_date"] += 1
                 continue
             pair_q.append((float(sim[i, j]), i, j))

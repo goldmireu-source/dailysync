@@ -232,10 +232,13 @@ def build_cluster_cards(cluster) -> list[dict]:
 
     # ----- Card 4: Source Breakdown (다중 매체만) -----
     if len(sources) >= 2 and cluster.divergences:
-        # 매체별로 divergences 그룹화
+        # date-filtered members 에 포함된 소스만 허용 (다른 날 기사의 divergences 제거)
+        valid_sources = set(sources)
         by_src: dict = {}
         for d in cluster.divergences:
             src = d.get("source", "기타")
+            if src not in valid_sources:
+                continue
             by_src.setdefault(src, []).append(d.get("claim", ""))
 
         # 매체별 발행시각도 제공
@@ -261,20 +264,29 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        n_src_slides = len(src_chunks)
         links_info = [{"name": a.source.name, "url": a.url} for a in members]
-        for i, chunk in enumerate(src_chunks):
-            if i == 0:
-                title = "매체마다 본 각도가 달라요"
-            else:
-                title = f"매체마다 본 각도가 달라요 ({i + 1}/{n_src_slides})"
+        if src_chunks:
+            n_src_slides = len(src_chunks)
+            for i, chunk in enumerate(src_chunks):
+                if i == 0:
+                    title = "매체마다 본 각도가 달라요"
+                else:
+                    title = f"매체마다 본 각도가 달라요 ({i + 1}/{n_src_slides})"
+                cards.append({
+                    "type": "sources",
+                    "category": cat_key,
+                    "title": title,
+                    "sources_detail": chunk,
+                    # 마지막 슬라이드에만 links 박스 표시
+                    "links": links_info if i == n_src_slides - 1 else [],
+                })
+        else:
+            # divergences 가 모두 필터링된 경우 링크 카드 fallback
             cards.append({
-                "type": "sources",
+                "type": "links",
                 "category": cat_key,
-                "title": title,
-                "sources_detail": chunk,
-                # 마지막 슬라이드에만 links 박스 표시
-                "links": links_info if i == n_src_slides - 1 else [],
+                "title": "더 알아보기",
+                "links": links_info,
             })
     else:
         # 단일 매체 또는 divergences 없음 — 링크 카드만 마지막에
