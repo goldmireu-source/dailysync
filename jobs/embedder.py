@@ -103,22 +103,64 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / norm)
 
 
+def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
+    """미저장 클러스터에서 최신 기사 기준 max_gap_hours 초과 기사를 cluster_id=NULL 로 분리.
+
+    잘못 편입된 구형 기사를 정리해 cleanup 잡에서 삭제되도록 한다.
+    분리된 기사는 published_at 이 오래돼 unassigned 재처리 대상에도 포함되지 않음.
+    """
+    clusters = (
+        Cluster.query
+        .filter(Cluster.saved_at.is_(None))
+        .all()
+    )
+    total_detached = 0
+    for cluster in clusters:
+        members = cluster.articles.all()
+        if len(members) < 2:
+            continue
+        dated = [m for m in members if m.published_at]
+        if not dated:
+            continue
+        latest_pub = max(m.published_at for m in dated)
+        cutoff_dt = latest_pub - timedelta(hours=max_gap_hours)
+        stale = [m for m in dated if m.published_at < cutoff_dt]
+        if not stale:
+            continue
+        for a in stale:
+            a.cluster_id = None
+        cluster.summary_dirty = True
+        total_detached += len(stale)
+    if total_detached:
+        db.session.commit()
+    return total_detached
+
+
 def cluster_articles() -> dict:
     threshold = Config.CLUSTER_SIMILARITY_THRESHOLD
     window_hours = Config.CLUSTER_TIME_WINDOW_HOURS
     cutoff = datetime.utcnow() - timedelta(hours=window_hours)
 
+    # 0. 기존 클러스터에서 날짜 이상값 기사 분리 (오염된 기존 데이터 정리)
+    detached = _detach_stale_cluster_articles(max_gap_hours=24)
+    if detached:
+        logger.info(f"cluster_articles: 날짜 이상값 기사 {detached}개 클러스터에서 분리")
+
+    # 날짜 필터: 윈도우 내 기사만 클러스터링 대상으로 (오래된 미할당 기사가 새 클러스터로 편입되는 것 방지)
     unassigned = (
         Article.query
         .filter(Article.cluster_id.is_(None))
         .filter(Article.embedding.isnot(None))
+        .filter(Article.published_at >= cutoff)
         .order_by(Article.published_at.asc())
         .all()
     )
 
+    # 저장된 클러스터는 활성 풀에서 제외 — 저장 클러스터는 내용 동결, 새 기사 편입 금지
     active = (
         Cluster.query
         .filter(Cluster.updated_at >= cutoff)
+        .filter(Cluster.saved_at.is_(None))
         .all()
     )
     state = []
@@ -129,15 +171,20 @@ def cluster_articles() -> dict:
             "id": c.id,
             "centroid": np.array(c.centroid, dtype=np.float32),
             "size": c.articles.count(),
+            "updated_at": c.updated_at or datetime.utcnow(),
         })
 
     stats = {"processed": 0, "joined": 0, "created": 0}
 
     for art in unassigned:
         emb = np.array(art.embedding, dtype=np.float32)
+        art_pub = art.published_at or datetime.utcnow()
 
         best_idx, best_sim = -1, 0.0
         for i, cs in enumerate(state):
+            # 기사 발행 시점과 클러스터 최근 갱신 시점 차이가 24시간 초과면 다른 날의 사건으로 판단
+            if abs((art_pub - cs["updated_at"]).total_seconds()) > 24 * 3600:
+                continue
             sim = _cosine(emb, cs["centroid"])
             if sim > best_sim:
                 best_sim = sim
@@ -165,7 +212,7 @@ def cluster_articles() -> dict:
             db.session.flush()
             art.cluster_id = cluster.id
 
-            state.append({"id": cluster.id, "centroid": emb, "size": 1})
+            state.append({"id": cluster.id, "centroid": emb, "size": 1, "updated_at": datetime.utcnow()})
             stats["created"] += 1
 
         stats["processed"] += 1
@@ -227,6 +274,7 @@ def merge_similar_clusters(
         "clusters_absorbed": 0,
         "skipped_size": 0,
         "skipped_saved": 0,
+        "skipped_date": 0,
     }
     if n < 2:
         return stats
@@ -235,14 +283,25 @@ def merge_similar_clusters(
     sizes = [max(1, c.articles.count()) for c in candidates]
     saved_flags = [c.saved_at is not None for c in candidates]
 
-    # 초기 모든 쌍 유사도 → threshold 이상만 큐에 적재
+    # 초기 모든 쌍 유사도 → threshold 이상 + 날짜 근접 + 미저장인 것만 큐에 적재
     norm_matrix = np.array([v / (np.linalg.norm(v) or 1.0) for v in centroids])
     sim = norm_matrix @ norm_matrix.T
     pair_q: list[tuple[float, int, int]] = []
     for i in range(n):
         for j in range(i + 1, n):
-            if sim[i, j] >= threshold:
-                pair_q.append((float(sim[i, j]), i, j))
+            if sim[i, j] < threshold:
+                continue
+            # 저장된 클러스터는 머지 후보에서 제외
+            if saved_flags[i] or saved_flags[j]:
+                stats["skipped_saved"] += 1
+                continue
+            # 두 클러스터의 최근 갱신 시점이 24시간 이상 차이나면 다른 날의 사건
+            ci_upd = candidates[i].updated_at or datetime.utcnow()
+            cj_upd = candidates[j].updated_at or datetime.utcnow()
+            if abs((ci_upd - cj_upd).total_seconds()) > 24 * 3600:
+                stats["skipped_date"] += 1
+                continue
+            pair_q.append((float(sim[i, j]), i, j))
     pair_q.sort(reverse=True, key=lambda x: x[0])
     stats["pairs_over_threshold"] = len(pair_q)
 
@@ -276,8 +335,8 @@ def merge_similar_clusters(
             stats["skipped_size"] += 1
             continue
 
-        # 저장 충돌 — 양쪽 다 saved 면 skip
-        if cur_saved[ri] and cur_saved[rj]:
+        # 저장된 클러스터 방어 — pair_q 구성 시 이미 걸렀지만, root 이동 후 재확인
+        if cur_saved.get(ri) or cur_saved.get(rj):
             stats["skipped_saved"] += 1
             continue
 
@@ -286,21 +345,16 @@ def merge_similar_clusters(
         if s_now < threshold:
             continue
 
-        # keeper 결정
-        if cur_saved[ri] and not cur_saved[rj]:
+        # keeper 결정 — 둘 다 미저장 (saved 는 앞에서 이미 skip)
+        # 멤버 수 큰 쪽, 동률이면 id 작은 쪽
+        ki = candidates[ri]
+        kj = candidates[rj]
+        if cur_size[ri] > cur_size[rj]:
             keep, absorb = ri, rj
-        elif cur_saved[rj] and not cur_saved[ri]:
+        elif cur_size[ri] < cur_size[rj]:
             keep, absorb = rj, ri
         else:
-            # saved 동률 (둘 다 not saved) → 멤버 수 큰 쪽, 동률이면 id 작은 쪽
-            ki = candidates[ri]
-            kj = candidates[rj]
-            if cur_size[ri] > cur_size[rj]:
-                keep, absorb = ri, rj
-            elif cur_size[ri] < cur_size[rj]:
-                keep, absorb = rj, ri
-            else:
-                keep, absorb = (ri, rj) if ki.id <= kj.id else (rj, ri)
+            keep, absorb = (ri, rj) if ki.id <= kj.id else (rj, ri)
 
         # centroid 가중 평균
         new_size = cur_size[keep] + cur_size[absorb]

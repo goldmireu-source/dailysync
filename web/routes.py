@@ -183,19 +183,19 @@ def index():
     hidden_count = base_q.filter(Cluster.hidden_at.isnot(None)).count()
 
     # first_shown_date 가 NULL 인 클러스터들에 target 박기 (한 번만)
-    today_kst = datetime.now(KST).date()
-    if target == today_kst:
-        unstamped_ids = [c.id for c in visible_clusters if c.first_shown_date is None]
-        if unstamped_ids:
-            Cluster.query.filter(Cluster.id.in_(unstamped_ids)).update(
-                {Cluster.first_shown_date: target},
-                synchronize_session=False,
-            )
-            db.session.commit()
-            # 메모리 객체도 갱신
-            for c in visible_clusters:
-                if c.id in unstamped_ids:
-                    c.first_shown_date = target
+    # 과거 날짜 조회 시에도 즉시 스탬핑해야 다른 날짜 뷰에 중복 노출되지 않음
+    unstamped_ids = [c.id for c in visible_clusters if c.first_shown_date is None]
+    if unstamped_ids:
+        Cluster.query.filter(Cluster.id.in_(unstamped_ids)).update(
+            {Cluster.first_shown_date: target},
+            synchronize_session=False,
+        )
+        db.session.commit()
+        # 메모리 객체도 갱신
+        unstamped_set = set(unstamped_ids)
+        for c in visible_clusters:
+            if c.id in unstamped_set:
+                c.first_shown_date = target
 
     # 정렬용 베이스 (cluster, score) — score 는 디버그/표시용
     scored = [(c, _cluster_score(c)) for c in visible_clusters]
@@ -261,12 +261,11 @@ def index():
     if tab not in ("news", "papers", "contests"):
         tab = "contests"
 
-    # 논문 — 숨김·저장 필터
-    paper_window_start = start_utc - timedelta(days=Config.PAPER_RECENT_DAYS - 1)
+    # 논문 — 선택된 날짜에 맞춰 published_at 필터
     papers_q = (
         Paper.query
         .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
-        .filter(Paper.published_at >= paper_window_start)
+        .filter(Paper.published_at >= start_utc, Paper.published_at < end_utc)
     )
     if show_hidden:
         papers_all = papers_q.filter(Paper.hidden_at.isnot(None)).order_by(

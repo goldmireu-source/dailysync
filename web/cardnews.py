@@ -109,6 +109,41 @@ def _category_key(categories: list) -> str:
     return CATEGORY_KEYS.get(categories[0], "default")
 
 
+def _kst_day_members(cluster, all_members: list) -> list:
+    """클러스터가 속한 KST 날짜 범위의 기사만 반환.
+
+    우선순위:
+      1. cluster.first_shown_date (KST 날짜) → 해당 날짜의 UTC 범위로 필터
+      2. first_shown_date 없으면 → 최신 기사의 KST 날짜 범위로 필터
+      3. 필터 결과가 비면 → 전체 반환 (fallback)
+
+    잘못 편입된 다른 날짜 기사가 링크·출처에 노출되는 것을 방지.
+    """
+    if not all_members:
+        return all_members
+    dated = [m for m in all_members if m.published_at]
+    if not dated:
+        return all_members
+
+    # 기준 날짜 결정
+    if cluster.first_shown_date:
+        ref_date = cluster.first_shown_date
+    else:
+        latest_pub = max(m.published_at for m in dated)
+        # naive UTC → KST date
+        ref_date = (latest_pub + timedelta(hours=9)).date()
+
+    # KST ref_date → UTC 범위
+    start_utc = datetime(ref_date.year, ref_date.month, ref_date.day, tzinfo=KST)
+    start_utc = start_utc.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = start_utc + timedelta(hours=24)
+
+    filtered = [m for m in dated if start_utc <= m.published_at < end_utc]
+    undated = [m for m in all_members if not m.published_at]
+    result = filtered + undated
+    return result if result else all_members
+
+
 def build_cluster_cards(cluster) -> list[dict]:
     """클러스터 → 슬라이드 카드 리스트.
 
@@ -119,15 +154,21 @@ def build_cluster_cards(cluster) -> list[dict]:
       4. sources — 매체별 시각 (≥2 매체 클러스터만)
     """
     cards = []
-    members = cluster.articles.all()
+    # 클러스터 속한 KST 날짜 범위 기사만 — 다른 날 잘못 편입된 기사 제외
+    members = _kst_day_members(cluster, cluster.articles.all())
     sources = sorted(set(a.source.name for a in members))
     cat_key = _category_key(cluster.categories or [])
 
-    # 발행시간 (KST)
+    # 발행시간 — 클러스터 내 가장 최신 기사 기준 (KST)
     pub_dt = None
-    if members and members[0].published_at:
+    latest_article = max(
+        (m for m in members if m.published_at),
+        key=lambda a: a.published_at,
+        default=None,
+    )
+    if latest_article:
         try:
-            pub_dt = members[0].published_at.replace(tzinfo=timezone.utc).astimezone(KST)
+            pub_dt = latest_article.published_at.replace(tzinfo=timezone.utc).astimezone(KST)
         except Exception:
             pub_dt = None
 

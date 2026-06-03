@@ -42,11 +42,11 @@ class Config:
     GMAIL_SENDER_NAME = os.getenv("GMAIL_SENDER_NAME", "AI News Digest")
 
     # Clustering
-    # 신규 기사 편입 임계값(BGE-M3 한·영 cross-lingual 고려해 보수적이지 않게)
-    CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.72"))
+    # 신규 기사 편입 임계값 — 같은 구체적 사건/발표 기사끼리만 묶이도록 0.80으로 상향
+    # (0.72는 너무 낮아 "엔비디아" 같은 회사명만 공유해도 묶이는 문제 발생)
+    CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.80"))
     # 기존 클러스터끼리 사후 병합 임계값
-    # (cross-lingual 케이스 흡수를 위해 0.75 — embedder.MAX_GROUP_SIZE 안전장치 동반)
-    CLUSTER_MERGE_THRESHOLD = float(os.getenv("CLUSTER_MERGE_THRESHOLD", "0.75"))
+    CLUSTER_MERGE_THRESHOLD = float(os.getenv("CLUSTER_MERGE_THRESHOLD", "0.82"))
     CLUSTER_TIME_WINDOW_HOURS = int(os.getenv("CLUSTER_TIME_WINDOW_HOURS", "72"))
 
     # 논문
