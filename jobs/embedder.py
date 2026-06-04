@@ -107,7 +107,7 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
     """미저장 클러스터에서 최신 기사 KST 날짜와 다른 날의 기사를 cluster_id=NULL 로 분리.
 
     KST 날짜 기준으로 다른 날에 발행된 기사를 정리한다.
-    max_gap_hours 파라미터는 하위 호환을 위해 유지하되, 내부 로직은 KST 날짜 비교로 대체.
+    분리 후 같은 날 기사가 1개 이하로 남으면 해당 기사도 분리 (전수 재클러스터링).
     """
     clusters = (
         Cluster.query
@@ -128,10 +128,23 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
         stale = [m for m in dated if (m.published_at + timedelta(hours=9)).date() != latest_kst_date]
         if not stale:
             continue
-        for a in stale:
-            a.cluster_id = None
+
+        # 분리 후 같은 날 기사 수 확인 — 1개 이하로 남으면 클러스터 전체 해체
+        # (오염된 centroid 기준으로 잘못 편입된 기사가 홀로 남는 상황 방지)
+        same_day = [m for m in dated if (m.published_at + timedelta(hours=9)).date() == latest_kst_date]
+        undated = [m for m in members if not m.published_at]
+        if len(same_day) + len(undated) <= 1:
+            # 전체 해체 → 모두 재클러스터링 대상
+            for a in members:
+                a.cluster_id = None
+            total_detached += len(members)
+        else:
+            for a in stale:
+                a.cluster_id = None
+            total_detached += len(stale)
+
         cluster.summary_dirty = True
-        total_detached += len(stale)
+
     if total_detached:
         db.session.commit()
     return total_detached
