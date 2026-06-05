@@ -1,7 +1,7 @@
 """임베딩 + 뉴스 클러스터링.
 
 흐름:
-  1. embed_articles()  — 미임베딩 Article 의 임베딩 생성 (BGE-M3 로컬)
+  1. embed_articles()  — 미임베딩 Article 의 임베딩 생성 (로컬 sentence-transformers)
   2. embed_papers()    — 미임베딩 Paper 의 임베딩 생성
   3. cluster_articles()— 클러스터 미할당 Article 을 기존 클러스터에 편입하거나 신규 생성
 
@@ -302,7 +302,29 @@ def merge_similar_clusters(
     if n < 2:
         return stats
 
-    centroids = [np.array(c.centroid, dtype=np.float32) for c in candidates]
+    # np.atleast_1d 로 감싸 스칼라·0-d 배열도 안전하게 1-D 배열로 변환
+    centroids_raw = [np.atleast_1d(np.array(c.centroid, dtype=np.float32)) for c in candidates]
+
+    # 차원 불일치 centroid 필터링 — 모델 교체 등으로 구·신 차원이 혼재하면
+    # np.array([...]) 가 object 배열(1-D)이 되어 @ 연산이 스칼라를 반환하고
+    # sim[i, j] 에서 IndexError 가 발생하므로 같은 차원끼리만 남긴다.
+    expected_dim = centroids_raw[0].shape[0] if centroids_raw else 0
+    valid_mask = [v.ndim == 1 and v.shape[0] == expected_dim for v in centroids_raw]
+    if not all(valid_mask):
+        n_skip = sum(1 for ok in valid_mask if not ok)
+        logger.warning(
+            "merge_similar_clusters: centroid 차원 불일치 %d개 제외 (expected_dim=%d)",
+            n_skip,
+            expected_dim,
+        )
+        candidates = [c for c, ok in zip(candidates, valid_mask) if ok]
+        centroids_raw = [v for v, ok in zip(centroids_raw, valid_mask) if ok]
+
+    centroids = centroids_raw
+    n = len(candidates)
+    if n < 2:
+        return stats
+
     sizes = [max(1, c.articles.count()) for c in candidates]
     saved_flags = [c.saved_at is not None for c in candidates]
 
@@ -321,6 +343,10 @@ def merge_similar_clusters(
     # 초기 모든 쌍 유사도 → threshold 이상 + 같은 KST 날짜 + 미저장인 것만 큐에 적재
     norm_matrix = np.array([v / (np.linalg.norm(v) or 1.0) for v in centroids])
     sim = norm_matrix @ norm_matrix.T
+    # norm_matrix 가 예상치 못한 형태(스칼라 등)가 되는 엣지케이스 최후 방어
+    if np.ndim(sim) < 2:
+        logger.warning("merge_similar_clusters: sim 행렬이 2D 가 아님, 머지 건너뜀")
+        return stats
     pair_q: list[tuple[float, int, int]] = []
     for i in range(n):
         for j in range(i + 1, n):

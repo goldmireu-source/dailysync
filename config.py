@@ -18,8 +18,8 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # --- 로컬 임베딩 (BGE-M3) ---
-    LOCAL_EMBEDDING_MODEL = os.getenv("LOCAL_EMBEDDING_MODEL", "BAAI/bge-m3")
+    # --- 로컬 임베딩 (paraphrase-multilingual-MiniLM-L12-v2, 384차원) ---
+    LOCAL_EMBEDDING_MODEL = os.getenv("LOCAL_EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE") or None
     EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "16"))
 
