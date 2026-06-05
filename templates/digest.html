@@ -844,6 +844,15 @@ async function pollRefresh() {
       // 'queued' 일 땐 phase 가 비어 있을 수 있음
       if (run.status === 'queued') phase = '대기 중';
 
+      // 15분(900초) 초과 시 스피너 중단 — 앱 재시작으로 잡이 orphan된 경우
+      if (elapsed > 900) {
+        const btn = document.getElementById('refresh-btn');
+        const status = document.getElementById('refresh-status');
+        if (btn) { btn.classList.remove('running'); btn.classList.add('failed'); setRefreshLabel('시간 초과', false); }
+        if (status) { status.innerHTML = `<div class="rs-error">응답 없음 (${elapsed}초) — 앱이 재시작됐을 수 있습니다. 새로고침 후 다시 시도하세요.</div>`; status.style.display = 'block'; }
+        return;
+      }
+
       setRefreshLabel(`${phase} · ${elapsed}초`, true);
     }
   } catch (e) {

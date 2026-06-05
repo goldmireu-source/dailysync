@@ -107,7 +107,9 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
     """미저장 클러스터에서 최신 기사 KST 날짜와 다른 날의 기사를 cluster_id=NULL 로 분리.
 
     KST 날짜 기준으로 다른 날에 발행된 기사를 정리한다.
-    분리 후 같은 날 기사가 1개 이하로 남으면 해당 기사도 분리 (전수 재클러스터링).
+    분리 후 클러스터는 삭제 — 빈 껍데기 클러스터(stale centroid + old topic)가
+    새 기사를 잘못 흡수해 카드 내용↔링크 불일치를 유발하는 것을 원천 차단.
+    저장된 클러스터(saved_at IS NOT NULL)는 건드리지 않는다.
     """
     clusters = (
         Cluster.query
@@ -129,13 +131,13 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
         if not stale:
             continue
 
-        # 다른 날 기사가 있었으면 centroid 가 오염된 것 — 같은 날 기사도 모두 분리해 재클러스터링
-        # (오염된 centroid 기준으로 잘못 편입된 기사가 남아 있을 수 있으므로 전체 해체)
+        # 다른 날 기사가 있었으면 centroid 가 오염된 것 — 전체 기사 분리 후 클러스터 삭제.
+        # 삭제하지 않으면 빈 클러스터가 stale centroid 를 가진 채 살아남아
+        # 이후 클러스터링에서 무관한 새 기사를 흡수해 카드 내용/링크 불일치를 유발.
         for a in members:
             a.cluster_id = None
         total_detached += len(members)
-
-        cluster.summary_dirty = True
+        db.session.delete(cluster)
 
     if total_detached:
         db.session.commit()
@@ -175,6 +177,9 @@ def cluster_articles() -> dict:
             continue
         # KST 날짜 산출 — 클러스터 기사들 중 최신 기사의 KST 날짜
         members_all = c.articles.all()
+        # 기사 없는 빈 클러스터는 stale centroid 를 가진 채 무관한 기사를 흡수하므로 제외
+        if not members_all:
+            continue
         dated_members = [m for m in members_all if m.published_at]
         if dated_members:
             latest_pub = max(m.published_at for m in dated_members)

@@ -47,6 +47,18 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     # 스키마 보장 (JobRun 추가됐을 수 있음)
     with app.app_context():
         db.create_all()
+        # 앱 재시작 전 orphan 상태(queued/running) 잡 → failed 로 정리
+        from models import JobRun
+        orphans = JobRun.query.filter(JobRun.status.in_(["queued", "running"])).all()
+        if orphans:
+            for run in orphans:
+                run.status = "failed"
+                run.finished_at = datetime.utcnow()
+                run.error = "앱 재시작으로 중단됨"
+            db.session.commit()
+            logging.getLogger(__name__).info(
+                "시작 시 orphan JobRun %d건 → failed 처리", len(orphans)
+            )
 
     # 스케줄러 시작
     if with_scheduler:
