@@ -416,10 +416,12 @@ function initCarousel(carousel) {
   // 마우스 드래그 스와이프 (PC)
   let mouseStartX = 0;
   let isDragging = false;
+  stage._dragHappened = false;  // mouseup→click 사이 drag 여부 전달용
   stage.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     mouseStartX = e.clientX;
     isDragging = true;
+    stage._dragHappened = false;
     stage.style.cursor = 'grabbing';
     stage.style.userSelect = 'none';
   });
@@ -430,6 +432,7 @@ function initCarousel(carousel) {
     stage.style.userSelect = '';
     const dx = e.clientX - mouseStartX;
     if (Math.abs(dx) > 40) {
+      stage._dragHappened = true;  // click 이벤트에서 모달 열기 차단
       if (dx < 0) show(current + 1);
       else show(current - 1);
     }
@@ -449,6 +452,7 @@ function initCarouselsIn(parent) {
     const stage = carousel.querySelector('.carousel-stage');
     if (!stage) return;
     stage.addEventListener('click', function(e) {
+      if (stage._dragHappened) { stage._dragHappened = false; return; }
       const target = e.target;
       if (target.closest('.card-action-btn')) return;
       if (target.closest('.slide-nav')) return;
