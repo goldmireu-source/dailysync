@@ -8,6 +8,7 @@
 
 {# ===== Site header — 간판 ===== #}
 {% set news_active = tab in ['news', 'papers'] %}
+{% set dt_param = ('&date_to=' ~ target_date_to.isoformat()) if target_date_to != target_date else '' %}
 <header class="site-header">
   <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'">DAILY <span class="ds-accent">SYNC</span></a>
   {% if is_admin and not show_hidden %}
@@ -55,16 +56,20 @@
 {% if not show_hidden and news_active %}
 <div class="subtab-row">
   <div class="subtabs">
-    <a href="?date={{ target_date.isoformat() }}&tab=news" class="subtab {% if tab == 'news' %}active{% endif %}">📰 뉴스<span class="st-num">{{ total_clusters }}</span></a>
-    <a href="?date={{ target_date.isoformat() }}&tab=papers" class="subtab {% if tab == 'papers' %}active{% endif %}">📄 논문<span class="st-num">{{ total_papers }}</span></a>
+    <a href="?date={{ target_date.isoformat() }}{{ dt_param }}&tab=news" class="subtab {% if tab == 'news' %}active{% endif %}">📰 뉴스<span class="st-num">{{ total_clusters }}</span></a>
+    <a href="?date={{ target_date.isoformat() }}{{ dt_param }}&tab=papers" class="subtab {% if tab == 'papers' %}active{% endif %}">📄 논문<span class="st-num">{{ total_papers }}</span></a>
   </div>
   <div class="date-mini">
-    <a href="?date={{ prev_date }}&tab={{ tab }}" title="어제">‹</a>
-    <form method="get" action="/" style="margin:0;">
-      <input type="date" name="date" value="{{ target_date.isoformat() }}" max="{{ today.isoformat() }}" onchange="this.form.submit()">
+    {% set _prev_dt = ('&date_to=' ~ prev_date_to.isoformat()) if target_date_to != target_date else '' %}
+    {% set _next_dt = ('&date_to=' ~ next_date_to.isoformat()) if target_date_to != target_date else '' %}
+    <a href="?date={{ prev_date }}&tab={{ tab }}{{ _prev_dt }}" title="이전">‹</a>
+    <form method="get" action="/" id="date-range-form" style="margin:0; display:flex; align-items:center; gap:4px;">
+      <input type="date" name="date" id="date-from-input" value="{{ target_date.isoformat() }}" max="{{ today.isoformat() }}">
+      <span class="date-range-sep">~</span>
+      <input type="date" name="date_to" id="date-to-input" value="{{ target_date_to.isoformat() }}" min="{{ target_date.isoformat() }}" max="{{ today.isoformat() }}">
       <input type="hidden" name="tab" value="{{ tab }}">
     </form>
-    {% if target_date < today %}<a href="?date={{ next_date }}&tab={{ tab }}" title="내일">›</a>{% else %}<span class="disabled">›</span>{% endif %}
+    {% if target_date_to < today %}<a href="?date={{ next_date }}&tab={{ tab }}{{ _next_dt }}" title="다음">›</a>{% else %}<span class="disabled">›</span>{% endif %}
   </div>
 </div>
 {% endif %}
@@ -73,25 +78,13 @@
 {% if not show_hidden and tab == 'news' %}
 <div class="inline-search">
   <input type="search" id="inline-search-input" autocomplete="off" placeholder="🔍 키워드로 카드뉴스 검색">
-  <div id="inline-search-presets">
-    <span class="ip-label">기간</span>
-    <button type="button" class="inline-preset-chip active" data-key="all">전체</button>
-    <button type="button" class="inline-preset-chip" data-key="today">오늘</button>
-    <button type="button" class="inline-preset-chip" data-key="7d">7일</button>
-    <button type="button" class="inline-preset-chip" data-key="30d">30일</button>
-    <button type="button" class="inline-preset-chip" data-key="custom">지정</button>
-  </div>
-  <div id="inline-search-custom" style="display:none;">
-    <label>시작 <input type="date" id="inline-from" max="{{ today.isoformat() }}"></label>
-    <label>종료 <input type="date" id="inline-to" max="{{ today.isoformat() }}"></label>
-  </div>
   <div id="inline-search-status"></div>
 </div>
 {% endif %}
 
 {# ===== 필터 + 정렬 (뉴스 탭에서만) ===== #}
 {% if not show_hidden and tab == 'news' and (total_clusters > 0 or cat_filter != 'all') %}
-{% set base_params = '?date=' ~ target_date.isoformat() ~ '&tab=news' %}
+{% set base_params = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=news' %}
 <div class="filter-bar">
   <div class="cat-chips">
     {% set cat_labels = {'all': '전체', '정책/규제': '정책/규제', '산업/기업': '산업/기업', '연구/모델': '연구/모델', '윤리/사회': '윤리/사회'} %}
@@ -133,7 +126,7 @@
 
 {# ===== 페이저 ===== #}
 {% if total_pages > 1 %}
-{% set page_base = '?date=' ~ target_date.isoformat() ~ '&tab=news&cat=' ~ cat_filter ~ '&sort=' ~ sort_mode %}
+{% set page_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=news&cat=' ~ cat_filter ~ '&sort=' ~ sort_mode %}
 <div class="pager">
   {% if page > 1 %}
     <a href="{{ page_base }}&page={{ page - 1 }}" class="pager-btn">← 이전</a>
@@ -189,7 +182,7 @@
 
 {# 논문 페이저 #}
 {% if total_pages > 1 %}
-{% set page_base = '?date=' ~ target_date.isoformat() ~ '&tab=papers' %}
+{% set page_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=papers' %}
 <div class="pager">
   {% if page > 1 %}
     <a href="{{ page_base }}&page={{ page - 1 }}" class="pager-btn">← 이전</a>
@@ -432,20 +425,35 @@ function initCarouselsIn(parent) {
 }
 initCarouselsIn(document);
 
-// ========== 인라인 라이브 검색 — 입력 즉시 카드 그리드 swap ==========
+// ========== 날짜 범위 폼 — from/to 동기화 후 제출 ==========
+(function() {
+  const form = document.getElementById('date-range-form');
+  const dateFrom = document.getElementById('date-from-input');
+  const dateTo = document.getElementById('date-to-input');
+  if (!form || !dateFrom || !dateTo) return;
+
+  dateFrom.addEventListener('change', function() {
+    if (dateTo.value && dateTo.value < dateFrom.value) dateTo.value = dateFrom.value;
+    form.submit();
+  });
+
+  dateTo.addEventListener('change', function() {
+    if (dateFrom.value && dateFrom.value > dateTo.value) dateFrom.value = dateTo.value;
+    form.submit();
+  });
+})();
+
+// ========== 인라인 라이브 검색 — 날짜 범위 연동 ==========
 (function() {
   const input = document.getElementById('inline-search-input');
   if (!input) return;
   const defaultArea = document.getElementById('default-cluster-area');
   const searchArea = document.getElementById('search-results-area');
   const status = document.getElementById('inline-search-status');
-  const chips = document.querySelectorAll('.inline-preset-chip');
-  const customBox = document.getElementById('inline-search-custom');
-  const fromInput = document.getElementById('inline-from');
-  const toInput = document.getElementById('inline-to');
+  const fromInput = document.getElementById('date-from-input');
+  const toInput = document.getElementById('date-to-input');
   let timer = null;
   let lastReq = 0;
-  let preset = 'all';
 
   function showDefault() {
     if (defaultArea) defaultArea.style.display = '';
@@ -454,18 +462,15 @@ initCarouselsIn(document);
   }
 
   function buildQuery(q) {
-    const p = new URLSearchParams({ q: q, preset: preset });
-    if (preset === 'custom') {
-      if (fromInput && fromInput.value) p.set('from', fromInput.value);
-      if (toInput && toInput.value) p.set('to', toInput.value);
-    }
+    const p = new URLSearchParams({ q: q, preset: 'custom' });
+    if (fromInput && fromInput.value) p.set('from', fromInput.value);
+    if (toInput && toInput.value) p.set('to', toInput.value);
     return p.toString();
   }
 
   async function runSearch() {
     const q = input.value.trim();
     if (!q) { showDefault(); return; }
-    // custom 이면 날짜 하나라도 있어야 의미 있음 — 둘 다 비면 그냥 진행 (서버에서 'all'로 폴백)
     const reqId = ++lastReq;
     if (status) status.textContent = '검색 중...';
     try {
@@ -501,20 +506,9 @@ initCarouselsIn(document);
     if (e.key === 'Escape') { input.value = ''; showDefault(); }
   });
 
-  chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      preset = chip.dataset.key;
-      chips.forEach(c => c.classList.toggle('active', c === chip));
-      if (customBox) customBox.style.display = (preset === 'custom') ? 'flex' : 'none';
-      if (input.value.trim()) runSearch();
-    });
-  });
-
   [fromInput, toInput].forEach(el => {
     if (!el) return;
-    el.addEventListener('change', () => {
-      if (preset === 'custom' && input.value.trim()) scheduleSearch(80);
-    });
+    el.addEventListener('change', () => { if (input.value.trim()) scheduleSearch(80); });
   });
 })();
 

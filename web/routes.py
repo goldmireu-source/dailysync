@@ -175,7 +175,14 @@ def _parse_date_arg(s: str | None) -> date:
 def index():
     target = _parse_date_arg(request.args.get("date"))
     show_hidden = request.args.get("hidden") == "1"
-    start_utc, end_utc = _kst_day_bounds(target)
+    date_to_str = request.args.get("date_to")
+    target_to = _parse_date_arg(date_to_str) if date_to_str else target
+    if target_to < target:
+        target_to = target
+    if target_to > datetime.now(KST).date():
+        target_to = datetime.now(KST).date()
+    start_utc, _ = _kst_day_bounds(target)
+    _, end_utc = _kst_day_bounds(target_to)
 
     # 해당 일에 발행된 article 들의 cluster
     arts_today = (
@@ -196,9 +203,15 @@ def index():
     # - 이미 다른 날짜에 표시된 클러스터는 제외 (그 날짜 페이지에서만 보임)
     # - first_shown_date 가 NULL 인 클러스터는 이번에 target 으로 set 됨
     # - first_shown_date == target 인 클러스터는 표시
-    base_q = base_q.filter(
-        (Cluster.first_shown_date == target) | (Cluster.first_shown_date.is_(None))
-    )
+    if target_to == target:
+        base_q = base_q.filter(
+            (Cluster.first_shown_date == target) | (Cluster.first_shown_date.is_(None))
+        )
+    else:
+        base_q = base_q.filter(
+            ((Cluster.first_shown_date >= target) & (Cluster.first_shown_date <= target_to)) |
+            (Cluster.first_shown_date.is_(None))
+        )
 
     if show_hidden:
         visible_clusters = base_q.filter(Cluster.hidden_at.isnot(None)).all()
@@ -383,8 +396,11 @@ def index():
         contest_tiles=contest_tiles,
         contest_showcase=contest_showcase,
         total_articles=total_articles,
+        target_date_to=target_to,
         prev_date=target - timedelta(days=1),
         next_date=target + timedelta(days=1),
+        prev_date_to=target_to - timedelta(days=1),
+        next_date_to=target_to + timedelta(days=1),
         today=datetime.now(KST).date(),
         show_hidden=show_hidden,
         hidden_count=hidden_count,

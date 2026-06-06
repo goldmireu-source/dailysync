@@ -3401,6 +3401,11 @@ footer a { color: var(--text-dim); }
   background: var(--accent); width: 22px; border-radius: 4px;
 }
 
+/* 날짜 범위 구분자 (~) */
+.date-range-sep {
+  font-size: 11px; color: var(--text-faint); flex-shrink: 0; padding: 0 2px; line-height: 1;
+}
+
 /* ============================================================
    MOBILE v1 — 상단 UI 컴팩트화 (max-width: 600px)
    카드뉴스가 스크롤 없이 뷰포트 안에 보이도록 헤더/네비 공간 축소
@@ -3419,24 +3424,18 @@ footer a { color: var(--text-dim); }
   .nav-pill { padding: 8px 10px; font-size: 13px; gap: 5px; border-radius: 8px; }
   .nav-num { font-size: 10.5px; padding: 1px 5px; min-width: 16px; }
 
-  /* 서브탭 + 날짜: 한 줄 유지 */
-  .subtab-row { margin: 0 0 8px; gap: 6px; flex-wrap: nowrap; }
-  .subtabs { padding: 3px; gap: 2px; }
+  /* 서브탭 + 날짜 범위: 두 줄로 (서브탭 위, 날짜 아래 오른쪽 정렬) */
+  .subtab-row { margin: 0 0 8px; gap: 6px; flex-wrap: wrap; }
+  .subtabs { padding: 3px; gap: 2px; flex: 1 0 auto; }
   .subtab { padding: 6px 10px; font-size: 12px; gap: 4px; border-radius: 6px; }
   .st-num { font-size: 10px; }
+  .date-mini { margin-left: auto; }
   .date-mini a, .date-mini span.disabled { width: 26px; height: 26px; font-size: 15px; border-radius: 6px; }
-  .date-mini input[type=date] { padding: 3px 5px; font-size: 10.5px; max-width: 98px; }
+  .date-mini input[type=date] { padding: 3px 4px; font-size: 10px; max-width: 76px; }
 
-  /* 인라인 검색: 입력창 + 프리셋 가로 스크롤 */
+  /* 인라인 검색: 입력창 컴팩트 */
   .inline-search { margin: 0 0 8px; }
   .inline-search #inline-search-input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
-  #inline-search-presets {
-    margin-top: 6px; gap: 5px;
-    flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px;
-    -ms-overflow-style: none; scrollbar-width: none;
-  }
-  #inline-search-presets::-webkit-scrollbar { display: none; }
-  .inline-preset-chip { padding: 5px 10px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0; }
 
   /* 필터 바: 세로 쌓기 → 가로 스크롤로 전환 */
   .filter-bar {
