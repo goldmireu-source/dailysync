@@ -102,15 +102,23 @@ def _chunk_sources(src_list: list, budget: int = SRC_BUDGET) -> list[list]:
     return chunks
 
 
-def _dedup_links(members: list, max_links: int = 6) -> list[dict]:
-    """매체명 기준 중복 제거 후 최대 max_links 개 링크 반환."""
+def _dedup_links(members: list, max_links: int = 5) -> list[dict]:
+    """매체명 기준 중복 제거 후 최대 max_links 개 링크 반환.
+
+    표시명: [매체명] 기사제목 (40자 초과 시 말줄임)
+    """
     seen: set[str] = set()
     result = []
     for a in members:
-        name = a.source.name
-        if name not in seen:
-            seen.add(name)
-            result.append({"name": name, "url": a.url})
+        src = a.source.name
+        if src not in seen:
+            seen.add(src)
+            title = (a.title or "").strip()
+            if title:
+                label = f"[{src}] {title}" if len(title) <= 38 else f"[{src}] {title[:37]}…"
+            else:
+                label = src
+            result.append({"name": label, "url": a.url})
             if len(result) >= max_links:
                 break
     return result
