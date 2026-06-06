@@ -30,12 +30,21 @@
 </div>
 
 <style>
+/* 큰 캐러셀 화살표 — 하단 배치, 텍스트 비겹침 */
 .big-carousel .slide-nav {
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-  opacity: 1;
+  top: auto;
+  bottom: 10px;
+  transform: none;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  opacity: 0.75;
+  transition: opacity 0.15s, background 0.15s;
 }
+.big-carousel .slide-nav.prev { left: 10px; }
+.big-carousel .slide-nav.next { right: 10px; }
+.big-carousel .slide-nav:hover { opacity: 1; }
+.big-carousel .slide-nav:disabled { opacity: 0 !important; pointer-events: none; }
 .big-carousel .carousel-stage {
   box-shadow: 0 10px 32px rgba(26, 18, 8, 0.1);
 }

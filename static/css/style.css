@@ -2530,6 +2530,43 @@ body.modal-open {
 .slide-nav.prev { left: 6px; }
 .slide-nav.next { right: 6px; }
 
+/* 모바일: 다이제스트 카드 화살표 숨김 — 스와이프로 대체 */
+@media (max-width: 600px) {
+  .carousel .slide-nav { display: none !important; }
+}
+
+/* 스와이프 힌트 — 모바일 전용, 첫 로드 시 잠깐 나타났다 사라짐 */
+.swipe-hint {
+  display: none;
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.52);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 8;
+  letter-spacing: 0.03em;
+}
+@media (max-width: 600px) {
+  .swipe-hint {
+    display: block;
+    animation: swipe-hint-anim 3s ease 0.4s forwards;
+    opacity: 0;
+  }
+}
+@keyframes swipe-hint-anim {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  18%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  72%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(0); }
+}
+
 /* Caption */
 .carousel-caption {
   padding: 10px 4px 0;
@@ -2830,7 +2867,7 @@ body.modal-open {
 /* ----- 상세 페이지 ----- */
 .contest-detail {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: min(280px, 42%) 1fr;
   gap: 32px;
   margin-top: 1rem;
   align-items: start;
@@ -2929,7 +2966,7 @@ body.modal-open {
 @media (max-width: 760px) {
   .contest-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .contest-detail { grid-template-columns: 1fr; gap: 20px; }
-  .cd-poster { max-width: 320px; }
+  .cd-poster { max-width: 100%; width: 100%; }
   .ct-actions { opacity: 1; }
 }
 

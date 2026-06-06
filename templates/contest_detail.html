@@ -3,6 +3,17 @@
 {% block title %}{{ contest.title }} · 공모전 · DAILY SYNC{% endblock %}
 
 {% block content %}
+<style>
+/* 상세 페이지에서는 이미지 전체를 자르지 않고 보여줌 */
+.cd-poster { aspect-ratio: unset; min-height: 80px; }
+.cd-poster img {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: initial !important;
+}
+</style>
 
 <a href="/?tab=contests" class="back-link">← 공모전 목록</a>
 
