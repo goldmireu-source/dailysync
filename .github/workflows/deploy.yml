@@ -31,10 +31,15 @@ jobs:
             ./ ubuntu@${{ secrets.DEPLOY_HOST }}:~/ai-news-digest/
 
       - name: Install deps and restart service
+        timeout-minutes: 30
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.DEPLOY_HOST }} \
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=40 \
+              ubuntu@${{ secrets.DEPLOY_HOST }} \
             "cd ~/ai-news-digest && \
-             venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=3.2.0,<4.0.0' -q && \
+             venv/bin/pip install -r requirements.txt -q && \
              sudo systemctl restart daily-sync && \
              sleep 3 && \
              sudo systemctl is-active daily-sync"
