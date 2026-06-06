@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 
 from flask import Flask
+from flask_login import LoginManager
 
 # Windows 콘솔(cp949) 에서 print 가 한글/이모지 인코딩 실패하지 않도록 stdout/stderr UTF-8 강제.
 # 잡 로그의 ✓/❌/⭐ 같은 문자가 cp949 로 인코딩 안 되면 print 가 예외를 던져
@@ -34,6 +35,17 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     app.config.from_object(config_class)
 
     db.init_app(app)
+
+    # Flask-Login 초기화
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = "web.admin_login"  # type: ignore[assignment]
+
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        from models import AdminUser
+        return AdminUser.query.get(int(user_id))
+
     app.register_blueprint(web_bp)
 
     @app.context_processor

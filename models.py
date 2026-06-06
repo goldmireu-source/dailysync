@@ -9,12 +9,41 @@ from datetime import datetime
 import secrets
 
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
 
 def _gen_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+# ---------- AdminUser (로그인 계정) ----------
+class AdminUser(UserMixin, db.Model):
+    """관리자/사용자 로그인 계정.
+
+    뉴스레터 구독자 User 와 완전히 별개 테이블.
+    username == 'admin' 인 계정만 role='admin' 부여, 나머지는 'user'.
+    """
+    __tablename__ = "admin_users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(14), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(128), nullable=False)
+    display_name = db.Column(db.String(50), nullable=False)
+    role = db.Column(db.String(10), default="user", nullable=False)  # admin | user
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def set_password(self, raw: str) -> None:
+        import bcrypt as _bcrypt
+        self.password_hash = _bcrypt.hashpw(raw.encode(), _bcrypt.gensalt()).decode()
+
+    def check_password(self, raw: str) -> bool:
+        import bcrypt as _bcrypt
+        return _bcrypt.checkpw(raw.encode(), self.password_hash.encode())
+
+    def __repr__(self):
+        return f"<AdminUser {self.username} ({self.role})>"
 
 
 # ---------- User ----------

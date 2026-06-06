@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}로그인 · DAILY SYNC{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 4rem auto;">
+  <div class="brand" style="margin-bottom: 0.5rem;">DAILY <span class="accent">SYNC</span></div>
+  <h1 class="page-title" style="font-size: 20px; margin: 0.5rem 0 2rem;">관리자 로그인</h1>
+
+  {% if error %}
+  <div style="background: #f4d4d0; color: #c44; border-radius: 8px; padding: 10px 14px; margin-bottom: 1.25rem; font-size: 13px; border: 1px solid #e8b4b0;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" style="display: flex; flex-direction: column; gap: 1.1rem;">
+    <div>
+      <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">아이디</label>
+      <input type="text" name="username" maxlength="14" required autocomplete="username"
+             style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;"
+             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <div style="font-size: 11px; color: var(--text-faint); margin-top: 4px;">최대 14자</div>
+    </div>
+    <div>
+      <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">비밀번호</label>
+      <input type="password" name="password" maxlength="10" required autocomplete="current-password"
+             style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;"
+             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <div style="font-size: 11px; color: var(--text-faint); margin-top: 4px;">최대 10자</div>
+    </div>
+    <button type="submit"
+            style="background: var(--accent); color: var(--bg-card); border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; letter-spacing: 0.02em;">
+      로그인
+    </button>
+  </form>
+
+  <div style="text-align: center; margin-top: 1.5rem; font-size: 13px; color: var(--text-dim);">
+    계정이 없으신가요?
+    <a href="{{ url_for('web.admin_register') }}" style="color: var(--accent); text-decoration: none; font-weight: 600;">회원가입</a>
+  </div>
+</div>
+{% endblock %}

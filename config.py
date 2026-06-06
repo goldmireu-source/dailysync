@@ -67,10 +67,6 @@ class Config:
     # 공모전 이미지 업로드 한도 (8MB)
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(8 * 1024 * 1024)))
 
-    # --- 관리자 권한 ---
-    # .env 에 ADMIN_TOKEN=xxx 설정. 비어 있으면 (개발 모드) 모두가 admin.
-    ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
-
     # --- 카드뉴스 스튜디오 단축 링크 ---
     # 데일리싱크 카드의 "📐 카드뉴스" 버튼이 여는 URL.
     # 기본: 로컬 cardnews_bot 서버. 다른 호스트면 .env 에 CARDNEWS_BOT_URL=https://... 설정.

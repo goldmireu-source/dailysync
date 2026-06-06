@@ -4,45 +4,37 @@ import secrets
 from datetime import datetime, timedelta, timezone, date
 from functools import wraps
 
-from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, make_response, g, current_app
+from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, g, current_app
+from flask_login import current_user, login_user, logout_user
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
 
 KST = timezone(timedelta(hours=9))
 
-ADMIN_COOKIE_NAME = "ds_admin"
-
 
 def is_admin() -> bool:
-    """현재 요청이 admin 권한인지.
-
-    .env 의 ADMIN_TOKEN 이 비어 있으면 dev 모드 → 모두 admin.
-    설정돼 있으면 쿠키 'ds_admin' 값과 비교.
-    """
-    token = Config.ADMIN_TOKEN
-    if not token:
-        return True  # dev 모드
-    return request.cookies.get(ADMIN_COOKIE_NAME) == token
+    """현재 요청이 admin 권한인지 (로그인 + role='admin' 모두 충족)."""
+    return current_user.is_authenticated and current_user.role == "admin"
 
 
 def admin_required(f):
-    """admin 만 통과시키는 데코레이터.
+    """admin role 만 통과시키는 데코레이터.
 
-    API (JSON 응답) 라면 403, HTML 페이지면 홈으로 리다이렉트.
+    미로그인 → 로그인 페이지, user role → 홈으로, API/POST → 403.
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for("web.admin_login"))
         if not is_admin():
-            # 경로 패턴으로 API/HTML 구분
             is_api = request.path.startswith("/api/") or request.path.startswith("/admin/run/")
             if is_api or request.method == "POST":
                 return jsonify({"ok": False, "error": "admin_only"}), 403
-            # HTML 페이지 → 홈으로
             return redirect(url_for("web.index"))
         return f(*args, **kwargs)
     return wrapper
@@ -63,31 +55,68 @@ def context_admin():
     }
 
 
-# ---------- Admin Login ----------
-@bp.route("/admin-login")
+# ---------- Admin Login / Register ----------
+@bp.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
-    """미르 씨가 /admin-login?token=xxx 로 접속하면 쿠키 set 후 / 로 리다이렉트."""
-    token = request.args.get("token", "")
-    if not Config.ADMIN_TOKEN:
-        return "ADMIN_TOKEN 미설정 (dev 모드). 모두 admin 입니다.", 200
-    if token != Config.ADMIN_TOKEN:
-        return "토큰 불일치", 403
-    resp = make_response(redirect(url_for("web.index")))
-    # 1년짜리 쿠키
-    resp.set_cookie(
-        ADMIN_COOKIE_NAME, token,
-        max_age=365 * 24 * 3600,
-        httponly=True,
-        samesite="Lax",
-    )
-    return resp
+    """아이디/비밀번호 로그인 폼."""
+    if current_user.is_authenticated:
+        return redirect(url_for("web.admin") if is_admin() else url_for("web.index"))
+
+    error = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()[:14]
+        password = (request.form.get("password") or "")[:10]
+        user = AdminUser.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user, remember=True)
+            return redirect(url_for("web.admin") if is_admin() else url_for("web.index"))
+        error = "아이디 또는 비밀번호가 올바르지 않습니다."
+
+    return render_template("admin_login.html", error=error)
+
+
+@bp.route("/admin-register", methods=["GET", "POST"])
+def admin_register():
+    """신규 회원가입 폼. 자동 승인."""
+    error = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "")
+        display_name = (request.form.get("display_name") or "").strip()
+
+        if not username or not password or not display_name:
+            error = "모든 항목을 입력해주세요."
+        elif len(username) > 14:
+            error = "아이디는 최대 14자입니다."
+        elif len(password) > 10:
+            error = "비밀번호는 최대 10자입니다."
+        elif AdminUser.query.filter_by(username=username).first():
+            error = "이미 사용 중인 아이디입니다."
+        else:
+            has_korean = any(
+                '가' <= c <= '힣' or 'ㄱ' <= c <= 'ㅣ'
+                for c in display_name
+            )
+            if has_korean and len(display_name) > 4:
+                error = "이름은 한글 포함 시 최대 4글자입니다."
+            elif not has_korean and len(display_name) > 14:
+                error = "이름은 영문 기준 최대 14자입니다."
+            else:
+                role = "admin" if username == "admin" else "user"
+                new_user = AdminUser(username=username, display_name=display_name, role=role)
+                new_user.set_password(password)
+                db.session.add(new_user)
+                db.session.commit()
+                login_user(new_user, remember=True)
+                return redirect(url_for("web.admin") if role == "admin" else url_for("web.index"))
+
+    return render_template("admin_register.html", error=error)
 
 
 @bp.route("/admin-logout")
 def admin_logout():
-    resp = make_response(redirect(url_for("web.index")))
-    resp.delete_cookie(ADMIN_COOKIE_NAME)
-    return resp
+    logout_user()
+    return redirect(url_for("web.index"))
 
 
 # ---------- 우선순위 정렬 키 ----------
@@ -1031,6 +1060,9 @@ def admin():
                 "trigger": str(job.trigger),
             })
 
+    # 회원 목록 (가입 순)
+    admin_users = AdminUser.query.order_by(AdminUser.created_at.asc()).all()
+
     return render_template(
         "admin.html",
         recent_runs=recent_runs,
@@ -1039,6 +1071,7 @@ def admin():
         job_labels=JOB_LABELS,
         scheduler_active=sched is not None,
         kst_offset=timedelta(hours=9),
+        admin_users=admin_users,
     )
 
 

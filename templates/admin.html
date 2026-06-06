@@ -5,10 +5,15 @@
 
 <a href="{{ url_for('web.index') }}" class="back-link">← 다이제스트로</a>
 
-<div class="brand">DAILY <span class="accent">SYNC</span> · ADMIN</div>
-<h1 class="page-title" style="font-size: 22px;">잡 상태 · 스케줄</h1>
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 0.25rem;">
+  <div class="brand" style="margin: 0;">DAILY <span class="accent">SYNC</span> · ADMIN</div>
+  <a href="{{ url_for('web.admin_logout') }}"
+     style="font-size: 12px; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; text-decoration: none;">
+    로그아웃
+  </a>
+</div>
 
-<div class="page-meta" style="margin-bottom: 1.5rem;">
+<div class="page-meta" style="margin-bottom: 1rem;">
   스케줄러 상태:
   {% if scheduler_active %}
     <span style="color: #34d399;">● 가동 중</span>
@@ -19,6 +24,21 @@
     ↻ 페이지 새로고침
   </button>
 </div>
+
+<!-- 탭 네비게이션 -->
+<div style="display: flex; gap: 6px; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0;">
+  <button class="admin-tab active" data-tab="jobs"
+          style="background: none; border: none; border-bottom: 2px solid var(--accent); padding: 8px 16px; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; font-family: inherit; margin-bottom: -1px;">
+    잡 · 스케줄
+  </button>
+  <button class="admin-tab" data-tab="users"
+          style="background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; margin-bottom: -1px;">
+    회원 이력
+  </button>
+</div>
+
+<!-- 탭: 잡 · 스케줄 -->
+<div id="tab-jobs">
 
 <div class="detail-section">
   <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 0 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">등록된 잡 · 수동 실행</h2>
@@ -132,6 +152,49 @@
     <li>여러 잡을 동시에 실행할 수 있으나, Claude/임베딩은 순차 처리가 안정적</li>
   </ul>
 </div>
+
+</div><!-- /#tab-jobs -->
+
+<!-- 탭: 회원 이력 -->
+<div id="tab-users" style="display: none;">
+  <div class="detail-section">
+    <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 0 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">
+      가입 회원 ({{ admin_users|length }}명)
+    </h2>
+    {% if admin_users %}
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); border-radius: 12px; overflow: hidden;">
+      <thead>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">아이디</th>
+          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">이름</th>
+          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">권한</th>
+          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">가입일시 (KST)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in admin_users %}
+        <tr style="border-bottom: 1px solid var(--border-soft);">
+          <td style="padding: 10px 14px; font-weight: 600; color: var(--text); font-family: monospace; font-size: 13px;">{{ u.username }}</td>
+          <td style="padding: 10px 14px; color: var(--text);">{{ u.display_name }}</td>
+          <td style="padding: 10px 14px;">
+            {% if u.role == 'admin' %}
+              <span style="background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700;">admin</span>
+            {% else %}
+              <span style="background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px;">user</span>
+            {% endif %}
+          </td>
+          <td style="padding: 10px 14px; font-size: 12px; color: var(--text-muted);">
+            {{ (u.created_at + kst_offset).strftime('%Y-%m-%d %H:%M') }} KST
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-dim); font-size: 13px; padding: 1rem 0;">가입된 회원이 없습니다.</p>
+    {% endif %}
+  </div>
+</div><!-- /#tab-users -->
 
 <style>
 .run-btn.starting,
@@ -310,6 +373,20 @@ function updateActivePanel() {
   }).join('');
   setTimeout(updateActivePanel, 1000);
 }
+
+// 탭 전환
+document.querySelectorAll('.admin-tab').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const target = this.dataset.tab;
+    document.querySelectorAll('.admin-tab').forEach(b => {
+      const active = b.dataset.tab === target;
+      b.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+      b.style.color = active ? 'var(--accent)' : 'var(--text-muted)';
+    });
+    document.getElementById('tab-jobs').style.display   = target === 'jobs'  ? '' : 'none';
+    document.getElementById('tab-users').style.display  = target === 'users' ? '' : 'none';
+  });
+});
 
 function showFinishedNotice(jobId, label, status, duration, info) {
   // 화면 하단에 토스트
