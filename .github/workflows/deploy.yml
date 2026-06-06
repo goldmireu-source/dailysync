@@ -37,9 +37,16 @@ jobs:
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=40 \
-              ubuntu@${{ secrets.DEPLOY_HOST }} \
-            "cd ~/ai-news-digest && \
-             venv/bin/pip install -r requirements.txt -q && \
-             sudo systemctl restart daily-sync && \
-             sleep 3 && \
-             sudo systemctl is-active daily-sync"
+              ubuntu@${{ secrets.DEPLOY_HOST }} << 'ENDSSH'
+          cd ~/ai-news-digest
+          # 항상 필요한 경량 패키지
+          venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=3.2.0,<4.0.0' -q
+          # sentence-transformers 누락 시에만 설치 (torch 포함 대용량)
+          if ! venv/bin/python -c 'import sentence_transformers' 2>/dev/null; then
+            echo "sentence-transformers 설치 중..."
+            venv/bin/pip install --no-cache-dir 'sentence-transformers>=3.0.0' -q
+          fi
+          sudo systemctl restart daily-sync
+          sleep 3
+          sudo systemctl is-active daily-sync
+          ENDSSH
