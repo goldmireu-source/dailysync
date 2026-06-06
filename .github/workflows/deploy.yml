@@ -18,7 +18,7 @@ jobs:
             git reset --hard origin/main
             pkill -f "pip install" 2>/dev/null || true
             sleep 2
-            venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=4.0.0' -q
+            venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=3.2.0,<4.0.0' -q
             sudo systemctl restart daily-sync
             sleep 3
             sudo systemctl is-active daily-sync
