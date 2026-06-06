@@ -286,7 +286,9 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        links_info = _dedup_links(members)
+        # divergences 에 등장한 소스의 기사만 링크 (카드 요약 근거 기사만)
+        relevant = [a for a in members if a.source.name in by_src] or members
+        links_info = _dedup_links(relevant)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
