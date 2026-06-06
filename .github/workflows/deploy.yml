@@ -12,9 +12,10 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ~/ai-news-digest
-            git fetch origin main
+            git fetch --depth=1 origin main
             git reset --hard origin/main
             pkill -f "pip install" 2>/dev/null || true
             sleep 2
