@@ -1184,6 +1184,82 @@ def api_job_run(run_id: int):
     })
 
 
+# ---------- 카드뉴스 봇 전용 JSON API ----------
+def _cardnews_api_auth() -> bool:
+    """X-Api-Key 헤더로 인증. CARDNEWS_API_KEY 미설정 시 항상 허용."""
+    key = Config.CARDNEWS_API_KEY
+    if not key:
+        return True
+    return request.headers.get("X-Api-Key") == key
+
+
+@bp.route("/api/cluster/<int:cluster_id>", methods=["GET"])
+def api_cluster_json(cluster_id: int):
+    """클러스터 + 원기사 JSON — 카드뉴스 봇이 HTTP로 호출."""
+    if not _cardnews_api_auth():
+        return jsonify({"error": "unauthorized"}), 401
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"error": "not found"}), 404
+    members = cluster.articles.all()
+    return jsonify({
+        "id": cluster.id,
+        "topic": cluster.topic,
+        "summary_ko": cluster.summary_ko,
+        "agreed_facts": cluster.agreed_facts or [],
+        "divergences": cluster.divergences or [],
+        "categories": cluster.categories or [],
+        "importance": cluster.importance,
+        "articles": [
+            {
+                "id": a.id,
+                "title": a.title,
+                "description": a.description,
+                "url": a.url,
+                "published_at": a.published_at.isoformat() if a.published_at else None,
+                "source": a.source.name if a.source else None,
+            }
+            for a in members[:20]
+        ],
+    })
+
+
+@bp.route("/api/clusters/recent", methods=["GET"])
+def api_clusters_recent():
+    """최근 클러스터 목록 JSON — 카드뉴스 봇 auto 선정용."""
+    if not _cardnews_api_auth():
+        return jsonify({"error": "unauthorized"}), 401
+    since = (datetime.utcnow() + timedelta(hours=9) - timedelta(days=1)).date().isoformat()
+    clusters = (
+        Cluster.query
+        .filter(Cluster.summary_ko.isnot(None))
+        .filter(Cluster.hidden_at.is_(None))
+        .filter(
+            db.or_(
+                Cluster.first_shown_date >= since,
+                Cluster.first_shown_date.is_(None),
+            )
+        )
+        .order_by(
+            Cluster.importance.desc(),
+            Cluster.saved_at.isnot(None).desc(),
+            Cluster.id.desc(),
+        )
+        .limit(30)
+        .all()
+    )
+    return jsonify([
+        {
+            "id": c.id,
+            "topic": c.topic,
+            "importance": c.importance,
+            "saved": c.saved_at is not None,
+            "first_shown_date": c.first_shown_date,
+        }
+        for c in clusters
+    ])
+
+
 # ---------- Glossary ----------
 @bp.route("/api/glossary", methods=["GET"])
 def api_glossary_all():

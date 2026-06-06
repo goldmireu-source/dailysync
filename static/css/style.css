@@ -1358,7 +1358,7 @@ footer a { color: var(--text-dim); }
   box-shadow: none;
 }
 .card-modal-body .slide {
-  padding: 32px 22px 60px;
+  padding: 32px 22px 40px;
 }
 
 /* === 모달 안 폰트 확대 (PC 기준) === */
@@ -1969,7 +1969,7 @@ body.modal-open {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
-  padding: 18px 18px 52px;
+  padding: 18px 18px 36px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -2538,16 +2538,14 @@ body.modal-open {
 .slide-nav.prev { left: 8px; }
 .slide-nav.next { right: 8px; }
 
-/* 모바일: 다이제스트 카드 화살표 숨김 — 스와이프로 대체 */
-@media (max-width: 600px) {
-  .carousel .slide-nav { display: none !important; }
-}
+/* 화살표 버튼 — 전체 숨김 (슬라이드 힌트로 대체) */
+.carousel .slide-nav { display: none !important; }
 
-/* 스와이프 힌트 — 모바일 전용, 첫 로드 시 잠깐 나타났다 사라짐 */
+/* 슬라이드 힌트 — 첫 로드 시 잠깐 나타났다 사라짐 (PC·모바일 공통) */
 .swipe-hint {
-  display: none;
+  display: block;
   position: absolute;
-  bottom: 26px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.52);
@@ -2560,13 +2558,8 @@ body.modal-open {
   pointer-events: none;
   z-index: 8;
   letter-spacing: 0.03em;
-}
-@media (max-width: 600px) {
-  .swipe-hint {
-    display: block;
-    animation: swipe-hint-anim 3s ease 0.4s forwards;
-    opacity: 0;
-  }
+  animation: swipe-hint-anim 3s ease 0.4s forwards;
+  opacity: 0;
 }
 @keyframes swipe-hint-anim {
   0%   { opacity: 0; transform: translateX(-50%) translateY(4px); }
@@ -3138,8 +3131,8 @@ body.modal-open {
    ============================================================ */
 .carousel-stage { border-radius: 16px; box-shadow: 0 4px 16px rgba(26,18,8,0.07); }
 .carousel:hover .carousel-stage { box-shadow: 0 12px 30px rgba(26,18,8,0.15); }
-.slide { padding: 22px 22px 52px; }
-@media (max-width: 600px) { .slide { padding: 22px; } }
+.slide { padding: 22px 22px 36px; }
+@media (max-width: 600px) { .slide { padding: 22px 22px 36px; } }
 
 /* 표지 — 상단 정렬 + 리드로 가운데 공백 제거 */
 .slide.cover .cover-top { padding-bottom: 13px; }

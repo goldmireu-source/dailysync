@@ -71,3 +71,8 @@ class Config:
     # 데일리싱크 카드의 "📐 카드뉴스" 버튼이 여는 URL.
     # 기본: 로컬 cardnews_bot 서버. 다른 호스트면 .env 에 CARDNEWS_BOT_URL=https://... 설정.
     CARDNEWS_BOT_URL = os.getenv("CARDNEWS_BOT_URL", "http://localhost:5050")
+
+    # --- 카드뉴스 봇 → 데일리싱크 API 인증키 ---
+    # 카드뉴스 봇이 /api/cluster/<id> 등을 호출할 때 헤더(X-Api-Key)로 전달.
+    # 비어있으면 인증 없이 허용 (로컬 개발 전용).
+    CARDNEWS_API_KEY = os.getenv("CARDNEWS_API_KEY", "")
