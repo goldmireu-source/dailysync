@@ -312,11 +312,11 @@ def index():
     if tab not in ("news", "papers", "contests"):
         tab = "contests"
 
-    # 논문 — 선택된 날짜에 맞춰 published_at 필터
+    # 논문 — fetched_at(수집일) 기준 필터. published_at은 arXiv 등록일이라 수집일과 다를 수 있음
     papers_q = (
         Paper.query
         .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
-        .filter(Paper.published_at >= start_utc, Paper.published_at < end_utc)
+        .filter(Paper.fetched_at >= start_utc, Paper.fetched_at < end_utc)
     )
     if show_hidden:
         papers_all = papers_q.filter(Paper.hidden_at.isnot(None)).order_by(
