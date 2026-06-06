@@ -25,6 +25,8 @@ jobs:
             --exclude='__pycache__/' \
             --exclude='*.pyc' \
             --exclude='*.db' \
+            --exclude='*.log' \
+            --exclude='*.log.*' \
             --exclude='instance/' \
             --exclude='.env' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
