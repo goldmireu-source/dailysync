@@ -1358,7 +1358,7 @@ footer a { color: var(--text-dim); }
   box-shadow: none;
 }
 .card-modal-body .slide {
-  padding: 32px 22px 40px;
+  padding: 32px 46px 40px;
 }
 
 /* === 모달 안 폰트 확대 (PC 기준) === */
@@ -1415,14 +1415,16 @@ footer a { color: var(--text-dim); }
   font-size: 13px;
 }
 
-/* 슬라이드 네비/점 모달 안에서 더 크게, 하단 배치 */
+/* 슬라이드 네비/점 모달 안에서 더 크게 */
 .card-modal-body .slide-nav {
-  top: auto;
-  bottom: 12px;
-  transform: none;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
   width: 38px;
   height: 38px;
-  font-size: 24px;
+  font-size: 18px;
+  font-weight: 700;
+  opacity: 0.75;
 }
 .card-modal-body .slide-dots {
   bottom: 16px;
@@ -2502,12 +2504,12 @@ body.modal-open {
   background: rgba(26, 18, 8, 0.8);
 }
 
-/* Nav arrows — 하단 배치로 본문 가림 없음 */
+/* Nav arrows — 세로 중앙 배치 */
 .slide-nav {
   position: absolute;
-  top: auto;
-  bottom: 10px;
-  transform: none;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
   z-index: 5;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -2515,7 +2517,8 @@ body.modal-open {
   border-radius: 50%;
   width: 28px;
   height: 28px;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   display: flex;
@@ -2535,13 +2538,14 @@ body.modal-open {
   opacity: 0 !important;
   cursor: not-allowed;
 }
-.slide-nav.prev { left: 8px; }
-.slide-nav.next { right: 8px; }
+.slide-nav.prev { left: 6px; }
+.slide-nav.next { right: 6px; }
 
-/* 화살표 버튼 — 전체 숨김 (슬라이드 힌트로 대체) */
-.carousel .slide-nav { display: none !important; }
+/* 화살표 버튼 — 모바일은 터치 스와이프로 대체, PC만 표시 */
+@media (max-width: 600px) { .carousel .slide-nav { display: none; } }
 
-/* 슬라이드 힌트 — 첫 로드 시 잠깐 나타났다 사라짐 (PC·모바일 공통) */
+/* 슬라이드 힌트 — 모바일 전용 (PC 는 화살표로 대체) */
+@media (min-width: 601px) { .swipe-hint { display: none !important; } }
 .swipe-hint {
   display: block;
   position: absolute;
@@ -3131,7 +3135,7 @@ body.modal-open {
    ============================================================ */
 .carousel-stage { border-radius: 16px; box-shadow: 0 4px 16px rgba(26,18,8,0.07); }
 .carousel:hover .carousel-stage { box-shadow: 0 12px 30px rgba(26,18,8,0.15); }
-.slide { padding: 22px 22px 36px; }
+.slide { padding: 22px 46px 36px; }
 @media (max-width: 600px) { .slide { padding: 22px 22px 36px; } }
 
 /* 표지 — 상단 정렬 + 리드로 가운데 공백 제거 */

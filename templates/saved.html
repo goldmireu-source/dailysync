@@ -144,6 +144,11 @@ function initCarousel(carousel) {
     const dx = e.clientX - mouseStartX;
     if (Math.abs(dx) > 40) {
       stage._dragHappened = true;
+      // 캡처 phase 에서 click 1회 삼킴 — 드래그 후 mouseup 이 모달 오버레이 위에서 끝나도 모달이 닫히지 않게
+      document.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+      }, { capture: true, once: true });
       if (dx < 0) show(current + 1);
       else show(current - 1);
     }

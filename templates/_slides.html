@@ -235,8 +235,8 @@
     {% endfor %}
 
     {% if cards|length > 1 %}
-    <button class="slide-nav prev" data-action="prev" disabled>‹</button>
-    <button class="slide-nav next" data-action="next">›</button>
+    <button class="slide-nav prev" data-action="prev" disabled><</button>
+    <button class="slide-nav next" data-action="next">></button>
     <div class="slide-dots">
       {% for i in range(cards|length) %}
         <span class="dot {% if i == 0 %}active{% endif %}" data-idx="{{ i }}"></span>
