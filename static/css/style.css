@@ -3014,6 +3014,9 @@ body.modal-open {
 }
 .hd-chip:hover { border-color: var(--accent-dim); color: var(--accent); }
 .hd-num { font-weight: 800; color: var(--accent); }
+.hd-chip--login { border-color: var(--accent-dim); color: var(--accent); }
+.hd-chip--login:hover { background: var(--accent-bg); }
+.hd-chip--user { font-size: 12px; }
 
 /* 메인 네비 — 세그먼트 필 */
 .main-nav {

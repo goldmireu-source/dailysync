@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone, date
 from functools import wraps
 
 from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, g, current_app
-from flask_login import current_user, login_user, logout_user
+from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
@@ -63,16 +63,22 @@ def admin_login():
         return redirect(url_for("web.admin") if is_admin() else url_for("web.index"))
 
     error = None
+    next_url = request.args.get("next") or ""
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()[:14]
         password = (request.form.get("password") or "")[:10]
+        next_url = request.form.get("next") or ""
+        # 외부 도메인 리다이렉트 방지
+        if next_url and (not next_url.startswith("/") or next_url.startswith("//")):
+            next_url = ""
         user = AdminUser.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user, remember=True)
-            return redirect(url_for("web.admin") if is_admin() else url_for("web.index"))
+            dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
+            return redirect(dest)
         error = "아이디 또는 비밀번호가 올바르지 않습니다."
 
-    return render_template("admin_login.html", error=error)
+    return render_template("admin_login.html", error=error, next_url=next_url)
 
 
 @bp.route("/admin-register", methods=["GET", "POST"])
@@ -418,6 +424,7 @@ def index():
 
 # ---------- 클러스터 상세 → 카드뉴스 ----------
 @bp.route("/cluster/<int:cluster_id>")
+@login_required
 def cluster_detail(cluster_id: int):
     cluster = Cluster.query.get(cluster_id)
     if not cluster:
@@ -433,6 +440,7 @@ def cluster_detail(cluster_id: int):
 
 
 @bp.route("/paper/<int:paper_id>")
+@login_required
 def paper_detail(paper_id: int):
     paper = Paper.query.get(paper_id)
     if not paper:
@@ -532,6 +540,7 @@ def contest_new():
 
 # ---------- 공모전 상세 ----------
 @bp.route("/contest/<int:contest_id>")
+@login_required
 def contest_detail(contest_id: int):
     contest = Contest.query.get(contest_id)
     if not contest:

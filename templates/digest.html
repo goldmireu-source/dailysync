@@ -11,13 +11,18 @@
 {% set dt_param = ('&date_to=' ~ target_date_to.isoformat()) if target_date_to != target_date else '' %}
 <header class="site-header">
   <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'">DAILY <span class="ds-accent">SYNC</span></a>
-  {% if is_admin and not show_hidden %}
   <div class="site-actions">
+    {% if is_admin and not show_hidden %}
     <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>⭐ <span class="hd-num" id="saved-count">{{ saved_total }}</span></a>
     <a href="?tab={{ tab }}&hidden=1" class="hd-chip" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display:none;"{% endif %}>👁 <span class="hd-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span></a>
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
+    {% endif %}
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--user" title="로그아웃">{{ current_user.display_name }} ↩</a>
+    {% else %}
+    <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
+    {% endif %}
   </div>
-  {% endif %}
 </header>
 <div class="site-tagline">AI 공모전 · 뉴스 · 논문을 한곳에서</div>
 
