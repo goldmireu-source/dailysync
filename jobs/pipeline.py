@@ -282,13 +282,22 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             logger.exception("collect_all_papers failed in refresh_now")
             stats["papers_new"] = 0
 
-        # 3. 변경 없음 조기 종료 — 신규 0건이고 미처리 dirty 도 없으면 이후 단계 스킵
+        # 3. 변경 없음 조기 종료 — 신규 0건이고 미처리 dirty/미임베딩 도 없으면 이후 단계 스킵
         if stats.get("news_new", 0) == 0 and stats.get("papers_new", 0) == 0:
+            from datetime import timedelta
+            from models import Article, Paper as PaperModel
             dirty_clusters = Cluster.query.filter_by(summary_dirty=True).count()
             dirty_papers = Paper.query.filter_by(summary_dirty=True).count()
+            # 최근 72시간 안에 임베딩 안 된 기사가 있으면 임베딩/클러스터링 필요
+            cutoff_72h = datetime.utcnow() - timedelta(hours=72)
+            unembedded = Article.query.filter(
+                Article.embedding.is_(None),
+                Article.published_at >= cutoff_72h,
+            ).count()
             stats["pending_dirty_clusters"] = dirty_clusters
             stats["pending_dirty_papers"] = dirty_papers
-            if dirty_clusters == 0 and dirty_papers == 0:
+            stats["pending_unembedded"] = unembedded
+            if dirty_clusters == 0 and dirty_papers == 0 and unembedded == 0:
                 stats["skipped_reason"] = "no_changes"
                 stats["anything_new"] = False
                 _update_phase(run_id, "변경 없음 — 스킵")

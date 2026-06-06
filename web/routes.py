@@ -1229,7 +1229,7 @@ def api_clusters_recent():
     """최근 클러스터 목록 JSON — 카드뉴스 봇 auto 선정용."""
     if not _cardnews_api_auth():
         return jsonify({"error": "unauthorized"}), 401
-    since = (datetime.utcnow() + timedelta(hours=9) - timedelta(days=1)).date().isoformat()
+    since = (datetime.utcnow() + timedelta(hours=9)).date().isoformat()  # 오늘 KST 날짜만
     clusters = (
         Cluster.query
         .filter(Cluster.summary_ko.isnot(None))
