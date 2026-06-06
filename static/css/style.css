@@ -1358,7 +1358,7 @@ footer a { color: var(--text-dim); }
   box-shadow: none;
 }
 .card-modal-body .slide {
-  padding: 32px 36px;
+  padding: 32px 56px;
 }
 
 /* === 모달 안 폰트 확대 (PC 기준) === */
