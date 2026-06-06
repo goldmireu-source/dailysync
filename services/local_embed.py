@@ -1,35 +1,32 @@
-"""sentence-transformers 로컬 임베딩 (paraphrase-multilingual-MiniLM-L12-v2, 384차원).
+"""fastembed 로컬 임베딩 (paraphrase-multilingual-MiniLM-L12-v2, 384차원).
 
-- 외부 API 의존 없음 (한 번 다운로드 후 영구 사용)
+torch 없이 ONNX Runtime 기반으로 동작 — pip install fastembed 한 줄, ~20MB.
 - L2 정규화된 출력 (코사인 유사도 = dot product)
-- 분당 호출 한도 없음
 - 한국어·영어 모두 지원
-
-첫 호출 시 모델 로딩 ~수 초 (이후 메모리 상주).
 """
 import logging
 from typing import Optional
 
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 from config import Config
 
 logger = logging.getLogger(__name__)
 
-_model: Optional[SentenceTransformer] = None
+_model: Optional[TextEmbedding] = None
 MAX_INPUT_CHARS = 8000
 
 
-def _get_model() -> SentenceTransformer:
+def _get_model() -> TextEmbedding:
     global _model
     if _model is None:
-        device = Config.EMBEDDING_DEVICE  # None = auto-detect
-        print(f"[local_embed] 임베딩 모델 로딩 중: {Config.LOCAL_EMBEDDING_MODEL}")
-        _model = SentenceTransformer(
-            Config.LOCAL_EMBEDDING_MODEL,
-            device=device,
+        model_name = Config.LOCAL_EMBEDDING_MODEL
+        print(f"[local_embed] 임베딩 모델 로딩 중: {model_name}")
+        _model = TextEmbedding(
+            model_name=model_name,
+            cache_dir="hf_cache",
         )
-        print(f"[local_embed] 모델 로딩 완료 (device={_model.device})")
+        print("[local_embed] 모델 로딩 완료")
     return _model
 
 
@@ -37,8 +34,6 @@ def embed_texts(texts: list[str], input_type: str = "document") -> list[list[flo
     """배치 임베딩 (384차원, L2 정규화).
 
     input_type 은 외부 임베딩 API 와의 인터페이스 호환을 위한 인자.
-
-    Returns: 각 텍스트에 대한 임베딩 리스트
     """
     if not texts:
         return []
@@ -46,14 +41,8 @@ def embed_texts(texts: list[str], input_type: str = "document") -> list[list[flo
     texts = [(t or "").strip()[:MAX_INPUT_CHARS] for t in texts]
 
     model = _get_model()
-    embeddings = model.encode(
-        texts,
-        batch_size=Config.EMBEDDING_BATCH_SIZE,
-        normalize_embeddings=True,
-        show_progress_bar=len(texts) > 30,
-        convert_to_numpy=True,
-    )
-    return embeddings.tolist()
+    embeddings = list(model.embed(texts, batch_size=Config.EMBEDDING_BATCH_SIZE))
+    return [emb.tolist() for emb in embeddings]
 
 
 def embed_text(text: str, input_type: str = "document") -> list[float]:
