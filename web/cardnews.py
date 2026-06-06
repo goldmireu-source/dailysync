@@ -103,10 +103,7 @@ def _chunk_sources(src_list: list, budget: int = SRC_BUDGET) -> list[list]:
 
 
 def _dedup_links(members: list, max_links: int = 5) -> list[dict]:
-    """매체명 기준 중복 제거 후 최대 max_links 개 링크 반환.
-
-    표시명: [매체명] 기사제목 (40자 초과 시 말줄임)
-    """
+    """매체명 기준 중복 제거 후 최대 max_links 개 링크 반환."""
     seen: set[str] = set()
     result = []
     for a in members:
@@ -114,13 +111,58 @@ def _dedup_links(members: list, max_links: int = 5) -> list[dict]:
         if src not in seen:
             seen.add(src)
             title = (a.title or "").strip()
-            if title:
-                label = f"[{src}] {title}" if len(title) <= 38 else f"[{src}] {title[:37]}…"
-            else:
-                label = src
+            label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
             result.append({"name": label, "url": a.url})
             if len(result) >= max_links:
                 break
+    return result
+
+
+def _best_match_article(claim: str, candidates: list):
+    """claim 텍스트와 제목 단어 overlap이 가장 높은 기사 반환.
+
+    한·영 공통으로 단순 토큰 분리 후 교집합 크기로 스코어링.
+    동점이면 가장 최신 기사 우선.
+    """
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    claim_tokens = set(claim.lower().split())
+    best, best_score = candidates[0], -1
+    for a in candidates:
+        tokens = set((a.title or "").lower().split())
+        score = len(claim_tokens & tokens)
+        if score > best_score:
+            best_score = score
+            best = a
+    return best
+
+
+def _links_from_divergences(divergences: list, art_by_src: dict, max_links: int = 5) -> list[dict]:
+    """divergence claim 과 기사 제목을 매칭해 링크 생성.
+
+    각 소스마다 divergence claim 과 가장 유사한 기사를 선택하므로
+    클러스터에 같은 소스 기사가 여러 개 있어도 엉뚱한 기사가 걸리지 않음.
+    """
+    seen: set[str] = set()
+    result = []
+    for d in divergences:
+        src = d.get("source", "")
+        if not src or src in seen:
+            continue
+        candidates = art_by_src.get(src, [])
+        if not candidates:
+            continue
+        seen.add(src)
+        article = _best_match_article(d.get("claim", ""), candidates)
+        if article:
+            title = (article.title or "").strip()
+            label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
+            result.append({"name": label, "url": article.url})
+        if len(result) >= max_links:
+            break
     return result
 
 
@@ -286,9 +328,11 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        # divergences 에 등장한 소스의 기사만 링크 (카드 요약 근거 기사만)
-        relevant = [a for a in members if a.source.name in by_src] or members
-        links_info = _dedup_links(relevant)
+        # divergence claim ↔ 기사 제목 단어 매칭으로 실제 기여 기사만 링크
+        art_by_src: dict[str, list] = {}
+        for a in members:
+            art_by_src.setdefault(a.source.name, []).append(a)
+        links_info = _links_from_divergences(cluster.divergences, art_by_src)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
