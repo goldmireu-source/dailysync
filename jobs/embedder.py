@@ -131,13 +131,22 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
         if not stale:
             continue
 
-        # 다른 날 기사가 있었으면 centroid 가 오염된 것 — 전체 기사 분리 후 클러스터 삭제.
-        # 삭제하지 않으면 빈 클러스터가 stale centroid 를 가진 채 살아남아
-        # 이후 클러스터링에서 무관한 새 기사를 흡수해 카드 내용/링크 불일치를 유발.
-        for a in members:
+        # 다른 날 기사만 분리 — 다수파(최신 날짜) 기사는 클러스터에 유지.
+        # 클러스터 자체는 삭제하지 않고 centroid 는 최신 날짜 기사들로 재산출.
+        majority = [m for m in members if (m.published_at + timedelta(hours=9)).date() == latest_kst_date]
+        for a in stale:
             a.cluster_id = None
-        total_detached += len(members)
-        db.session.delete(cluster)
+        total_detached += len(stale)
+        if majority:
+            # centroid 재산출 (임베딩 있는 것만)
+            vecs = [m.embedding for m in majority if m.embedding]
+            if vecs:
+                import numpy as _np
+                cluster.centroid = _np.mean([_np.array(v, dtype=_np.float32) for v in vecs], axis=0).tolist()
+            cluster.summary_dirty = True
+        else:
+            # 모든 기사가 stale → 클러스터 삭제
+            db.session.delete(cluster)
 
     if total_detached:
         db.session.commit()

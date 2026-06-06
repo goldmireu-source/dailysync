@@ -46,7 +46,8 @@ class Config:
     # (0.72는 너무 낮아 "엔비디아" 같은 회사명만 공유해도 묶이는 문제 발생)
     CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.80"))
     # 기존 클러스터끼리 사후 병합 임계값
-    CLUSTER_MERGE_THRESHOLD = float(os.getenv("CLUSTER_MERGE_THRESHOLD", "0.82"))
+    # 0.82는 너무 낮아 서로 다른 AI 뉴스 사건들이 하나의 메가클러스터로 합쳐짐 → 0.90으로 상향
+    CLUSTER_MERGE_THRESHOLD = float(os.getenv("CLUSTER_MERGE_THRESHOLD", "0.90"))
     CLUSTER_TIME_WINDOW_HOURS = int(os.getenv("CLUSTER_TIME_WINDOW_HOURS", "72"))
 
     # 논문
