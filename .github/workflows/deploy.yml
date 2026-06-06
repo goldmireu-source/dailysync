@@ -17,18 +17,23 @@ jobs:
 
       - name: Sync code to server
         run: |
-          rsync -az \
-            --exclude='.git' \
-            --exclude='venv/' \
-            --exclude='.venv/' \
-            --exclude='hf_cache/' \
-            --exclude='__pycache__/' \
-            --exclude='*.pyc' \
-            --exclude='*.db' \
-            --exclude='instance/' \
-            --exclude='.env' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            ./ ubuntu@${{ secrets.DEPLOY_HOST }}:~/ai-news-digest/
+          for i in 1 2 3 4 5; do
+            echo "rsync 시도 $i/5..."
+            rsync -az \
+              --exclude='.git' \
+              --exclude='venv/' \
+              --exclude='.venv/' \
+              --exclude='hf_cache/' \
+              --exclude='__pycache__/' \
+              --exclude='*.pyc' \
+              --exclude='*.db' \
+              --exclude='instance/' \
+              --exclude='.env' \
+              -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=15" \
+              ./ ubuntu@${{ secrets.DEPLOY_HOST }}:~/ai-news-digest/ && break
+            echo "실패 (종료코드 $?). 60초 대기 후 재시도..."
+            sleep 60
+          done
 
       - name: Install deps and restart service
         timeout-minutes: 30
