@@ -141,42 +141,59 @@ def _best_match_article(claim: str, candidates: list):
 
 
 def _top_relevant_links(cluster, members: list, max_links: int = 5) -> list[dict]:
-    """cluster topic + agreed_facts 와 제목 overlap 기준으로 소스별 상위 기사 선택.
+    """클러스터 centroid와 기사 embedding 코사인 유사도 기준으로 소스별 대표 기사 선택.
 
-    같은 소스 기사가 여러 개여도 클러스터 내용과 가장 관련 있는 1개만 선택,
-    관련도 높은 순으로 정렬.
+    텍스트 토큰 overlap 대신 실제 embedding 유사도를 사용해
+    한국어 조사·어미 변형에 무관하게 클러스터 핵심 기사를 정확히 찾음.
     """
-    # 참조 텍스트: topic + 모든 agreed_fact 합산
-    ref_text = " ".join(filter(None, [
-        cluster.topic or "",
-        *[f for f in (cluster.agreed_facts or [])],
-    ]))
-    ref_tokens = set(ref_text.lower().split())
-    if not ref_tokens:
+    import numpy as np
+
+    centroid = cluster.centroid
+    # centroid 없으면 최신순 dedup으로 fallback
+    if not centroid:
         return _dedup_links(members, max_links)
 
-    # 소스별 best article + relevance score
+    try:
+        c_vec = np.array(centroid, dtype=np.float32)
+        c_norm = np.linalg.norm(c_vec)
+        if c_norm == 0:
+            return _dedup_links(members, max_links)
+        c_vec = c_vec / c_norm
+    except Exception:
+        return _dedup_links(members, max_links)
+
+    # 소스별로 centroid에 가장 가까운 기사 1개 선택
     art_by_src: dict[str, list] = {}
     for a in members:
         art_by_src.setdefault(a.source.name, []).append(a)
 
-    scored: list[tuple[int, object]] = []
+    scored: list[tuple[float, object]] = []
     for src, arts in art_by_src.items():
-        best = _best_match_article(ref_text, arts)
-        if not best:
-            continue
-        title_tokens = set((best.title or "").lower().split())
-        score = len(ref_tokens & title_tokens)
-        scored.append((score, best))
+        best, best_sim = None, -2.0
+        for a in arts:
+            if not a.embedding:
+                continue
+            try:
+                v = np.array(a.embedding, dtype=np.float32)
+                n = np.linalg.norm(v)
+                if n == 0:
+                    continue
+                sim = float(np.dot(c_vec, v / n))
+            except Exception:
+                continue
+            if sim > best_sim:
+                best_sim, best = sim, a
+        if best is None:
+            # embedding 없는 소스: 가장 최신 기사
+            best = max(arts, key=lambda a: a.published_at or datetime(2000, 1, 1))
+            best_sim = 0.0
+        scored.append((best_sim, best))
 
-    # 관련도 내림차순, 동점이면 최신 기사 우선
-    scored.sort(key=lambda x: (
-        -x[0],
-        -(x[1].published_at.timestamp() if x[1].published_at else 0),
-    ))
+    # 유사도 내림차순 정렬
+    scored.sort(key=lambda x: -x[0])
 
     result = []
-    for score, article in scored[:max_links]:
+    for _sim, article in scored[:max_links]:
         src = article.source.name
         title = (article.title or "").strip()
         label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
@@ -236,8 +253,10 @@ def build_cluster_cards(cluster) -> list[dict]:
       4. sources — 매체별 시각 (≥2 매체 클러스터만)
     """
     cards = []
-    # 클러스터 속한 KST 날짜 범위 기사만 — 다른 날 잘못 편입된 기사 제외
-    members = _kst_day_members(cluster, cluster.articles.all())
+    all_articles = cluster.articles.all()
+    # 표시·통계용: KST 날짜 범위 기사만 (다른 날 잘못 편입된 기사 제외)
+    members = _kst_day_members(cluster, all_articles)
+    # 링크용: 전체 기사 대상 centroid 유사도 스코어링 (날짜 무관하게 가장 대표적인 기사 선택)
     sources = sorted(set(a.source.name for a in members))
     cat_key = _category_key(cluster.categories or [])
 
@@ -346,8 +365,8 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        # cluster topic+facts 와 제목 유사도 기준 관련도 높은 기사만 링크
-        links_info = _top_relevant_links(cluster, members)
+        # centroid 유사도 기준 대표 기사 링크 (날짜 무관 전체 기사 대상)
+        links_info = _top_relevant_links(cluster, all_articles)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
@@ -377,7 +396,7 @@ def build_cluster_cards(cluster) -> list[dict]:
             "type": "links",
             "category": cat_key,
             "title": "더 알아보기",
-            "links": _top_relevant_links(cluster, members),
+            "links": _top_relevant_links(cluster, all_articles),
         })
 
     return cards
