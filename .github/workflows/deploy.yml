@@ -12,19 +12,11 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          command_timeout: 15m
           script: |
             cd ~/ai-news-digest
             git fetch origin main
-            OLD=$(git rev-parse HEAD)
             git reset --hard origin/main
-            NEW=$(git rev-parse HEAD)
-            # requirements.txt 변경 or 필수 패키지 없을 때만 pip install
-            if git diff --name-only "$OLD" "$NEW" 2>/dev/null | grep -qF requirements.txt || \
-               ! venv/bin/python -c "import flask_login, bcrypt" 2>/dev/null; then
-              echo "패키지 설치 중..."
-              venv/bin/pip install -r requirements.txt -q
-            fi
+            venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=4.0.0' -q
             sudo systemctl restart daily-sync
             sleep 3
             sudo systemctl is-active daily-sync
