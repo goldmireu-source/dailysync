@@ -3157,7 +3157,8 @@ body.modal-open {
 .slide.cover .watermark { opacity: 0.07; bottom: 56px; }
 
 /* 본문 슬라이드 — 타이트 + 또렷 */
-.slide.body { padding: 22px 20px; }
+.slide.body { padding: 22px 46px; }
+@media (max-width: 600px) { .slide.body { padding: 22px 22px; } }
 .slide.body h2 { font-size: 17px; margin-bottom: 12px; line-height: 1.42; }
 .slide .fact-items { gap: 9px; }
 .slide .fact-row { padding: 11px 14px; border-radius: 10px; }
