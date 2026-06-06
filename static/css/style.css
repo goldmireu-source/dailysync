@@ -1966,9 +1966,13 @@ body.modal-open {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
-  padding: 18px;
+  padding: 18px 44px;
   overflow: hidden;
   box-sizing: border-box;
+}
+/* 모바일: 화살표 없으므로 좌우 패딩 원복 */
+@media (max-width: 600px) {
+  .slide { padding: 18px; }
 }
 .slide.active {
   opacity: 1;
