@@ -208,8 +208,8 @@
     {# Jinja 매크로는 호출 템플릿의 context 변수(is_admin)에 접근 불가.
        Flask 의 g 글로벌은 매크로 안에서도 보이므로 g.is_admin 사용.
        routes.py 의 inject_admin_flag before_request 에서 g.is_admin 세팅. #}
-    {% if g.is_admin %}
     <div class="card-actions">
+      {% if g.is_admin %}
       <button class="card-action-btn save-btn {% if is_saved %}saved{% endif %}"
               onclick="event.stopPropagation(); {% if is_saved %}unsaveItem('{{ hide_kind }}', {{ hide_id }}){% else %}saveItem('{{ hide_kind }}', {{ hide_id }}){% endif %}"
               title="{% if is_saved %}저장 해제{% else %}저장{% endif %}">
@@ -220,16 +220,15 @@
               title="{% if show_hidden %}복구{% else %}숨기기{% endif %}">
         {% if show_hidden %}↻{% else %}×{% endif %}
       </button>
-      {# cluster 만 — paper 는 cardnews 변환 대상 아님 #}
+      {% endif %}
+      {# cluster 만 — 비로그인은 로그인 페이지로 #}
       {% if hide_kind == 'cluster' %}
       <a class="card-action-btn cardnews-btn"
-         href="{{ cardnews_bot_url }}/auto?prefill_cluster={{ hide_id }}"
-         target="_blank" rel="noopener"
+         {% if g.is_admin %}href="{{ cardnews_bot_url }}/auto?prefill_cluster={{ hide_id }}" target="_blank" rel="noopener"{% else %}href="/admin-login"{% endif %}
          onclick="event.stopPropagation();"
-         title="이 클러스터로 카드뉴스 생성">📐</a>
+         title="카드뉴스 생성">📐</a>
       {% endif %}
     </div>
-    {% endif %}
 
     {% for card in cards %}
       {{ render_slide(card, loop.index0, cards|length, seq_num) }}
