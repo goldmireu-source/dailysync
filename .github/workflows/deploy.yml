@@ -41,9 +41,11 @@ jobs:
           cd ~/ai-news-digest
           # 항상 필요한 경량 패키지
           venv/bin/pip install 'Flask-Login>=0.6.3' 'bcrypt>=3.2.0,<4.0.0' -q
-          # sentence-transformers 누락 시에만 설치 (torch 포함 대용량)
+          # sentence-transformers 누락 시에만 설치
+          # torch CPU-only 버전 사용 (GPU 버전은 ~2GB로 OOM 유발)
           if ! venv/bin/python -c 'import sentence_transformers' 2>/dev/null; then
-            echo "sentence-transformers 설치 중..."
+            echo "sentence-transformers 설치 중 (CPU-only torch)..."
+            venv/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu -q
             venv/bin/pip install --no-cache-dir 'sentence-transformers>=3.0.0' -q
           fi
           sudo systemctl restart daily-sync
