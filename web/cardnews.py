@@ -102,6 +102,20 @@ def _chunk_sources(src_list: list, budget: int = SRC_BUDGET) -> list[list]:
     return chunks
 
 
+def _dedup_links(members: list, max_links: int = 6) -> list[dict]:
+    """매체명 기준 중복 제거 후 최대 max_links 개 링크 반환."""
+    seen: set[str] = set()
+    result = []
+    for a in members:
+        name = a.source.name
+        if name not in seen:
+            seen.add(name)
+            result.append({"name": name, "url": a.url})
+            if len(result) >= max_links:
+                break
+    return result
+
+
 def _category_key(categories: list) -> str:
     """클러스터의 주 카테고리 → CSS 클래스 키."""
     if not categories:
@@ -264,7 +278,7 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        links_info = [{"name": a.source.name, "url": a.url} for a in members]
+        links_info = _dedup_links(members)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
@@ -294,7 +308,7 @@ def build_cluster_cards(cluster) -> list[dict]:
             "type": "links",
             "category": cat_key,
             "title": "더 알아보기",
-            "links": [{"name": a.source.name, "url": a.url} for a in members],
+            "links": _dedup_links(members),
         })
 
     return cards
