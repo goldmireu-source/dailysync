@@ -1966,7 +1966,7 @@ body.modal-open {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
-  padding: 18px 44px;
+  padding: 18px 52px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -3134,8 +3134,8 @@ body.modal-open {
    ============================================================ */
 .carousel-stage { border-radius: 16px; box-shadow: 0 4px 16px rgba(26,18,8,0.07); }
 .carousel:hover .carousel-stage { box-shadow: 0 12px 30px rgba(26,18,8,0.15); }
-.slide { padding: 22px 44px; }
-@media (max-width: 600px) { .slide { padding: 22px 20px; } }
+.slide { padding: 22px 52px; }
+@media (max-width: 600px) { .slide { padding: 22px; } }
 
 /* 표지 — 상단 정렬 + 리드로 가운데 공백 제거 */
 .slide.cover .cover-top { padding-bottom: 13px; }
