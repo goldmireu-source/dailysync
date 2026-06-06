@@ -402,6 +402,7 @@ function initCarousel(carousel) {
   if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current + 1); });
   dots.forEach((d, i) => d.addEventListener('click', (e) => { e.stopPropagation(); show(i); }));
 
+  // 터치 스와이프 (모바일)
   let touchStartX = 0;
   stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
   stage.addEventListener('touchend', (e) => {
@@ -409,6 +410,35 @@ function initCarousel(carousel) {
     if (Math.abs(dx) > 40) {
       if (dx < 0) show(current + 1);
       else show(current - 1);
+    }
+  });
+
+  // 마우스 드래그 스와이프 (PC)
+  let mouseStartX = 0;
+  let isDragging = false;
+  stage.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    mouseStartX = e.clientX;
+    isDragging = true;
+    stage.style.cursor = 'grabbing';
+    stage.style.userSelect = 'none';
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    stage.style.cursor = '';
+    stage.style.userSelect = '';
+    const dx = e.clientX - mouseStartX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) show(current + 1);
+      else show(current - 1);
+    }
+  });
+  stage.addEventListener('mouseleave', () => {
+    if (isDragging) {
+      isDragging = false;
+      stage.style.cursor = '';
+      stage.style.userSelect = '';
     }
   });
 }

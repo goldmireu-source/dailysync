@@ -2598,6 +2598,10 @@ body.modal-open {
 
 .carousel-stage {
   touch-action: pan-y;
+  cursor: grab;
+}
+.carousel-stage:active {
+  cursor: grabbing;
 }
 
 /* 반응형 */
