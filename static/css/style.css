@@ -1358,7 +1358,7 @@ footer a { color: var(--text-dim); }
   box-shadow: none;
 }
 .card-modal-body .slide {
-  padding: 32px 56px;
+  padding: 32px 22px 60px;
 }
 
 /* === 모달 안 폰트 확대 (PC 기준) === */
@@ -1415,8 +1415,11 @@ footer a { color: var(--text-dim); }
   font-size: 13px;
 }
 
-/* 슬라이드 네비/점 모달 안에서 더 크게 */
+/* 슬라이드 네비/점 모달 안에서 더 크게, 하단 배치 */
 .card-modal-body .slide-nav {
+  top: auto;
+  bottom: 12px;
+  transform: none;
   width: 38px;
   height: 38px;
   font-size: 24px;
@@ -1966,7 +1969,7 @@ body.modal-open {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
-  padding: 18px 52px;
+  padding: 18px 18px 52px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -2499,11 +2502,12 @@ body.modal-open {
   background: rgba(26, 18, 8, 0.8);
 }
 
-/* Nav arrows */
+/* Nav arrows — 하단 배치로 본문 가림 없음 */
 .slide-nav {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: auto;
+  bottom: 10px;
+  transform: none;
   z-index: 5;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -2528,11 +2532,11 @@ body.modal-open {
 }
 .slide-nav:hover { background: white; }
 .slide-nav:disabled {
-  opacity: 0;
+  opacity: 0 !important;
   cursor: not-allowed;
 }
-.slide-nav.prev { left: 6px; }
-.slide-nav.next { right: 6px; }
+.slide-nav.prev { left: 8px; }
+.slide-nav.next { right: 8px; }
 
 /* 모바일: 다이제스트 카드 화살표 숨김 — 스와이프로 대체 */
 @media (max-width: 600px) {
@@ -3134,7 +3138,7 @@ body.modal-open {
    ============================================================ */
 .carousel-stage { border-radius: 16px; box-shadow: 0 4px 16px rgba(26,18,8,0.07); }
 .carousel:hover .carousel-stage { box-shadow: 0 12px 30px rgba(26,18,8,0.15); }
-.slide { padding: 22px 52px; }
+.slide { padding: 22px 22px 52px; }
 @media (max-width: 600px) { .slide { padding: 22px; } }
 
 /* 표지 — 상단 정렬 + 리드로 가운데 공백 제거 */
