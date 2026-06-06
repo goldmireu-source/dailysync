@@ -3400,3 +3400,56 @@ footer a { color: var(--text-dim); }
 .cs-pag .swiper-pagination-bullet-active {
   background: var(--accent); width: 22px; border-radius: 4px;
 }
+
+/* ============================================================
+   MOBILE v1 — 상단 UI 컴팩트화 (max-width: 600px)
+   카드뉴스가 스크롤 없이 뷰포트 안에 보이도록 헤더/네비 공간 축소
+   ============================================================ */
+@media (max-width: 600px) {
+  /* 브랜드: 작게 + 태그라인 숨김 */
+  .site-header { margin: 4px 0 2px; gap: 8px; }
+  .ds-brand { font-size: 26px; letter-spacing: -0.02em; }
+  .ds-logo { height: 24px; margin-right: 8px; }
+  .site-tagline { display: none; }
+  .hd-chip { padding: 5px 9px; font-size: 11.5px; gap: 3px; }
+  .hd-num { font-size: 11.5px; }
+
+  /* 메인 네비: 패딩·마진·폰트 축소 */
+  .main-nav { padding: 4px; margin: 0 0 10px; border-radius: 12px; }
+  .nav-pill { padding: 8px 10px; font-size: 13px; gap: 5px; border-radius: 8px; }
+  .nav-num { font-size: 10.5px; padding: 1px 5px; min-width: 16px; }
+
+  /* 서브탭 + 날짜: 한 줄 유지 */
+  .subtab-row { margin: 0 0 8px; gap: 6px; flex-wrap: nowrap; }
+  .subtabs { padding: 3px; gap: 2px; }
+  .subtab { padding: 6px 10px; font-size: 12px; gap: 4px; border-radius: 6px; }
+  .st-num { font-size: 10px; }
+  .date-mini a, .date-mini span.disabled { width: 26px; height: 26px; font-size: 15px; border-radius: 6px; }
+  .date-mini input[type=date] { padding: 3px 5px; font-size: 10.5px; max-width: 98px; }
+
+  /* 인라인 검색: 입력창 + 프리셋 가로 스크롤 */
+  .inline-search { margin: 0 0 8px; }
+  .inline-search #inline-search-input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+  #inline-search-presets {
+    margin-top: 6px; gap: 5px;
+    flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px;
+    -ms-overflow-style: none; scrollbar-width: none;
+  }
+  #inline-search-presets::-webkit-scrollbar { display: none; }
+  .inline-preset-chip { padding: 5px 10px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0; }
+
+  /* 필터 바: 세로 쌓기 → 가로 스크롤로 전환 */
+  .filter-bar {
+    flex-direction: row; flex-wrap: nowrap; overflow-x: auto;
+    gap: 8px; padding-bottom: 2px; align-items: center;
+    -ms-overflow-style: none; scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .cat-chips { flex-wrap: nowrap; gap: 4px; flex-shrink: 0; }
+  .cat-chip { white-space: nowrap; flex-shrink: 0; font-size: 11.5px; padding: 5px 10px; }
+  .sort-select { flex-shrink: 0; justify-content: flex-start; }
+  .sort-select select { font-size: 11.5px; }
+
+  /* 카드 그리드 상단 여백 축소 */
+  .carousel-grid { gap: 16px; }
+}
