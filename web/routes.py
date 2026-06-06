@@ -192,11 +192,14 @@ def index():
         target_to = datetime.now(KST).date()
     start_utc, _ = _kst_day_bounds(target)
     _, end_utc = _kst_day_bounds(target_to)
+    # 기사 검색은 이전 KST일까지 확장: 전날 수집 후 당일 요약된 클러스터도 포함
+    # first_shown_date 필터가 이미 어제 표시된 클러스터를 자동 차단
+    start_utc_wide, _ = _kst_day_bounds(target - timedelta(days=1))
 
-    # 해당 일에 발행된 article 들의 cluster
+    # 해당 일(및 전날) 에 발행된 article 들의 cluster
     arts_today = (
         Article.query
-        .filter(Article.published_at >= start_utc, Article.published_at < end_utc)
+        .filter(Article.published_at >= start_utc_wide, Article.published_at < end_utc)
         .filter(Article.cluster_id.isnot(None))
         .all()
     )
