@@ -32,6 +32,13 @@
         <span id="password-count">0</span>/10자
       </div>
     </div>
+    <div>
+      <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">비밀번호 확인</label>
+      <input type="password" name="password_confirm" id="password-confirm-input" maxlength="10" required autocomplete="new-password"
+             style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;"
+             onfocus="this.style.borderColor='var(--accent)'" onblur="checkConfirm()">
+      <div id="confirm-status" style="font-size: 11px; margin-top: 4px; color: var(--text-faint);">비밀번호를 다시 입력해주세요</div>
+    </div>
 
     <div>
       <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">이름</label>
@@ -44,8 +51,8 @@
       </div>
     </div>
 
-    <button type="submit"
-            style="background: var(--accent); color: var(--bg-card); border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; letter-spacing: 0.02em;">
+    <button type="submit" id="submit-btn" disabled
+            style="background: var(--accent); color: var(--bg-card); border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; letter-spacing: 0.02em; opacity: 0.4; transition: opacity .15s;">
       가입하기
     </button>
   </form>
@@ -59,13 +66,42 @@
 <script>
 const usernameInput = document.getElementById('username-input');
 const passwordInput = document.getElementById('password-input');
+const confirmInput  = document.getElementById('password-confirm-input');
 const nameInput     = document.getElementById('name-input');
 const usernameCount = document.getElementById('username-count');
 const passwordCount = document.getElementById('password-count');
 const nameCount     = document.getElementById('name-count');
 const nameLimitEl   = document.getElementById('name-limit');
+const confirmStatus = document.getElementById('confirm-status');
+const submitBtn     = document.getElementById('submit-btn');
 
 const KOREAN_RE = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
+
+function checkConfirm() {
+  const pw  = passwordInput.value;
+  const cpw = confirmInput.value;
+  if (!cpw) {
+    confirmStatus.textContent = '비밀번호를 다시 입력해주세요';
+    confirmStatus.style.color = 'var(--text-faint)';
+    confirmInput.style.borderColor = 'var(--border)';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.4';
+    return;
+  }
+  if (pw === cpw) {
+    confirmStatus.textContent = '✓ 일치';
+    confirmStatus.style.color = 'var(--success)';
+    confirmInput.style.borderColor = 'var(--success)';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+  } else {
+    confirmStatus.textContent = '✗ 불일치';
+    confirmStatus.style.color = 'var(--danger)';
+    confirmInput.style.borderColor = 'var(--danger)';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.4';
+  }
+}
 
 usernameInput.addEventListener('input', function () {
   usernameCount.textContent = this.value.length;
@@ -73,7 +109,10 @@ usernameInput.addEventListener('input', function () {
 
 passwordInput.addEventListener('input', function () {
   passwordCount.textContent = this.value.length;
+  if (confirmInput.value) checkConfirm();
 });
+
+confirmInput.addEventListener('input', checkConfirm);
 
 nameInput.addEventListener('input', function () {
   const hasKorean = KOREAN_RE.test(this.value);

@@ -88,10 +88,13 @@ def admin_register():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "")
+        password_confirm = (request.form.get("password_confirm") or "")
         display_name = (request.form.get("display_name") or "").strip()
 
         if not username or not password or not display_name:
             error = "모든 항목을 입력해주세요."
+        elif password != password_confirm:
+            error = "비밀번호가 일치하지 않습니다."
         elif len(username) > 14:
             error = "아이디는 최대 14자입니다."
         elif len(password) > 10:

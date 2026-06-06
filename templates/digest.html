@@ -21,6 +21,7 @@
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--user" title="로그아웃">{{ current_user.display_name }} ↩</a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
+    <a href="{{ url_for('web.admin_register') }}" class="hd-chip">회원가입</a>
     {% endif %}
   </div>
 </header>
