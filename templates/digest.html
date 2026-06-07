@@ -47,7 +47,7 @@
 </nav>
 {% endif %}
 
-{% if tab != 'contests' and not inline_clusters and not others and not papers %}
+{% if tab != 'contests' and not inline_clusters and not articles_flat and not others and not papers %}
   <div class="empty">
     {% if show_hidden %}이 날짜에 숨긴 항목이 없습니다.
     {% else %}이 날짜에 수집된 다이제스트가 아직 없습니다.<br><span style="font-size:12px; opacity:0.6;">수집 → 임베딩 → 요약 잡을 먼저 돌려주세요.</span>{% endif %}
@@ -62,7 +62,7 @@
 {% if not show_hidden and news_active %}
 <div class="subtab-row">
   <div class="subtabs">
-    <a href="?date={{ target_date.isoformat() }}{{ dt_param }}&tab=news" class="subtab {% if tab == 'news' %}active{% endif %}">📰 뉴스<span class="st-num">{{ total_clusters }}</span></a>
+    <a href="?date={{ target_date.isoformat() }}{{ dt_param }}&tab=news" class="subtab {% if tab == 'news' %}active{% endif %}">📰 뉴스<span class="st-num">{{ total_articles_flat if tab == 'news' else total_clusters }}</span></a>
     <a href="?date={{ target_date.isoformat() }}{{ dt_param }}&tab=papers" class="subtab {% if tab == 'papers' %}active{% endif %}">📄 논문<span class="st-num">{{ total_papers }}</span></a>
   </div>
   <div class="date-mini">
@@ -114,8 +114,23 @@
 </div>
 {% endif %}
 
-{# ===== 사건 카드뉴스 그리드 (페이지) ===== #}
-<div id="default-cluster-area">
+{# ===== 뉴스 탭: 개별 기사 목록 ===== #}
+{% if tab == 'news' and articles_flat %}
+<div class="article-list">
+  {% for a in articles_flat %}
+  <div class="article-row tier{{ a.source_tier }}">
+    <span class="art-src">{{ a.source_name }}</span>
+    <a href="{{ a.url }}" class="art-title" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
+    <span class="art-time">{{ a.pub_kst }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% elif tab == 'news' and not articles_flat %}
+<div class="empty">이 날짜에 수집된 기사가 없습니다.</div>
+{% endif %}
+
+{# ===== 카드뉴스 그리드 — 뉴스 탭에서는 숨김 (개별 기사 목록이 대체) ===== #}
+<div id="default-cluster-area" {% if tab == 'news' %}style="display:none"{% endif %}>
 {% if inline_clusters %}
 <div class="carousel-grid">
   {% for item in inline_clusters %}
@@ -132,7 +147,8 @@
 
 {# ===== 페이저 ===== #}
 {% if total_pages > 1 %}
-{% set page_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=news&cat=' ~ cat_filter ~ '&sort=' ~ sort_mode %}
+{% set page_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=' ~ tab ~ '&cat=' ~ cat_filter ~ '&sort=' ~ sort_mode %}
+{% set pager_total = total_contests if tab == 'contests' else (total_papers if tab == 'papers' else total_clusters) %}
 <div class="pager">
   {% if page > 1 %}
     <a href="{{ page_base }}&page={{ page - 1 }}" class="pager-btn">← 이전</a>
@@ -166,7 +182,7 @@
     <span class="pager-btn disabled">다음 →</span>
   {% endif %}
 </div>
-<div class="pager-info">{{ (page - 1) * 12 + 1 }}–{{ [(page * 12), total_clusters]|min }} of {{ total_clusters }}</div>
+<div class="pager-info">{{ (page - 1) * 12 + 1 }}–{{ [(page * 12), pager_total]|min }} of {{ pager_total }}</div>
 {% endif %}
 {% endif %}
 </div>{# /default-cluster-area #}

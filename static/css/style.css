@@ -1663,6 +1663,54 @@ body.modal-open {
   cursor: pointer;
 }
 
+/* ============== 뉴스 개별 기사 목록 ============== */
+.article-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 24px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.article-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 46px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.15s;
+}
+.article-row:hover { background: rgba(255,255,255,0.04); }
+.art-src {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent, #a78bfa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.article-row.tier2 .art-src { color: #34d399; }
+.art-title {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.45;
+  text-decoration: none;
+  word-break: break-word;
+}
+.art-title:hover { text-decoration: underline; color: #c4b5fd; }
+.art-time {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  text-align: right;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .article-row { grid-template-columns: 90px 1fr 40px; gap: 6px; padding: 9px 8px; }
+  .art-src { font-size: 10.5px; }
+  .art-title { font-size: 13px; }
+}
+
 /* ============== Pager ============== */
 .pager {
   display: flex;

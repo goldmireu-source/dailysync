@@ -190,19 +190,48 @@ def index():
         target_to = target
     if target_to > datetime.now(KST).date():
         target_to = datetime.now(KST).date()
+    # tab 은 아래 클러스터 쿼리보다 앞에서 미리 읽어야 articles_flat 분기에 활용 가능
+    tab = request.args.get("tab", "contests")
+    if tab not in ("news", "papers", "contests"):
+        tab = "contests"
+
     start_utc, _ = _kst_day_bounds(target)
     _, end_utc = _kst_day_bounds(target_to)
-    # 기사 검색은 이전 KST일까지 확장: 전날 수집 후 당일 요약된 클러스터도 포함
-    # first_shown_date 필터가 이미 어제 표시된 클러스터를 자동 차단
-    start_utc_wide, _ = _kst_day_bounds(target - timedelta(days=1))
 
-    # 해당 일(및 전날) 에 발행된 article 들의 cluster
+    # 해당 KST 날짜에 발행된 article 들의 cluster (엄격히 당일만)
     arts_today = (
         Article.query
-        .filter(Article.published_at >= start_utc_wide, Article.published_at < end_utc)
+        .filter(Article.published_at >= start_utc, Article.published_at < end_utc)
         .filter(Article.cluster_id.isnot(None))
         .all()
     )
+
+    # 뉴스 탭: 오늘 발행된 모든 기사 개별 표시 (클러스터 여부 무관)
+    if tab == "news":
+        _arts_all = (
+            Article.query
+            .filter(Article.published_at >= start_utc, Article.published_at < end_utc)
+            .filter(Article.is_ai_relevant == True)
+            .order_by(Article.published_at.desc())
+            .all()
+        )
+        articles_flat = [
+            {
+                "id": a.id,
+                "title": a.title or "(제목 없음)",
+                "url": a.url,
+                "source_name": a.source.name if a.source else "?",
+                "source_tier": a.source.tier if a.source else 1,
+                "pub_kst": (a.published_at + timedelta(hours=9)).strftime("%H:%M")
+                           if a.published_at else "",
+                "cluster_id": a.cluster_id,
+            }
+            for a in _arts_all
+        ]
+        total_articles_flat = len(articles_flat)
+    else:
+        articles_flat = []
+        total_articles_flat = 0
     cluster_ids = sorted(set(a.cluster_id for a in arts_today))
 
     base_q = (
@@ -308,12 +337,6 @@ def index():
         for cat in (c.categories or []):
             if cat in cat_counts:
                 cat_counts[cat] += 1
-
-    # ========== 탭 ==========
-    # tab: contests (기본/메인) | news | papers
-    tab = request.args.get("tab", "contests")
-    if tab not in ("news", "papers", "contests"):
-        tab = "contests"
 
     # 논문 — fetched_at(수집일) 기준 필터. published_at은 arXiv 등록일이라 수집일과 다를 수 있음
     papers_q = (
@@ -425,6 +448,8 @@ def index():
         sort_mode=sort_mode,
         cat_filter=cat_filter,
         cat_counts=cat_counts,
+        articles_flat=articles_flat,
+        total_articles_flat=total_articles_flat,
     )
 
 

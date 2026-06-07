@@ -140,7 +140,7 @@ def _best_match_article(claim: str, candidates: list):
     return best
 
 
-def _top_relevant_links(cluster, members: list, max_links: int = 5) -> list[dict]:
+def _top_relevant_links(cluster, members: list, max_links: int = 1) -> list[dict]:
     """클러스터 centroid와 기사 embedding 코사인 유사도 기준으로 소스별 대표 기사 선택.
 
     텍스트 토큰 overlap 대신 실제 embedding 유사도를 사용해
