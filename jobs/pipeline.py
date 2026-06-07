@@ -321,19 +321,25 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
 
         # 5. 임베딩 + 클러스터링
         _update_phase(run_id, "임베딩·클러스터링 중")
+        _a_emb: dict = {"success": 0, "total": 0, "failed": 0}
+        _p_emb: dict = {"success": 0}
+        _cl: dict = {"created": 0, "joined": 0, "merged_groups": 0, "clusters_absorbed": 0}
         try:
-            a_emb = embed_articles(limit=500)
-            p_emb = embed_papers(limit=500)
-            cl = cluster_articles()
-            stats["articles_embedded"] = a_emb.get("success", 0)
-            stats["papers_embedded"] = p_emb.get("success", 0)
-            stats["clusters_created"] = cl.get("created", 0)
-            stats["clusters_joined"] = cl.get("joined", 0)
-            stats["clusters_merged_groups"] = cl.get("merged_groups", 0)
-            stats["clusters_absorbed"] = cl.get("clusters_absorbed", 0)
+            _a_emb = embed_articles(limit=500)
+            _p_emb = embed_papers(limit=500)
+            _cl = cluster_articles()
         except Exception as e:
             logger.exception("embed/cluster failed in refresh_now")
-            stats["clusters_created"] = 0
+            stats["embed_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+        finally:
+            stats["articles_embedded"] = _a_emb.get("success", 0)
+            stats["papers_embedded"] = _p_emb.get("success", 0)
+            stats["clusters_created"] = _cl.get("created", 0)
+            stats["clusters_joined"] = _cl.get("joined", 0)
+            stats["clusters_merged_groups"] = _cl.get("merged_groups", 0)
+            stats["clusters_absorbed"] = _cl.get("clusters_absorbed", 0)
+            if _a_emb.get("error"):
+                stats["articles_embed_error"] = str(_a_emb["error"])[:200]
 
         # 6. 뉴스 요약 (병렬)
         _update_phase(run_id, "뉴스 요약 중")

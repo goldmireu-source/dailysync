@@ -57,14 +57,14 @@ def _embed_items(items, text_fn, input_type: str = "document") -> dict:
     print(f"  로컬 임베딩 호출 ({len(valid_texts)}건)...")
     try:
         embeddings = embed_texts(valid_texts, input_type="document")
+        for item, emb in zip(valid_items, embeddings):
+            item.embedding = emb
+        db.session.commit()
     except Exception as e:
+        db.session.rollback()
         logger.exception("local embed failed")
         return {"total": len(items), "success": 0, "failed": len(items), "error": str(e)}
 
-    for item, emb in zip(valid_items, embeddings):
-        item.embedding = emb
-
-    db.session.commit()
     return {
         "total": len(items),
         "success": len(valid_items),
@@ -252,9 +252,14 @@ def cluster_articles() -> dict:
     db.session.commit()
 
     # 사후 머지 — 동일 사건이 여러 클러스터로 쪼개진 경우 흡수
-    merge_stats = merge_similar_clusters()
-    stats["merged_groups"] = merge_stats.get("groups_merged", 0)
-    stats["clusters_absorbed"] = merge_stats.get("clusters_absorbed", 0)
+    try:
+        merge_stats = merge_similar_clusters()
+        stats["merged_groups"] = merge_stats.get("groups_merged", 0)
+        stats["clusters_absorbed"] = merge_stats.get("clusters_absorbed", 0)
+    except Exception as e:
+        logger.exception("merge_similar_clusters failed")
+        stats["merge_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+        db.session.rollback()
     return stats
 
 
