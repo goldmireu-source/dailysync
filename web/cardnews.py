@@ -148,6 +148,14 @@ def _top_relevant_links(cluster, members: list, max_links: int = 1) -> list[dict
     """
     import numpy as np
 
+    # 기사가 1개뿐이면 바로 반환 — 임베딩 비교 불필요
+    if len(members) == 1:
+        a = members[0]
+        src = a.source.name if a.source else ""
+        title = (a.title or "").strip()
+        label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
+        return [{"name": label, "url": a.url}]
+
     centroid = cluster.centroid
     # centroid 없으면 최신순 dedup으로 fallback
     if not centroid:
@@ -254,9 +262,8 @@ def build_cluster_cards(cluster) -> list[dict]:
     """
     cards = []
     all_articles = cluster.articles.all()
-    # 표시·통계용: KST 날짜 범위 기사만 (다른 날 잘못 편입된 기사 제외)
+    # 표시·통계·링크 공통: KST 날짜 범위 기사만 (다른 날 잘못 편입된 기사 제외)
     members = _kst_day_members(cluster, all_articles)
-    # 링크용: 전체 기사 대상 centroid 유사도 스코어링 (날짜 무관하게 가장 대표적인 기사 선택)
     sources = sorted(set(a.source.name for a in members))
     cat_key = _category_key(cluster.categories or [])
 
@@ -365,8 +372,7 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        # centroid 유사도 기준 대표 기사 링크 (날짜 무관 전체 기사 대상)
-        links_info = _top_relevant_links(cluster, all_articles)
+        links_info = _top_relevant_links(cluster, members)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
@@ -396,7 +402,7 @@ def build_cluster_cards(cluster) -> list[dict]:
             "type": "links",
             "category": cat_key,
             "title": "더 알아보기",
-            "links": _top_relevant_links(cluster, all_articles),
+            "links": _top_relevant_links(cluster, members),
         })
 
     return cards
