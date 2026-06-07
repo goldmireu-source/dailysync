@@ -115,6 +115,8 @@ def embed_papers(limit: int = 500) -> dict:
 
 # ---------- 클러스터링 ----------
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
+    if a.shape != b.shape:
+        return 0.0
     norm = np.linalg.norm(a) * np.linalg.norm(b)
     if norm == 0:
         return 0.0
@@ -136,35 +138,48 @@ def _detach_stale_cluster_articles(max_gap_hours: int = 48) -> int:
     )
     total_detached = 0
     for cluster in clusters:
-        members = cluster.articles.all()
-        if len(members) < 2:
-            continue
-        dated = [m for m in members if m.published_at]
-        if not dated:
-            continue
-        latest_pub = max(m.published_at for m in dated)
-        # KST 날짜 기준 — 최신 기사와 다른 KST 날짜의 기사는 분리
-        latest_kst_date = (latest_pub + timedelta(hours=9)).date()
-        stale = [m for m in dated if (m.published_at + timedelta(hours=9)).date() != latest_kst_date]
-        if not stale:
-            continue
+        try:
+            members = cluster.articles.all()
+            if len(members) < 2:
+                continue
+            dated = [m for m in members if m.published_at]
+            if not dated:
+                continue
+            latest_pub = max(m.published_at for m in dated)
+            # KST 날짜 기준 — 최신 기사와 다른 KST 날짜의 기사는 분리
+            latest_kst_date = (latest_pub + timedelta(hours=9)).date()
+            stale = [m for m in dated if (m.published_at + timedelta(hours=9)).date() != latest_kst_date]
+            if not stale:
+                continue
 
-        # 다른 날 기사만 분리 — 다수파(최신 날짜) 기사는 클러스터에 유지.
-        # 클러스터 자체는 삭제하지 않고 centroid 는 최신 날짜 기사들로 재산출.
-        majority = [m for m in members if (m.published_at + timedelta(hours=9)).date() == latest_kst_date]
-        for a in stale:
-            a.cluster_id = None
-        total_detached += len(stale)
-        if majority:
-            # centroid 재산출 (임베딩 있는 것만)
-            vecs = [m.embedding for m in majority if m.embedding]
-            if vecs:
-                import numpy as _np
-                cluster.centroid = _np.mean([_np.array(v, dtype=_np.float32) for v in vecs], axis=0).tolist()
-            cluster.summary_dirty = True
-        else:
-            # 모든 기사가 stale → 클러스터 삭제
-            db.session.delete(cluster)
+            # 다른 날 기사만 분리 — 다수파(최신 날짜) 기사는 클러스터에 유지.
+            # 클러스터 자체는 삭제하지 않고 centroid 는 최신 날짜 기사들로 재산출.
+            majority = [m for m in members if (m.published_at + timedelta(hours=9)).date() == latest_kst_date]
+            for a in stale:
+                a.cluster_id = None
+            total_detached += len(stale)
+            if majority:
+                # centroid 재산출 — 임베딩 있는 것만, 동일 차원끼리만 평균
+                vecs = [m.embedding for m in majority if m.embedding is not None]
+                if vecs:
+                    import numpy as _np
+                    arr_vecs = [_np.array(v, dtype=_np.float32) for v in vecs]
+                    # 가장 많이 등장한 차원만 사용 (차원 불일치 방어)
+                    from collections import Counter as _Counter
+                    dim_counts = _Counter(v.shape[0] for v in arr_vecs if v.ndim == 1)
+                    if dim_counts:
+                        best_dim = dim_counts.most_common(1)[0][0]
+                        same_dim = [v for v in arr_vecs if v.ndim == 1 and v.shape[0] == best_dim]
+                        if same_dim:
+                            cluster.centroid = _np.mean(same_dim, axis=0).tolist()
+                cluster.summary_dirty = True
+            else:
+                # 모든 기사가 stale → 클러스터 삭제
+                db.session.delete(cluster)
+        except Exception as _exc:
+            logger.warning("_detach_stale_cluster_articles: cluster %d 처리 중 오류 — %s", cluster.id, _exc)
+            db.session.rollback()
+            continue
 
     if total_detached:
         db.session.commit()
@@ -202,6 +217,11 @@ def cluster_articles() -> dict:
     for c in active:
         if not c.centroid:
             continue
+        centroid_arr = np.array(c.centroid, dtype=np.float32)
+        # 비정상 centroid 방어 — 차원이 1 이하이거나 0-d 인 경우 제외
+        if centroid_arr.ndim != 1 or centroid_arr.shape[0] <= 1:
+            logger.warning("cluster_articles: cluster %d centroid 이상값 (shape=%s), 스킵", c.id, centroid_arr.shape)
+            continue
         # KST 날짜 산출 — 클러스터 기사들 중 최신 기사의 KST 날짜
         members_all = c.articles.all()
         # 기사 없는 빈 클러스터는 stale centroid 를 가진 채 무관한 기사를 흡수하므로 제외
@@ -215,7 +235,7 @@ def cluster_articles() -> dict:
             kst_date = (c.updated_at + timedelta(hours=9)).date() if c.updated_at else (datetime.utcnow() + timedelta(hours=9)).date()
         state.append({
             "id": c.id,
-            "centroid": np.array(c.centroid, dtype=np.float32),
+            "centroid": centroid_arr,
             "size": len(members_all),
             "updated_at": c.updated_at or datetime.utcnow(),
             "kst_date": kst_date,
@@ -343,7 +363,10 @@ def merge_similar_clusters(
     # 차원 불일치 centroid 필터링 — 모델 교체 등으로 구·신 차원이 혼재하면
     # np.array([...]) 가 object 배열(1-D)이 되어 @ 연산이 스칼라를 반환하고
     # sim[i, j] 에서 IndexError 가 발생하므로 같은 차원끼리만 남긴다.
-    expected_dim = centroids_raw[0].shape[0] if centroids_raw else 0
+    # expected_dim: 최빈 차원 사용 (첫 번째 후보가 이상값일 때 오판 방지)
+    from collections import Counter as _Counter
+    _dim_counter = _Counter(v.shape[0] for v in centroids_raw if v.ndim == 1 and v.shape[0] > 1)
+    expected_dim = _dim_counter.most_common(1)[0][0] if _dim_counter else 0
     valid_mask = [v.ndim == 1 and v.shape[0] == expected_dim for v in centroids_raw]
     if not all(valid_mask):
         n_skip = sum(1 for ok in valid_mask if not ok)
