@@ -280,6 +280,7 @@ def cluster_articles() -> dict:
                 centroid=art.embedding,
                 topic=(art.title or "")[:300],
                 summary_dirty=True,
+                primary_article_id=art.id,
             )
             db.session.add(cluster)
             db.session.flush()

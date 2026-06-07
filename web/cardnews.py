@@ -140,6 +140,35 @@ def _best_match_article(claim: str, candidates: list):
     return best
 
 
+def _article_link(article) -> dict:
+    """단일 기사 → 링크 dict."""
+    src = article.source.name if article.source else ""
+    title = (article.title or "").strip()
+    label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
+    return {"name": label, "url": article.url}
+
+
+def _primary_link(cluster, members: list) -> list[dict]:
+    """primary_article_id 기준 원문 링크 1건 반환.
+
+    1) cluster.primary_article_id 가 members 안에 있으면 그 기사
+    2) 없으면 members 에서 가장 일찍 발행된 기사 (fallback)
+    3) members 자체가 없으면 빈 리스트
+    """
+    if not members:
+        return []
+
+    pid = getattr(cluster, "primary_article_id", None)
+    if pid:
+        primary = next((a for a in members if a.id == pid), None)
+        if primary:
+            return [_article_link(primary)]
+
+    # fallback: 가장 일찍 발행된 기사 (= 클러스터 생성 기사에 가장 가까움)
+    primary = min(members, key=lambda a: a.published_at or datetime(2099, 1, 1))
+    return [_article_link(primary)]
+
+
 def _top_relevant_links(cluster, members: list, max_links: int = 1) -> list[dict]:
     """클러스터 centroid와 기사 embedding 코사인 유사도 기준으로 소스별 대표 기사 선택.
 
@@ -150,11 +179,7 @@ def _top_relevant_links(cluster, members: list, max_links: int = 1) -> list[dict
 
     # 기사가 1개뿐이면 바로 반환 — 임베딩 비교 불필요
     if len(members) == 1:
-        a = members[0]
-        src = a.source.name if a.source else ""
-        title = (a.title or "").strip()
-        label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
-        return [{"name": label, "url": a.url}]
+        return [_article_link(members[0])]
 
     centroid = cluster.centroid
     # centroid 없으면 최신순 dedup으로 fallback
@@ -372,7 +397,7 @@ def build_cluster_cards(cluster) -> list[dict]:
 
         # 텍스트 양에 따라 sources 슬라이드 분할
         src_chunks = _chunk_sources(src_list)
-        links_info = _top_relevant_links(cluster, members)
+        links_info = _primary_link(cluster, members)
         if src_chunks:
             n_src_slides = len(src_chunks)
             for i, chunk in enumerate(src_chunks):
@@ -402,7 +427,7 @@ def build_cluster_cards(cluster) -> list[dict]:
             "type": "links",
             "category": cat_key,
             "title": "더 알아보기",
-            "links": _top_relevant_links(cluster, members),
+            "links": _primary_link(cluster, members),
         })
 
     return cards

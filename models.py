@@ -113,6 +113,7 @@ class Cluster(db.Model):
     hidden_at = db.Column(db.DateTime, nullable=True, index=True)  # NULL = 표시, 값 = 숨김
     saved_at = db.Column(db.DateTime, nullable=True, index=True)   # NULL = 미저장, 값 = 저장됨
     first_shown_date = db.Column(db.Date, nullable=True, index=True)  # 처음 표시된 KST 날짜 (중복 노출 방지)
+    primary_article_id = db.Column(db.Integer, nullable=True)  # 클러스터를 처음 생성한 기사 ID (원문 링크 기준)
 
     articles = db.relationship("Article", backref="cluster", lazy="dynamic")
 
