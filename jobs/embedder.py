@@ -72,7 +72,25 @@ def _embed_items(items, text_fn, input_type: str = "document") -> dict:
     }
 
 
+def _fix_null_string_embeddings() -> int:
+    """JSON 직렬화 버그로 'null' 문자열로 저장된 임베딩을 SQL NULL로 교정.
+
+    SQLite JSON 컬럼에서 Python None → 'null' 텍스트로 저장된 경우
+    IS NOT NULL 쿼리에는 걸리지만 실제 값은 None이라 numpy 변환 시 TypeError 발생.
+    embed_articles/embed_papers 호출 전 정리하면 재임베딩 대상으로 올바르게 처리됨.
+    """
+    from sqlalchemy import text as _sa_text
+    result_a = db.session.execute(_sa_text("UPDATE articles SET embedding = NULL WHERE embedding = 'null'"))
+    result_p = db.session.execute(_sa_text("UPDATE papers SET embedding = NULL WHERE embedding = 'null'"))
+    fixed = (result_a.rowcount or 0) + (result_p.rowcount or 0)
+    if fixed:
+        db.session.commit()
+        logger.info("_fix_null_string_embeddings: %d개 'null' 문자열 임베딩 → SQL NULL 교정", fixed)
+    return fixed
+
+
 def embed_articles(limit: int = 500) -> dict:
+    _fix_null_string_embeddings()
     pending = (
         Article.query
         .filter(Article.embedding.is_(None))
@@ -206,6 +224,9 @@ def cluster_articles() -> dict:
     stats = {"processed": 0, "joined": 0, "created": 0}
 
     for art in unassigned:
+        if art.embedding is None:
+            # _fix_null_string_embeddings 이후에도 남은 경우 방어
+            continue
         emb = np.array(art.embedding, dtype=np.float32)
         art_pub = art.published_at or datetime.utcnow()
 
