@@ -1711,6 +1711,26 @@ body.modal-open {
   .art-title { font-size: 13px; }
 }
 
+/* ============== 전체 기사 목록 토글 ============== */
+.article-list-details {
+  max-width: 860px;
+  margin: 0 auto 24px;
+}
+.article-list-toggle {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  user-select: none;
+  transition: background 0.15s;
+}
+.article-list-toggle:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.75); }
+.article-list-details[open] .article-list-toggle { border-radius: 8px 8px 0 0; border-bottom: none; }
+.article-list-details .article-list { border: 1px solid rgba(255,255,255,0.1); border-top: none; border-radius: 0 0 8px 8px; padding-bottom: 0; }
+
 /* ============== Pager ============== */
 .pager {
   display: flex;
