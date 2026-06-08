@@ -13,7 +13,7 @@ import logging
 from app import create_app
 from config import Config
 from models import db, Cluster, Article
-from services.claude import generate_json
+from services.gemini import generate_json
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +141,10 @@ def summarize_cluster(cluster: Cluster) -> bool:
     return _apply_summary_to_cluster(cluster, result)
 
 
-def summarize_pending(limit: int = 100, max_workers: int = 6) -> dict:
-    """병렬 요약 — Claude API 호출은 ThreadPool, DB 쓰기는 메인 스레드.
+def summarize_pending(limit: int = 100, max_workers: int = 2) -> dict:
+    """병렬 요약 — Gemini API 호출은 ThreadPool, DB 쓰기는 메인 스레드.
 
-    Claude Haiku 4.5 는 분당 50회+ 처리 가능 → max_workers=6 안전.
+    Gemini 무료 분당 10회 한도 → Lock 으로 직렬화, max_workers=2 (프롬프트 빌드 병렬화만).
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -167,7 +167,7 @@ def summarize_pending(limit: int = 100, max_workers: int = 6) -> dict:
         cluster_by_id[c.id] = c
 
     # 2단계: API 호출 병렬
-    print(f"  → {len(tasks)}개 클러스터 병렬 요약 시작 (워커 {max_workers})")
+    print(f"  → {len(tasks)}개 클러스터 요약 시작 (워커 {max_workers}, 예상 {len(tasks) * 6.5 / 60:.1f}분)")
     done = 0
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = [ex.submit(_build_and_call, cid, prompt) for cid, prompt in tasks]

@@ -2,6 +2,8 @@
 import logging
 import sys
 from datetime import datetime
+from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 
 from flask import Flask
 from flask_login import LoginManager
@@ -20,11 +22,25 @@ from config import Config
 from models import db
 from web.routes import bp as web_bp
 
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format=_LOG_FORMAT,
     datefmt="%H:%M:%S",
 )
+
+# 파일 로그: 자정 rotation, 7일 보관 (실패 원인 추적용)
+_log_dir = Path(__file__).resolve().parent / "logs"
+_log_dir.mkdir(exist_ok=True)
+_file_handler = TimedRotatingFileHandler(
+    _log_dir / "app.log",
+    when="midnight",
+    backupCount=7,
+    encoding="utf-8",
+)
+_file_handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+logging.getLogger().addHandler(_file_handler)
+
 # werkzeug HTTP 요청 로그는 WARNING 이상만 (폴링 도배 방지)
 # 잡 로그는 그대로 보임
 logging.getLogger("werkzeug").setLevel(logging.WARNING)

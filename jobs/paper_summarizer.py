@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from app import create_app
 from config import Config
 from models import db, Paper
-from services.claude import generate_json
+from services.gemini import generate_json
 
 logger = logging.getLogger(__name__)
 
@@ -143,13 +143,13 @@ def _apply_result_to_paper(paper: Paper, result: dict) -> None:
 
 def backfill_dirty_papers(
     limit: int | None = None,
-    max_workers: int = 6,
+    max_workers: int = 2,
     run_id_for_progress: int | None = None,
 ) -> dict:
     """summary_dirty=True 인 모든 논문을 병렬 요약.
 
     pick_papers_to_summarize() 와 달리 cutoff/우선순위 무시 — backlog 비우기 전용.
-    1.2s 글로벌 throttle (services/claude.py) 때문에 워커 수와 무관하게 ~50/min.
+    Gemini 6.5s Lock throttle 때문에 워커 수와 무관하게 ~9회/min.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
