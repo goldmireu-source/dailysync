@@ -28,9 +28,9 @@ class Config:
     # Haiku 4.5: 한국어 강함, $1/M in, $5/M out, 분당 50회+
     CLAUDE_SUMMARY_MODEL = os.getenv("CLAUDE_SUMMARY_MODEL", "claude-haiku-4-5")
 
-    # --- Gemini API (요약 메인 — Claude 대체, 무료 한도 분당 10회/일 250회) ---
+    # --- Gemini API (요약 메인 — Claude 대체, 무료 한도 분당 15회/일 1500회) ---
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_SUMMARY_MODEL = os.getenv("GEMINI_SUMMARY_MODEL", "gemini-2.5-flash")
+    GEMINI_SUMMARY_MODEL = os.getenv("GEMINI_SUMMARY_MODEL", "gemini-2.0-flash")
 
     # --- (선택) Voyage AI ---
     VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")

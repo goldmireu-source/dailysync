@@ -1,8 +1,8 @@
 """Gemini API 래퍼 — 요약·JSON 생성 전용.
 
-- gemini-2.5-flash 무료 한도: 분당 10회, 일 250회
+- gemini-2.0-flash 무료 한도: 분당 15회, 일 1500회
 - 호출 간격 6.5초 client-side rate limiter (threading.Lock 으로 멀티스레드 안전)
-- 429 발생 시 35초 백오프
+- 429 발생 시 65초 백오프
 """
 import json
 import logging
