@@ -13,7 +13,7 @@ import logging
 from app import create_app
 from config import Config
 from models import db, Cluster, Article
-from services.gemini import generate_json
+from services.claude import generate_json
 
 logger = logging.getLogger(__name__)
 
