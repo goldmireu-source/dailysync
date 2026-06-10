@@ -342,9 +342,11 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
                 stats["articles_embed_error"] = str(_a_emb["error"])[:200]
 
         # 6. 뉴스 요약 (병렬)
+        # 수동 새로고침은 40개 한도 — 6.5s×40=260s, 900s 타임아웃 안전 마진 확보
+        # 나머지 백로그는 6h 스케줄 잡(job_summarize_news)이 처리
         _update_phase(run_id, "뉴스 요약 중")
         try:
-            n_sum = summarize_pending(limit=200)
+            n_sum = summarize_pending(limit=40)
             stats["clusters_summarized"] = n_sum.get("success", 0)
         except Exception as e:
             logger.exception("summarize_pending failed in refresh_now")
