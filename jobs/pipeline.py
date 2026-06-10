@@ -310,10 +310,10 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
                 _update_phase(run_id, "변경 없음 — 스킵")
                 return stats
 
-        # 4. 본문 페치
+        # 4. 본문 페치 — 수동 새로고침은 20개 한도 (12s×20=240s 최대, 900s 버짓 확보)
         _update_phase(run_id, "본문 페치 중")
         try:
-            fb = fetch_pending(limit=50)
+            fb = fetch_pending(limit=20)
             stats["bodies_fetched"] = fb.get("success", 0)
         except Exception as e:
             logger.exception("fetch_pending failed in refresh_now")
