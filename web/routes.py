@@ -314,7 +314,9 @@ def index():
     except (TypeError, ValueError):
         page = 1
     total_pages = max(1, (total_filtered + PAGE_SIZE - 1) // PAGE_SIZE)
-    if page > total_pages:
+    # 뉴스 탭에서만 클램핑 — 공모전/논문 탭은 각자 블록에서 처리
+    # (전체 적용 시 tab=contests에서 total_filtered=뉴스수 기준으로 page가 1로 강제됨)
+    if tab == "news" and page > total_pages:
         page = total_pages
     start_idx = (page - 1) * PAGE_SIZE
     end_idx = start_idx + PAGE_SIZE
