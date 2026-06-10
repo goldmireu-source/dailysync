@@ -32,6 +32,14 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ ubuntu@${{ secrets.DEPLOY_HOST }}:~/ai-news-digest/
 
+      - name: Deploy .env to server
+        run: |
+          printf '%s' "${{ secrets.ENV_FILE }}" | ssh \
+            -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ubuntu@${{ secrets.DEPLOY_HOST }} \
+            "cat > ~/ai-news-digest/.env && chmod 600 ~/ai-news-digest/.env"
+
       - name: Install deps and restart service
         timeout-minutes: 10
         run: |
