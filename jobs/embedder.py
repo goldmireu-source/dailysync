@@ -269,6 +269,7 @@ def cluster_articles() -> dict:
             new_centroid = (cs["centroid"] * cs["size"] + emb) / (cs["size"] + 1)
             cluster.centroid = new_centroid.tolist()
             cluster.summary_dirty = True
+            cluster.first_shown_date = None  # 새 기사 편입 시 오늘 뷰에 다시 노출
             cluster.updated_at = datetime.utcnow()
             art.cluster_id = cluster.id
 
