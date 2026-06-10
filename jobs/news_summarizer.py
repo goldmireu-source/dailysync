@@ -142,13 +142,14 @@ def summarize_cluster(cluster: Cluster) -> bool:
 
 
 def summarize_pending(limit: int = 100, max_workers: int = 2) -> dict:
-    """병렬 요약 — Gemini API 호출은 ThreadPool, DB 쓰기는 메인 스레드.
-
-    Gemini 무료 분당 10회 한도 → Lock 으로 직렬화, max_workers=2 (프롬프트 빌드 병렬화만).
-    """
+    """병렬 요약 — Claude API 호출은 ThreadPool, DB 쓰기는 메인 스레드."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    dirty = Cluster.query.filter_by(summary_dirty=True).all()
+    # 최신 클러스터 우선 (오늘 생성된 것이 먼저 처리되도록 ID 내림차순)
+    dirty = (Cluster.query
+             .filter_by(summary_dirty=True)
+             .order_by(Cluster.id.desc())
+             .all())
     dirty = [c for c in dirty if c.articles.count() > 0][:limit]
 
     stats = {"total": len(dirty), "success": 0, "failed": 0}
