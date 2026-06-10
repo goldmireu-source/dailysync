@@ -94,9 +94,9 @@ def _track(job_name: str, triggered_by: str = "scheduler", run_id: int | None = 
 
 
 # ---------- 개별 잡 ----------
-def job_collect_news(triggered_by: str = "scheduler") -> dict:
+def job_collect_news(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.news_collector import collect_all
-    with _track("collect_news", triggered_by) as stats:
+    with _track("collect_news", triggered_by, run_id=run_id) as stats:
         results = collect_all()
         stats["sources"] = len(results)
         stats["total_new"] = sum(r.get("new", 0) for r in results)
@@ -105,17 +105,17 @@ def job_collect_news(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
-def job_fetch_bodies(triggered_by: str = "scheduler") -> dict:
+def job_fetch_bodies(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.body_fetcher import fetch_pending
-    with _track("fetch_bodies", triggered_by) as stats:
+    with _track("fetch_bodies", triggered_by, run_id=run_id) as stats:
         s = fetch_pending(limit=30)
         stats.update(s)
         return stats
 
 
-def job_collect_papers(triggered_by: str = "scheduler") -> dict:
+def job_collect_papers(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.paper_collector import collect_all_papers
-    with _track("collect_papers", triggered_by) as stats:
+    with _track("collect_papers", triggered_by, run_id=run_id) as stats:
         results = collect_all_papers()
         a, h = results["arxiv"], results["huggingface"]
         stats["arxiv_new"] = a.get("new", 0)
@@ -126,9 +126,9 @@ def job_collect_papers(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
-def job_collect_contests(triggered_by: str = "scheduler") -> dict:
+def job_collect_contests(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.contest_collector import collect_all_contests
-    with _track("collect_contests", triggered_by) as stats:
+    with _track("collect_contests", triggered_by, run_id=run_id) as stats:
         s = collect_all_contests()
         stats["total_fetched"] = s.get("total_fetched", 0)
         stats["total_new"] = s.get("total_new", 0)
@@ -138,9 +138,9 @@ def job_collect_contests(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
-def job_embed_and_cluster(triggered_by: str = "scheduler") -> dict:
+def job_embed_and_cluster(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.embedder import embed_articles, embed_papers, cluster_articles
-    with _track("embed_and_cluster", triggered_by) as stats:
+    with _track("embed_and_cluster", triggered_by, run_id=run_id) as stats:
         s_a = embed_articles(limit=500)
         s_p = embed_papers(limit=500)
         s_c = cluster_articles()
@@ -160,17 +160,17 @@ def job_embed_and_cluster(triggered_by: str = "scheduler") -> dict:
         return stats
 
 
-def job_summarize_news(triggered_by: str = "scheduler") -> dict:
+def job_summarize_news(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.news_summarizer import summarize_pending
-    with _track("summarize_news", triggered_by) as stats:
+    with _track("summarize_news", triggered_by, run_id=run_id) as stats:
         s = summarize_pending(limit=200)
         stats.update(s)
         return stats
 
 
-def job_summarize_papers(triggered_by: str = "scheduler") -> dict:
+def job_summarize_papers(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.paper_summarizer import summarize_today_picks
-    with _track("summarize_papers", triggered_by) as stats:
+    with _track("summarize_papers", triggered_by, run_id=run_id) as stats:
         s = summarize_today_picks()
         stats.update(s)
         return stats
