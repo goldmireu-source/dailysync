@@ -1,42 +1,160 @@
-{% extends "base.html" %}
-{% block title %}로그인 · DAILY SYNC{% endblock %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로그인 · DAILY SYNC</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Syne:wght@700;800&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: var(--bg-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem;
+      width: min(420px, 90vw);
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      margin: 2rem auto;
+      animation: authIn .18s ease-out;
+    }
+    @keyframes authIn {
+      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+      to   { opacity: 1; transform: none; }
+    }
+    .auth-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 30px;
+      height: 30px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, color .15s, border-color .15s;
+      line-height: 1;
+      font-family: inherit;
+    }
+    .auth-close:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .auth-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-soft);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .auth-hint {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+    .auth-submit {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      letter-spacing: 0.02em;
+      transition: opacity .15s;
+    }
+    .auth-submit:hover { opacity: 0.88; }
+    .auth-error {
+      background: #2a1212;
+      color: var(--danger);
+      border: 1px solid #5a2020;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 1.25rem;
+      font-size: 13px;
+    }
+    .auth-switch {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .auth-switch a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .auth-switch a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <button class="auth-close" onclick="history.length>1?history.back():location.href='/'" title="닫기">✕</button>
 
-{% block content %}
-<div style="max-width: 400px; margin: 4rem auto;">
-  <div class="brand" style="margin-bottom: 0.5rem;">DAILY <span class="accent">SYNC</span></div>
-  <h1 class="page-title" style="font-size: 20px; margin: 0.5rem 0 2rem;">로그인</h1>
+    <div class="brand" style="margin-bottom: 0.25rem; font-size: 0.95rem;">DAILY <span class="accent">SYNC</span></div>
+    <h1 style="font-size: 1.2rem; margin: 0.2rem 0 1.75rem; color: var(--text); font-weight: 700;">로그인</h1>
 
-  {% if error %}
-  <div style="background: #f4d4d0; color: #c44; border-radius: 8px; padding: 10px 14px; margin-bottom: 1.25rem; font-size: 13px; border: 1px solid #e8b4b0;">
-    {{ error }}
-  </div>
-  {% endif %}
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
 
-  <form method="POST" style="display: flex; flex-direction: column; gap: 1.1rem;">
-    <input type="hidden" name="next" value="{{ next_url }}">
-    <div>
-      <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">아이디</label>
-      <input type="text" name="username" maxlength="14" required autocomplete="username"
-             style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;"
-             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-      <div style="font-size: 11px; color: var(--text-faint); margin-top: 4px;">최대 14자</div>
+    <form method="POST" style="display: flex; flex-direction: column; gap: 1.1rem;">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <div>
+        <label class="auth-label">아이디</label>
+        <input class="auth-input" type="text" name="username" maxlength="14" required autocomplete="username">
+        <div class="auth-hint">최대 14자</div>
+      </div>
+      <div>
+        <label class="auth-label">비밀번호</label>
+        <input class="auth-input" type="password" name="password" maxlength="10" required autocomplete="current-password">
+        <div class="auth-hint">최대 10자</div>
+      </div>
+      <button type="submit" class="auth-submit" style="margin-top: 4px;">로그인</button>
+    </form>
+
+    <div class="auth-switch">
+      계정이 없으신가요?
+      <a href="{{ url_for('web.admin_register') }}">회원가입</a>
     </div>
-    <div>
-      <label style="display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em;">비밀번호</label>
-      <input type="password" name="password" maxlength="10" required autocomplete="current-password"
-             style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none;"
-             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-      <div style="font-size: 11px; color: var(--text-faint); margin-top: 4px;">최대 10자</div>
-    </div>
-    <button type="submit"
-            style="background: var(--accent); color: var(--bg-card); border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 4px; letter-spacing: 0.02em;">
-      로그인
-    </button>
-  </form>
-
-  <div style="text-align: center; margin-top: 1.5rem; font-size: 13px; color: var(--text-dim);">
-    계정이 없으신가요?
-    <a href="{{ url_for('web.admin_register') }}" style="color: var(--accent); text-decoration: none; font-weight: 600;">회원가입</a>
   </div>
-</div>
-{% endblock %}
+</body>
+</html>
