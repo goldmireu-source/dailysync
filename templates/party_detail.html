@@ -338,7 +338,7 @@
       if (!confirm('파티를 삭제하면 모든 채팅이 사라집니다. 삭제하시겠어요?')) return;
       const r = await fetch(`/api/parties/${PARTY_ID}/delete`, { method: 'POST' });
       const d = await r.json();
-      if (d.ok) { window.location.href = '/parties'; }
+      if (d.ok) { window.location.replace('/?tab=parties'); }
       else { alert(d.error || '삭제 실패'); }
     });
   }
@@ -353,7 +353,7 @@ document.querySelectorAll('.pda-join-trigger').forEach(function(btn) {
     document.querySelectorAll('.pda-join-trigger').forEach(b => b.disabled = true);
     const r = await fetch('/api/parties/{{ party.id }}/join', { method: 'POST' });
     const d = await r.json();
-    if (d.ok) { window.location.reload(); }
+    if (d.ok) { window.location.replace(window.location.href); }
     else { alert(d.error || '참가 실패'); document.querySelectorAll('.pda-join-trigger').forEach(b => b.disabled = false); }
   });
 });
@@ -367,7 +367,7 @@ document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
     if (!confirm('파티에서 탈퇴하시겠어요?')) return;
     const r = await fetch('/api/parties/{{ party.id }}/leave', { method: 'POST' });
     const d = await r.json();
-    if (d.ok) { window.location.href = '/parties'; }
+    if (d.ok) { window.location.replace('/?tab=parties'); }
     else { alert(d.error || '탈퇴 실패'); }
   });
 });
@@ -469,7 +469,7 @@ document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
         }),
       });
       const d = await r.json();
-      if (d.ok) { window.location.reload(); }
+      if (d.ok) { window.location.replace(window.location.href); }
       else { errorEl.textContent = d.error || '오류가 발생했습니다.'; errorEl.style.display = ''; btn.disabled = false; }
     } catch (e) { errorEl.textContent = '네트워크 오류'; errorEl.style.display = ''; btn.disabled = false; }
   });
