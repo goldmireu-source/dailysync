@@ -104,7 +104,7 @@ def admin_register():
 
         if not username or not password or not display_name:
             error = "모든 항목을 입력해주세요."
-        elif class_num is None or class_num not in range(1, 7):
+        elif class_num is None or class_num not in range(1, 8):
             error = "반을 선택해주세요."
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
