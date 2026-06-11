@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_badge.html" import class_badge %}
 
 {% block title %}{{ party.title }} · 파티 · DAILY SYNC{% endblock %}
 
@@ -159,11 +160,8 @@
   <!-- 멤버 목록 -->
   <div class="pd-members">
     {% for m in party.members %}
-    {% set cn = m.user.class_num %}
     <div class="pd-member-chip {% if m.user_id == party.leader_id %}pd-member-chip--leader{% endif %}">
-      <div class="class-badge class-badge--{{ cn if cn else 'none' }}" style="width:22px;height:22px;font-size:9px;">
-        {{ cn if cn else '?' }}
-      </div>
+      {{ class_badge(m.user.class_num, 24) }}
       {{ m.user.display_name }}
       {% if m.user_id == party.leader_id %}<span style="color:var(--accent);font-size:10px;">👑</span>{% endif %}
     </div>
@@ -200,22 +198,29 @@
   const LOG      = document.getElementById('chat-log');
   const INPUT    = document.getElementById('chat-input');
   const SEND_BTN = document.getElementById('chat-send-btn');
-  const CLASS_COLORS = {1:'#4e89ff',2:'#57d3a3',3:'#ffd166',4:'#ff6b6b',5:'#b57bee',6:'#4ecdc4',7:'#ff9f43'};
+  const CLASS_COLORS = {
+    1:{bg:'#E05252',fg:'#fff'}, 2:{bg:'#F0A840',fg:'#fff'}, 3:{bg:'#F2C832',fg:'#5C5500'},
+    4:{bg:'#5CB85C',fg:'#fff'}, 5:{bg:'#4DA6C8',fg:'#fff'}, 6:{bg:'#6B60BA',fg:'#fff'},
+    7:{bg:'#C860A8',fg:'#fff'},
+  };
 
   let lastId = 0;
 
-  function avatarStyle(classNum) {
-    const c = CLASS_COLORS[classNum];
-    return c ? `background:${c};` : 'background:var(--bg-soft);color:var(--text-dim);border:1px solid var(--border);';
+  function avatarSvg(cn, size=32) {
+    const c = CLASS_COLORS[cn] || {bg:'#333', fg:'#888'};
+    const label = cn ? cn + '반' : '?';
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100" style="flex-shrink:0;display:inline-block;vertical-align:middle;">
+      <circle cx="50" cy="50" r="50" fill="${c.bg}"/>
+      <text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-size="34" font-weight="800" fill="${c.fg}" font-family="Pretendard,-apple-system,sans-serif" letter-spacing="-1">${label}</text>
+    </svg>`;
   }
 
   function buildBubble(msg) {
     const mine = (msg.user_id === MY_ID);
     const cn = msg.class_num;
-    const avatarText = cn ? cn + '반' : '?';
     return `
       <div class="msg-row${mine ? ' msg-row--mine' : ''}" data-mid="${msg.id}">
-        <div class="msg-avatar" style="${avatarStyle(cn)}" title="${msg.display_name}${cn ? ' · ' + cn + '반' : ''}">${avatarText}</div>
+        <div title="${msg.display_name}${cn ? ' · ' + cn + '반' : ''}" style="flex-shrink:0;">${avatarSvg(cn, 32)}</div>
         <div class="msg-body">
           <div class="msg-meta">
             ${!mine ? `<span style="font-weight:700;color:var(--text);">${msg.display_name}</span>` : ''}

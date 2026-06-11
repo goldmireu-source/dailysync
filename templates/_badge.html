@@ -1,0 +1,29 @@
+{# 반 배지 SVG 매크로
+   cn  : class_num (1~7, None 허용)
+   size: 렌더 크기(px), 기본 40
+#}
+{% macro class_badge(cn, size=40) %}
+{%- set cn = cn|int if cn is not none else 0 -%}
+{%- if   cn == 1 %}{%- set bg='#E05252' %}{%- set fg='#ffffff' -%}
+{%- elif cn == 2 %}{%- set bg='#F0A840' %}{%- set fg='#ffffff' -%}
+{%- elif cn == 3 %}{%- set bg='#F2C832' %}{%- set fg='#5C5500' -%}
+{%- elif cn == 4 %}{%- set bg='#5CB85C' %}{%- set fg='#ffffff' -%}
+{%- elif cn == 5 %}{%- set bg='#4DA6C8' %}{%- set fg='#ffffff' -%}
+{%- elif cn == 6 %}{%- set bg='#6B60BA' %}{%- set fg='#ffffff' -%}
+{%- elif cn == 7 %}{%- set bg='#C860A8' %}{%- set fg='#ffffff' -%}
+{%- else          %}{%- set bg='#333333' %}{%- set fg='#888888' -%}
+{%- endif -%}
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="{{ size }}" height="{{ size }}"
+     viewBox="0 0 100 100"
+     style="flex-shrink:0;display:inline-block;vertical-align:middle;"
+     role="img" aria-label="{{ cn ~ '반' if cn else '?' }}">
+  <circle cx="50" cy="50" r="50" fill="{{ bg }}"/>
+  <text x="50" y="51"
+        text-anchor="middle" dominant-baseline="central"
+        font-size="34" font-weight="800"
+        fill="{{ fg }}"
+        font-family="Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+        letter-spacing="-1">{{ cn ~ '반' if cn else '?' }}</text>
+</svg>
+{%- endmacro %}

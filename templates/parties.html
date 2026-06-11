@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_badge.html" import class_badge %}
 
 {% block title %}파티 찾기 · DAILY SYNC{% endblock %}
 
@@ -229,19 +230,18 @@
     <!-- 멤버 배지 -->
     <div class="pc-members">
       {% for m in p.members %}
-      {% set cn = m.user.class_num %}
-      <div class="pc-member-badge class-badge--{{ cn if cn else 'none' }}"
-           title="{{ m.user.display_name }}{% if m.user_id == p.leader_id %} (파티장){% endif %}{% if cn %} · {{ cn }}반{% endif %}">
-        {{ cn ~ '반' if cn else '?' }}
+      <div title="{{ m.user.display_name }}{% if m.user_id == p.leader_id %} (파티장){% endif %}{% if m.user.class_num %} · {{ m.user.class_num }}반{% endif %}"
+           style="margin-left:{% if loop.first %}0{% else %}-8px{% endif %};">
+        {{ class_badge(m.user.class_num, 30) }}
       </div>
       {% endfor %}
       <span class="pc-member-name">{{ member_count }}/{{ p.max_members }}명</span>
     </div>
 
     <div class="pc-footer">
-      <div class="pc-meta">
+      <div class="pc-meta" style="display:flex;align-items:center;gap:5px;">
         파티장 {{ p.leader.display_name }}
-        {% if p.leader.class_num %}<span class="class-badge class-badge--{{ p.leader.class_num }}" style="width:18px;height:18px;font-size:8px;display:inline-flex;vertical-align:middle;">{{ p.leader.class_num }}</span>{% endif %}
+        {{ class_badge(p.leader.class_num, 20) }}
         · {{ p.created_at.strftime('%m.%d') }}
       </div>
       {% if is_mine %}
@@ -258,7 +258,7 @@
 {% endif %}
 
 <script>
-const CLASS_COLORS = {'1':'#4e89ff','2':'#57d3a3','3':'#ffd166','4':'#ff6b6b','5':'#b57bee','6':'#4ecdc4','7':'#ff9f43'};
+const CLASS_COLORS = {'1':'#E05252','2':'#F0A840','3':'#F2C832','4':'#5CB85C','5':'#4DA6C8','6':'#6B60BA','7':'#C860A8'};
 
 // 파티 참가
 async function joinParty(btn) {

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_slides.html" import render_carousel %}
 {% from "_contest_tile.html" import render_contest_tile %}
+{% from "_badge.html" import class_badge %}
 
 {% block title %}{{ target_date.strftime('%Y-%m-%d') }} · DAILY SYNC{% endblock %}
 
@@ -18,8 +19,7 @@
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
     {% endif %}
     {% if current_user.is_authenticated %}
-    {% set cn = current_user.class_num %}
-    <span class="class-badge class-badge--{{ cn if cn else 'none' }}" title="{{ cn }}반" style="width:28px;height:28px;font-size:10px;">{{ cn ~ '반' if cn else '?' }}</span>
+    {{ class_badge(current_user.class_num, 34) }}
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--user" title="로그아웃">{{ current_user.display_name }} ↩</a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
