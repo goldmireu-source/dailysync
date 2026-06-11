@@ -616,7 +616,7 @@
         <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">채팅방 →</a>
       </div>
       {% elif p.is_open and member_count < p.max_members %}
-      <a class="pc-action pc-action--enter" href="{{ url_for('web.party_detail', party_id=p.id) }}">입장하기 →</a>
+      <a class="pc-action pc-action--enter" href="{{ url_for('web.party_detail', party_id=p.id) }}">채팅 입장하기</a>
       {% else %}
       <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">보기</a>
       {% endif %}
