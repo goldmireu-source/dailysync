@@ -27,15 +27,25 @@ from jobs.contest_sources.base import (
 logger = logging.getLogger(__name__)
 
 BASE = "https://www.wevity.com"
-# AI 공모전이 몰리는 분야 카테고리 (cidx).
-#   20 = 웹/모바일/IT, 21 = 게임/소프트웨어, 22 = 과학/공학
-# (구버전 [20,25]는 25=네이밍/슬로건이라 낭비였고, 정작 21·22를 빠뜨렸음 — 2026-06 교정)
-AI_CATEGORIES = [20, 21, 22]
+# 위비티 전체 cidx 목록(2026-06 확인):
+#  1=기획/아이디어, 2=광고/마케팅, 3=논문/리포트, 10=영상/UCC/사진,
+#  19=디자인/캐릭터/웹툰, 20=웹/모바일/IT, 21=게임/소프트웨어, 22=과학/공학,
+#  23=문학/글, 24=건축, 25=네이밍/슬로건, 26=예체능/미술/음악,
+#  27=대외활동/서포터즈, 28=해외, 29=기타, 88=취업/창업, 89=봉사활동
+#
+# AI 공모전이 실제로 분류되는 카테고리를 모두 포함:
+#  - 1: AI 아이디어/기획 공모
+#  - 2: AI 활용 광고·마케팅 챌린지 (예: AI 영상 광고 챌린지 — cidx=2 누락으로 미수집됐던 사례)
+#  - 10: AI 생성 영상·이미지·UCC 챌린지
+#  - 19: AI 이미지 생성 디자인 공모
+#  - 20/21/22: 웹IT·SW·과학 (기존)
+#  - 88: AI 스타트업·창업 경진대회
+AI_CATEGORIES = [1, 2, 10, 19, 20, 21, 22, 88]
 PAGES_PER_CAT = 2  # 카테고리당 최근 N페이지 (2회/일 실행이라 최신분만으로 충분)
 DETAIL_SLEEP = 0.7  # 상세페이지 교차검증 간 rate-limit
 
-# 카테고리 기반 수집을 보완하는 키워드 검색 — 아이디어·창업·교육 등 IT 외 분야에
-# 분류된 AI 공모전(예: AI 퀴즈, 인공지능 아이디어 등)을 전 카테고리에서 포착한다.
+# 카테고리 검색 보완: 제목에 AI 키워드가 명시된 공모전을 전 카테고리에서 추가 포착.
+# (HTML 구조가 카테고리 목록과 다를 수 있어 보조 수단으로만 사용 — 주 수집은 카테고리 기반)
 AI_SEARCH_TERMS = ["AI", "인공지능", "빅데이터"]
 KEYWORD_SEARCH_PAGES = 2  # 키워드당 최대 2페이지 (결과 없으면 조기 종료)
 
@@ -182,8 +192,10 @@ def fetch() -> list[ContestDraft]:
     if empty_pages and not by_url:
         logger.error("wevity: 전 페이지 파싱 0건 — 파서 점검 필요(div.tit 셀렉터 확인)")
 
-    # 2단계: 키워드 검색으로 카테고리 미분류 AI 공모전 보완
-    # 아이디어·창업·교육 등 IT 외 분야에 분류된 AI 공모전을 전 카테고리에서 포착.
+    # 2단계: 키워드 검색으로 카테고리 미분류 AI 공모전 보완 (보조 수단)
+    # 카테고리 확장으로 대부분 커버되나, 신규 분야 분류 등 edge case 안전망.
+    # 주의: 검색 결과 페이지 HTML 구조가 카테고리 목록과 다를 수 있음 →
+    #       0건 반환이 "진짜 없음"인지 "파서 미작동"인지 구분 불가 → break 조건 완화.
     for term in AI_SEARCH_TERMS:
         for gp in range(1, KEYWORD_SEARCH_PAGES + 1):
             try:
@@ -193,8 +205,12 @@ def fetch() -> list[ContestDraft]:
                     encoding="utf-8",
                 )
                 kw_drafts = _parse_list_page(resp.text, cidx=0)
+                # 응답이 충분히 크면 파서가 동작 중인데 결과가 없는 것 → 조기 종료
+                # 응답이 작으면 실제 빈 결과 페이지 → 중단
                 if not kw_drafts:
-                    break  # 빈 페이지면 조기 종료
+                    if len(resp.text) > 5000:
+                        logger.debug(f"wevity keyword={term!r} gp={gp}: 응답 {len(resp.text)}B인데 파싱 0건 — 검색 결과 마크업 확인 필요")
+                    break
                 new_count = sum(1 for d in kw_drafts if by_url.setdefault(d.url, d) is d)
                 time.sleep(1.0)
                 if new_count == 0:

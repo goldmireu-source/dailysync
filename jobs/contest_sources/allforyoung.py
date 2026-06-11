@@ -1,14 +1,18 @@
 """요즘것들(allforyoung.com) — 공모전·대외활동 큐레이션.
 
-Next.js App Router(RSC) 사이트 — 목록 데이터가 `self.__next_f` 스트리밍 페이로드에
-React Query dehydrated state 로 들어있다. 별도 API 없이 HTML 에서 추출.
-각 post: {id, category, title, organization, poster_url, thumbnail_url, dday, tags, is_expired}.
-AI 전용 목록이 아니므로 ai_exempt=False(중앙 AI 키워드 게이트가 필터).
+Next.js App Router(RSC) 기반 SPA — Playwright 헤드리스 렌더링으로 콘텐츠 수집.
+(구버전: self.__next_f RSC 페이로드 직접 파싱 → 2026-06 이후 HTTP GET 응답에
+ 페이로드 미포함으로 파싱 불가. Playwright 방식으로 교체.)
+
+렌더 후 /posts/<숫자> 링크 패턴으로 공모전 항목 추출. 제목·D-day·주최를 파싱하고,
+AI 관련 공고에 한해 상세페이지에서 참가대상 보강.
+Playwright 미설치 시 이 소스만 skip(나머지 소스 정상 동작).
 """
-import json
 import logging
 import re
 import time
+
+from bs4 import BeautifulSoup
 
 from jobs.contest_sources.base import (
     ContestDraft, register, http_get, clean, parse_dday,
@@ -17,114 +21,95 @@ from jobs.contest_sources.base import (
 logger = logging.getLogger(__name__)
 
 LIST_URL = "https://www.allforyoung.com/posts/contest"
-_CHUNK_RE = re.compile(r'self\.__next_f\.push\(\[\d+,\s*"((?:[^"\\]|\\.)*)"\]\)')
-
-# 상세 본문에서 참가대상 섹션을 여는 라벨(우선순위 순). GET 1회로 추출 가능(렌더 불필요).
+_POST_RE = re.compile(r"^/posts/(\d+)$")
 _TARGET_LABELS = (
     "참여 대상", "참여대상", "참가 대상", "참가대상", "응모 대상", "응모대상",
     "응모자격", "참가자격", "지원자격", "모집 대상", "모집대상",
 )
 _TAG_RE = re.compile(r"<[^>]+>")
-DETAIL_SLEEP = 0.3  # 상세 교차검증 간 rate-limit
+DETAIL_SLEEP = 0.3
 
 
-def _fetch_target(pid) -> str | None:
-    """상세 본문의 참가대상 텍스트를 추출 → 일반인 개방 판정 근거(target).
-
-    실패/없음이면 None → 중앙 게이트가 보수적으로 통과시킴.
-    """
+def _fetch_target(pid: str) -> str | None:
+    """상세 본문의 참가대상 텍스트 추출."""
     try:
         resp = http_get(f"https://www.allforyoung.com/posts/{pid}", encoding="utf-8")
     except Exception:
         return None
-    payload = _decode_payload(resp.text)
+
+    # 렌더된 HTML에서 직접 파싱 시도
+    soup = BeautifulSoup(resp.text, "lxml")
+    text = soup.get_text(" ")
+
     for lab in _TARGET_LABELS:
-        i = payload.find(lab)
+        i = text.find(lab)
         if i < 0:
             continue
-        seg = payload[i + len(lab): i + len(lab) + 400]
-        # JSON 재진입 마커(RSC 배열/객체) 전까지만 잘라 본문 텍스트만 남김.
-        for marker in ('["', '"}', '\\u', '},'):
-            j = seg.find(marker)
-            if j > 0:
-                seg = seg[:j]
-        seg = _TAG_RE.sub(" ", seg).replace("&nbsp;", " ")
-        # 앞뒤 JSON/마크업 잔여물(괄호·따옴표·콜론·불릿) 제거
+        seg = text[i + len(lab): i + len(lab) + 400].strip(" :")
         seg = re.sub(r"\s+", " ", seg).strip(" -:·●▶▷[]{}\"',")
-        if seg:
+        if seg and len(seg) > 2:
             return seg[:300]
     return None
 
 
-def _decode_payload(html: str) -> str:
-    """__next_f 청크들을 이어붙여 디코딩. 한글은 UTF-8 바이트가 \\u00XX 로
-    이스케이프돼 있어 unicode_escape → latin-1 → utf-8 2단 복원."""
-    raw = "".join(_CHUNK_RE.findall(html))
-    if not raw:
-        return ""
-    try:
-        step1 = raw.encode("utf-8", "replace").decode("unicode_escape", "replace")
-        return step1.encode("latin-1", "replace").decode("utf-8", "replace")
-    except Exception:
-        return raw
-
-
-def _extract_posts(payload: str) -> list:
-    """페이로드에서 "success":true,"data":[...] 배열을 꺼내 파싱."""
-    m = re.search(r'"success":true,"data":(\[)', payload)
-    if not m:
-        return []
-    start = m.start(1)
-    depth = 0
-    for i in range(start, len(payload)):
-        c = payload[i]
-        if c == "[":
-            depth += 1
-        elif c == "]":
-            depth -= 1
-            if depth == 0:
-                try:
-                    return json.loads(payload[start:i + 1])
-                except Exception as e:
-                    logger.warning(f"allforyoung array parse failed: {e}")
-                    return []
-    return []
-
-
-@register("allforyoung")
-def fetch() -> list[ContestDraft]:
+def _parse_rendered_html(html: str) -> list[ContestDraft]:
+    """Playwright 렌더링된 HTML에서 공모전 항목 추출."""
+    soup = BeautifulSoup(html, "lxml")
     out: list[ContestDraft] = []
-    try:
-        resp = http_get(LIST_URL, encoding="utf-8")
-    except Exception as e:
-        logger.warning(f"allforyoung fetch failed: {e}")
-        return out
+    seen: set[str] = set()
 
-    posts = _extract_posts(_decode_payload(resp.text))
-    # 참가대상 교차검증은 AI 관련 공고에만(비관련은 어차피 AI 게이트에서 탈락 → 요청 절약).
-    from jobs.contest_collector import _is_ai_relevant  # 순환 임포트 회피 — 함수 내 지연 임포트
+    from jobs.contest_collector import _is_ai_relevant
 
-    for item in posts:
-        d = item.get("data") if isinstance(item.get("data"), dict) else item
-        if not isinstance(d, dict):
+    for a in soup.find_all("a", href=_POST_RE):
+        href = a.get("href", "")
+        m = _POST_RE.match(href)
+        if not m:
             continue
-        if d.get("is_expired"):
+        pid = m.group(1)
+        if pid in seen:
             continue
-        title = clean(d.get("title"))
-        pid = d.get("id")
-        if not title or not pid:
+        seen.add(pid)
+
+        # 제목: h2/h3/h4 우선, 없으면 img alt, 최후 수단 첫 유의미 텍스트
+        title = ""
+        title_el = a.find(["h2", "h3", "h4"])
+        if title_el:
+            title = clean(title_el.get_text())
+        if not title:
+            img = a.find("img")
+            if img and img.get("alt") and len(img["alt"].strip()) > 5:
+                title = clean(img["alt"])
+        if not title:
+            title = clean(a.get_text())[:100]
+        if not title or len(title) < 4:
             continue
 
-        tags = d.get("tags") or []
-        tag_strs = [clean(t.get("name") if isinstance(t, dict) else t) for t in tags]
-        host = clean(d.get("organization"))
+        # 주최
+        card = a.find_parent() or a
+        card_text = clean(card.get_text(" "))
+        host = None
+        # 괄호 안 주최명 패턴: [주최명] 또는 주최: OOO
+        bm = re.search(r"\[([^\[\]]{2,20})\]", card_text)
+        if bm:
+            host = bm.group(1)
 
-        # AI 관련 공고면 상세에서 참가대상 확보 (일반인 개방 게이트 근거)
+        # D-day
+        deadline = parse_dday(card_text)
+
+        # AI 관련이면 상세에서 참가대상 보강
         target = None
-        hay = " ".join(filter(None, [title, " ".join(tag_strs), host]))
+        hay = " ".join(filter(None, [title, host or ""]))
         if _is_ai_relevant(hay):
             target = _fetch_target(pid)
             time.sleep(DETAIL_SLEEP)
+
+        # 이미지
+        image_url = None
+        img_el = card.find("img", src=True)
+        if img_el:
+            src = img_el.get("src", "")
+            if src and not src.endswith(".svg") and "logo" not in src.lower():
+                image_url = src if src.startswith("http") else f"https://www.allforyoung.com{src}"
 
         out.append(ContestDraft(
             source="allforyoung",
@@ -132,10 +117,36 @@ def fetch() -> list[ContestDraft]:
             url=f"https://www.allforyoung.com/posts/{pid}",
             title=title,
             host=host,
-            image_url=d.get("poster_url") or d.get("thumbnail_url"),
+            image_url=image_url,
             category="공모전",
-            field_tags=[t for t in tag_strs if t],
+            field_tags=[],
             target=target,
-            deadline=parse_dday(d.get("dday")),
+            deadline=deadline,
         ))
+
     return out
+
+
+@register("allforyoung")
+def fetch() -> list[ContestDraft]:
+    # 1단계: Playwright 렌더링 시도 (SPA 콘텐츠 로딩 필수)
+    from jobs.contest_sources._render import render_html
+    html = render_html(
+        LIST_URL,
+        wait_for="a[href*='/posts/']",
+        scrolls=3,
+    )
+
+    if html:
+        out = _parse_rendered_html(html)
+        if out:
+            logger.info(f"allforyoung: Playwright 렌더링 {len(out)}건")
+            return out
+        logger.warning(
+            "allforyoung: Playwright 렌더링 성공했지만 파싱 0건 "
+            "— a[href*='/posts/'] 셀렉터 또는 마크업 변경 확인 필요"
+        )
+    else:
+        logger.warning("allforyoung: Playwright 미설치 또는 렌더링 실패 — 소스 skip")
+
+    return []
