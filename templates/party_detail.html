@@ -31,6 +31,8 @@
   border: 1px solid var(--border); font-size: 12px; color: var(--text-dim);
 }
 .pd-member-chip--leader { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); }
+.pd-member-chip--kickable { cursor: pointer; }
+.pd-member-chip--kickable:hover { border-color: var(--danger); color: var(--danger); }
 
 /* 우측 액션 */
 .pd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -145,6 +147,7 @@
         {% endif %}
       {% else %}
         {% if party.leader_id == current_user.id %}
+        <button class="pda-btn" id="pda-manage-btn">⚙ 파티 관리</button>
         <button class="pda-btn" id="pda-toggle-open-btn"
                 data-open="{{ 'true' if party.is_open else 'false' }}">
           {{ '모집 마감하기' if party.is_open else '모집 재개하기' }}
@@ -160,10 +163,13 @@
   <!-- 멤버 목록 -->
   <div class="pd-members">
     {% for m in party.members %}
-    <div class="pd-member-chip {% if m.user_id == party.leader_id %}pd-member-chip--leader{% endif %}">
+    {% set kickable = is_member and party.leader_id == current_user.id and m.user_id != current_user.id %}
+    <div class="pd-member-chip {% if m.user_id == party.leader_id %}pd-member-chip--leader{% endif %}{% if kickable %} pd-member-chip--kickable{% endif %}"
+         {% if kickable %}onclick="kickMember({{ m.user_id }}, '{{ m.user.display_name | e }}')" title="클릭하여 추방"{% endif %}>
       {{ class_badge(m.user.class_num, 24) }}
       {{ m.user.display_name }}
       {% if m.user_id == party.leader_id %}<span style="color:var(--accent);font-size:10px;">👑</span>{% endif %}
+      {% if kickable %}<span style="font-size:10px;color:var(--danger);margin-left:2px;opacity:.7;">✕</span>{% endif %}
     </div>
     {% endfor %}
     <span style="font-size:12px;color:var(--text-faint);self-align:center;">{{ party.members | length }}/{{ party.max_members }}명</span>
@@ -350,6 +356,118 @@ document.getElementById('pda-leave-btn').addEventListener('click', async functio
   if (d.ok) { window.location.href = '/parties'; }
   else { alert(d.error || '탈퇴 실패'); }
 });
+</script>
+{% endif %}
+
+{% if is_member and party.leader_id == current_user.id %}
+<style>
+#pd-manage-overlay {
+  display:none;position:fixed;inset:0;z-index:8100;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;padding:1rem;
+}
+#pd-manage-card {
+  background:var(--bg-card);border:1px solid var(--border);border-radius:18px;
+  padding:2rem;width:min(460px,100%);position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto;
+  animation:authIn .18s ease-out;
+}
+.pdm-inp {
+  width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;
+  box-sizing:border-box;outline:none;transition:border-color .15s;
+}
+.pdm-inp:focus { border-color:var(--accent); }
+.pdm-label { display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em; }
+</style>
+
+<div id="pd-manage-overlay">
+  <div id="pd-manage-card">
+    <button id="pdm-close-btn" title="닫기"
+            style="position:absolute;top:1rem;right:1rem;width:30px;height:30px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">✕</button>
+    <div class="brand" style="margin-bottom:.25rem;font-size:.95rem;">DAILY <span class="accent">SYNC</span></div>
+    <h2 style="font-size:1.2rem;margin:.2rem 0 1.5rem;font-weight:700;">파티 관리</h2>
+    <div id="pdm-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:13px;"></div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div>
+        <label class="pdm-label">파티 이름 <span style="color:var(--danger);">*</span></label>
+        <input class="pdm-inp" type="text" id="pdm-title" maxlength="80" value="{{ party.title | e }}">
+      </div>
+      <div>
+        <label class="pdm-label">소개 (선택)</label>
+        <textarea class="pdm-inp" id="pdm-desc" rows="3" maxlength="300" style="resize:vertical;">{{ party.description or '' }}</textarea>
+      </div>
+      <div>
+        <label class="pdm-label">공모전 연결</label>
+        <select class="pdm-inp" id="pdm-contest-sel" style="cursor:pointer;appearance:none;">
+          <option value="">공모전 미지정</option>
+          {% for c in active_contests %}
+          <option value="{{ c.id }}" {% if c.id == party.contest_id %}selected{% endif %}>{{ c.title | truncate(60, end='…') }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="pdm-label">최대 인원</label>
+        <select class="pdm-inp" id="pdm-max" style="cursor:pointer;appearance:none;">
+          {% for n in [2,3,4,5,6,8,10] %}
+          <option value="{{ n }}" {% if n == party.max_members %}selected{% endif %}>{{ n }}명</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button id="pdm-submit-btn"
+              style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PARTY_ID = {{ party.id }};
+  const overlay  = document.getElementById('pd-manage-overlay');
+  const errorEl  = document.getElementById('pdm-error');
+
+  document.getElementById('pda-manage-btn').addEventListener('click', function() {
+    errorEl.style.display = 'none';
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('pdm-title').focus(), 50);
+  });
+
+  function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+  document.getElementById('pdm-close-btn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.style.display === 'flex') closeModal(); });
+
+  document.getElementById('pdm-submit-btn').addEventListener('click', async function() {
+    const title = document.getElementById('pdm-title').value.trim();
+    if (!title) { errorEl.textContent = '파티 이름을 입력해주세요.'; errorEl.style.display = ''; return; }
+    this.disabled = true; errorEl.style.display = 'none';
+    const btn = this;
+    try {
+      const r = await fetch(`/api/parties/${PARTY_ID}/update`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: document.getElementById('pdm-desc').value.trim(),
+          contest_id: document.getElementById('pdm-contest-sel').value || null,
+          max_members: +document.getElementById('pdm-max').value,
+        }),
+      });
+      const d = await r.json();
+      if (d.ok) { window.location.reload(); }
+      else { errorEl.textContent = d.error || '오류가 발생했습니다.'; errorEl.style.display = ''; btn.disabled = false; }
+    } catch (e) { errorEl.textContent = '네트워크 오류'; errorEl.style.display = ''; btn.disabled = false; }
+  });
+
+  // 파티원 추방
+  window.kickMember = async function(userId, userName) {
+    if (!confirm(`${userName}님을 파티에서 추방하시겠어요?`)) return;
+    const r = await fetch(`/api/parties/${PARTY_ID}/kick/${userId}`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) { window.location.reload(); }
+    else { alert(d.error || '추방 실패'); }
+  };
+})();
 </script>
 {% endif %}
 

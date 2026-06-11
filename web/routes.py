@@ -1416,11 +1416,20 @@ def party_detail(party_id: int):
     if not party:
         abort(404)
     is_member_ = _is_member(party)
+    today_kst_d = datetime.now(KST).date()
+    active_contests = (
+        Contest.query
+        .filter(Contest.hidden_at.is_(None))
+        .filter((Contest.deadline >= today_kst_d) | (Contest.deadline.is_(None)))
+        .order_by(Contest.title)
+        .all()
+    )
     return render_template(
         "party_detail.html",
         party=party,
         is_member=is_member_,
         member_ids=_party_member_ids(party),
+        active_contests=active_contests,
     )
 
 
@@ -1593,6 +1602,63 @@ def api_profile_update():
 
     db.session.commit()
     return jsonify({"ok": True, "display_name": current_user.display_name, "class_num": current_user.class_num})
+
+
+@bp.route("/api/parties/<int:party_id>/update", methods=["POST"])
+@login_required
+def api_party_update(party_id: int):
+    """파티 정보 수정 (파티장 전용)."""
+    party = Party.query.get(party_id)
+    if not party or party.leader_id != current_user.id:
+        return jsonify({"error": "권한이 없습니다."}), 403
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "파티 이름을 입력해주세요."}), 400
+    if len(title) > 80:
+        return jsonify({"error": "파티 이름은 최대 80자입니다."}), 400
+    party.title = title
+    party.description = (data.get("description") or "").strip() or None
+
+    contest_id = data.get("contest_id")
+    if contest_id:
+        c = Contest.query.get(int(contest_id))
+        party.contest_id = c.id if c else None
+        party.contest_title = c.title if c else None
+    else:
+        party.contest_id = None
+        party.contest_title = None
+
+    max_members = data.get("max_members")
+    if max_members:
+        max_members = int(max_members)
+        current_count = PartyMember.query.filter_by(party_id=party_id).count()
+        if max_members < current_count:
+            return jsonify({"error": f"현재 파티원이 {current_count}명이므로 {max_members}명으로 줄일 수 없습니다."}), 400
+        party.max_members = max_members
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/parties/<int:party_id>/kick/<int:user_id>", methods=["POST"])
+@login_required
+def api_party_kick(party_id: int, user_id: int):
+    """파티원 추방 (파티장 전용)."""
+    party = Party.query.get(party_id)
+    if not party or party.leader_id != current_user.id:
+        return jsonify({"error": "권한이 없습니다."}), 403
+    if user_id == current_user.id:
+        return jsonify({"error": "자신은 추방할 수 없습니다."}), 400
+
+    member = PartyMember.query.filter_by(party_id=party_id, user_id=user_id).first()
+    if not member:
+        return jsonify({"error": "해당 파티원이 없습니다."}), 404
+
+    db.session.delete(member)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @bp.route("/api/parties/<int:party_id>/messages", methods=["POST"])

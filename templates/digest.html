@@ -419,13 +419,16 @@
 .pt-empty { text-align:center; padding:4rem 1rem; color:var(--text-dim); font-size:14px; }
 .pt-empty-icon { font-size:3rem; margin-bottom:1rem; }
 
-/* 파티 생성 모달 */
-#pt-create-overlay {
+.pc-action--manage { background: var(--bg-soft); border: 1px solid var(--border); color: var(--text-dim); }
+.pc-action--manage:hover { color: var(--accent); border-color: var(--accent-dim, var(--accent)); background: var(--accent-bg, rgba(100,100,255,.07)); }
+
+/* 파티 생성 / 관리 모달 공통 */
+#pt-create-overlay, #pt-manage-overlay {
   display:none; position:fixed; inset:0; z-index:8000;
   background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
   align-items:center; justify-content:center; padding:1rem;
 }
-#pt-create-card {
+#pt-create-card, #pt-manage-card {
   background:var(--bg-card); border:1px solid var(--border); border-radius:18px;
   padding:2rem; width:min(460px,100%); position:relative;
   box-shadow:0 20px 60px rgba(0,0,0,.5); max-height:90vh; overflow-y:auto;
@@ -488,6 +491,45 @@
         </select>
       </div>
       <button class="ptc-submit" id="ptc-submit-btn">파티 만들기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 파티 관리 모달 -->
+<div id="pt-manage-overlay">
+  <div id="pt-manage-card">
+    <button class="ptc-close" id="ptm-close-btn">✕</button>
+    <div class="brand" style="margin-bottom:.25rem;font-size:.95rem;">DAILY <span class="accent">SYNC</span></div>
+    <h2 style="font-size:1.2rem;margin:.2rem 0 1.5rem;font-weight:700;">파티 관리</h2>
+    <div id="ptm-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:13px;"></div>
+    <input type="hidden" id="ptm-pid" value="">
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div>
+        <label class="ptc-label">파티 이름 <span style="color:var(--danger);">*</span></label>
+        <input class="ptc-inp" type="text" id="ptm-title" maxlength="80">
+      </div>
+      <div>
+        <label class="ptc-label">소개 (선택)</label>
+        <textarea class="ptc-inp" id="ptm-desc" rows="3" maxlength="300" style="resize:vertical;"></textarea>
+      </div>
+      <div>
+        <label class="ptc-label">공모전 연결</label>
+        <select class="ptc-inp" id="ptm-contest-sel" style="cursor:pointer;appearance:none;">
+          <option value="">공모전 미지정</option>
+          {% for c in active_contests %}
+          <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="ptc-label">최대 인원</label>
+        <select class="ptc-inp" id="ptm-max" style="cursor:pointer;appearance:none;">
+          <option value="2">2명</option><option value="3">3명</option><option value="4">4명</option>
+          <option value="5">5명</option><option value="6">6명</option>
+          <option value="8">8명</option><option value="10">10명</option>
+        </select>
+      </div>
+      <button class="ptc-submit" id="ptm-submit-btn">저장하기</button>
     </div>
   </div>
 </div>
@@ -563,7 +605,16 @@
         파티장 {{ p.leader.display_name }} · {{ p.created_at.strftime('%m.%d') }}
       </div>
       {% if is_mine %}
-      <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">채팅방 →</a>
+      <div style="display:flex;gap:6px;">
+        {% if p.leader_id == current_user.id %}
+        <button class="pc-action pc-action--manage"
+                data-pid="{{ p.id }}" data-title="{{ p.title | e }}"
+                data-desc="{{ (p.description or '') | e }}" data-cid="{{ p.contest_id or '' }}"
+                data-max="{{ p.max_members }}"
+                onclick="openManageModal(this)">⚙ 관리</button>
+        {% endif %}
+        <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">채팅방 →</a>
+      </div>
       {% elif p.is_open and member_count < p.max_members %}
       <button class="pc-action pc-action--enter" data-pid="{{ p.id }}" onclick="joinPartyInline(this)">참가하기</button>
       {% else %}
@@ -638,6 +689,52 @@ async function joinPartyInline(btn) {
       if (d.ok) { window.location.href = '/parties/' + d.party_id; }
       else { errorEl.textContent = d.error || '오류가 발생했습니다.'; errorEl.style.display=''; btn.disabled=false; }
     } catch(e) { errorEl.textContent='네트워크 오류'; errorEl.style.display=''; btn.disabled=false; }
+  });
+})();
+
+// 파티 관리 모달
+(function() {
+  const overlay = document.getElementById('pt-manage-overlay');
+  if (!overlay) return;
+  const errorEl = document.getElementById('ptm-error');
+
+  window.openManageModal = function(btn) {
+    errorEl.style.display = 'none';
+    document.getElementById('ptm-pid').value   = btn.dataset.pid;
+    document.getElementById('ptm-title').value = btn.dataset.title;
+    document.getElementById('ptm-desc').value  = btn.dataset.desc;
+    document.getElementById('ptm-contest-sel').value = btn.dataset.cid || '';
+    document.getElementById('ptm-max').value   = btn.dataset.max || '6';
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('ptm-title').focus(), 50);
+  };
+
+  function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+  document.getElementById('ptm-close-btn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.style.display === 'flex') closeModal(); });
+
+  document.getElementById('ptm-submit-btn').addEventListener('click', async function() {
+    const pid   = document.getElementById('ptm-pid').value;
+    const title = document.getElementById('ptm-title').value.trim();
+    if (!title) { errorEl.textContent = '파티 이름을 입력해주세요.'; errorEl.style.display = ''; return; }
+    this.disabled = true; errorEl.style.display = 'none';
+    const btn = this;
+    try {
+      const r = await fetch(`/api/parties/${pid}/update`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: document.getElementById('ptm-desc').value.trim(),
+          contest_id: document.getElementById('ptm-contest-sel').value || null,
+          max_members: +document.getElementById('ptm-max').value,
+        }),
+      });
+      const d = await r.json();
+      if (d.ok) { window.location.reload(); }
+      else { errorEl.textContent = d.error || '오류가 발생했습니다.'; errorEl.style.display = ''; btn.disabled = false; }
+    } catch (e) { errorEl.textContent = '네트워크 오류'; errorEl.style.display = ''; btn.disabled = false; }
   });
 })();
 
