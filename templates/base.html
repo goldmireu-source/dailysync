@@ -237,7 +237,15 @@
           headers: { 'X-Requested-With': 'fetch' },
           body: new FormData(formEl),
         });
-        const data = await r.json();
+        let data;
+        try {
+          data = await r.json();
+        } catch (_) {
+          errorEl.textContent = '서버 오류가 발생했습니다. (' + r.status + ')';
+          errorEl.style.display = '';
+          btn.disabled = false;
+          return;
+        }
         if (data.ok) {
           window.location.href = data.redirect || '/';
         } else {
@@ -246,7 +254,7 @@
           btn.disabled = false;
         }
       } catch (err) {
-        errorEl.textContent = '네트워크 오류가 발생했습니다.';
+        errorEl.textContent = '연결 오류: ' + (err.message || '알 수 없는 오류');
         errorEl.style.display = '';
         btn.disabled = false;
       }
