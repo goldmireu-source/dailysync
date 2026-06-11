@@ -414,12 +414,8 @@ document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
       </div>
       <div>
         <label class="pdm-label">공모전 연결</label>
-        <select class="pdm-inp" id="pdm-contest-sel" style="cursor:pointer;appearance:none;">
-          <option value="">공모전 미지정</option>
-          {% for c in active_contests %}
-          <option value="{{ c.id }}" {% if c.id == party.contest_id %}selected{% endif %}>{{ c.title | truncate(60, end='…') }}</option>
-          {% endfor %}
-        </select>
+        <input type="hidden" id="pdm-contest-id" value="{{ party.contest_id or '' }}">
+        <button type="button" class="pdm-inp cs-trigger{% if party.contest_id %} cs-has-val{% endif %}" id="pdm-contest-btn">{{ party.contest_title or '공모전 선택하기' }}</button>
       </div>
       <div>
         <label class="pdm-label">최대 인원</label>
@@ -448,6 +444,15 @@ document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
     setTimeout(() => document.getElementById('pdm-title').focus(), 50);
   });
 
+  document.getElementById('pdm-contest-btn').addEventListener('click', function() {
+    openContestSheet(function(id, title) {
+      document.getElementById('pdm-contest-id').value = id;
+      const btn = document.getElementById('pdm-contest-btn');
+      btn.textContent = title || '공모전 선택하기';
+      btn.classList.toggle('cs-has-val', !!id);
+    });
+  });
+
   function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
   document.getElementById('pdm-close-btn').addEventListener('click', closeModal);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
@@ -464,7 +469,7 @@ document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
         body: JSON.stringify({
           title,
           description: document.getElementById('pdm-desc').value.trim(),
-          contest_id: document.getElementById('pdm-contest-sel').value || null,
+          contest_id: document.getElementById('pdm-contest-id').value || null,
           max_members: +document.getElementById('pdm-max').value,
         }),
       });

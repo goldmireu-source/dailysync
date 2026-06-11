@@ -499,5 +499,211 @@
     })();
     {% endif %}
   </script>
+
+  <!-- ===== 공모전 선택 바텀 시트 ===== -->
+  <div id="cs-overlay" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.55);"></div>
+  <div id="cs-sheet">
+    <div class="cs-handle"></div>
+    <div class="cs-hdr">
+      <span class="cs-hdr-title">공모전 선택</span>
+      <button class="cs-close-btn" id="cs-close-btn">✕</button>
+    </div>
+    <div class="cs-search-row">
+      <input type="text" id="cs-search-inp" class="cs-search-inp" placeholder="🔍 공모전 이름 검색..." autocomplete="off">
+    </div>
+    <div class="cs-filter-sec">
+      <div class="cs-filter-lbl">소재별</div>
+      <div class="cs-chips" id="cs-topic-chips"></div>
+    </div>
+    <div class="cs-filter-sec" style="padding-bottom:.65rem;">
+      <div class="cs-filter-lbl">지역별</div>
+      <div class="cs-chips" id="cs-region-chips"></div>
+    </div>
+    <div class="cs-divider"></div>
+    <div class="cs-list-wrap"><div id="cs-list"></div></div>
+  </div>
+  <style>
+  #cs-sheet {
+    position:fixed; bottom:-100%; left:0; right:0; z-index:9300;
+    background:var(--bg-card); border-radius:24px 24px 0 0;
+    max-height:82vh; display:flex; flex-direction:column;
+    transition:bottom .3s cubic-bezier(.4,0,.2,1);
+    box-shadow:0 -8px 48px rgba(0,0,0,.45);
+  }
+  #cs-sheet.cs-open { bottom:0; }
+  .cs-handle { width:40px; height:4px; background:var(--border); border-radius:2px; margin:10px auto 0; flex-shrink:0; }
+  .cs-hdr { display:flex; align-items:center; justify-content:space-between; padding:.9rem 1.2rem .5rem; flex-shrink:0; }
+  .cs-hdr-title { font-size:15px; font-weight:700; color:var(--text); }
+  .cs-close-btn { background:none; border:1px solid var(--border); border-radius:8px; width:28px; height:28px; cursor:pointer; color:var(--text-dim); font-size:14px; display:flex; align-items:center; justify-content:center; font-family:inherit; transition:background .15s,color .15s,border-color .15s; }
+  .cs-close-btn:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cs-search-row { padding:.5rem 1.2rem .4rem; flex-shrink:0; }
+  .cs-search-inp { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg-soft); color:var(--text); font-family:inherit; font-size:14px; box-sizing:border-box; outline:none; transition:border-color .15s; }
+  .cs-search-inp:focus { border-color:var(--accent); }
+  .cs-filter-sec { padding:.4rem 1.2rem .15rem; flex-shrink:0; }
+  .cs-filter-lbl { font-size:11px; font-weight:700; color:var(--text-dim); letter-spacing:.06em; margin-bottom:.35rem; }
+  .cs-chips { display:flex; gap:6px; overflow-x:auto; padding-bottom:.3rem; scrollbar-width:none; }
+  .cs-chips::-webkit-scrollbar { display:none; }
+  .cs-chip { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--bg-soft); color:var(--text-dim); cursor:pointer; font-family:inherit; transition:background .12s,color .12s,border-color .12s; white-space:nowrap; }
+  .cs-chip:hover { border-color:var(--accent); color:var(--accent); }
+  .cs-chip.cs-on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cs-divider { height:1px; background:var(--border); margin:.4rem 0 0; flex-shrink:0; }
+  .cs-list-wrap { overflow-y:auto; flex:1; min-height:0; }
+  #cs-list { padding-bottom:env(safe-area-inset-bottom,0); }
+  .cs-item { padding:12px 1.2rem; cursor:pointer; font-size:13px; color:var(--text); border-bottom:1px solid var(--border); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .1s; }
+  .cs-item:hover { background:var(--bg-soft); }
+  .cs-item--none { color:var(--text-dim); font-style:italic; }
+  .cs-item--none:hover { color:var(--text); background:var(--bg-soft); }
+  .cs-empty { text-align:center; padding:2rem 1.2rem; font-size:13px; color:var(--text-faint); }
+  .cs-trigger { text-align:left !important; cursor:pointer !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; color:var(--text-dim) !important; }
+  .cs-trigger.cs-has-val { color:var(--text) !important; }
+  </style>
+  <script>
+  (function() {
+    'use strict';
+    var _contests = null;
+    var _onSelect = null;
+    var _activeTopic = '';
+    var _activeRegion = '';
+
+    var TOPICS = [
+      {key:'사진',       label:'📷 사진',       kw:['사진','포토','포토그래피']},
+      {key:'영상',       label:'🎬 영상',       kw:['영상','동영상','단편','영화','비디오']},
+      {key:'게임',       label:'🎮 게임',       kw:['게임','인디게임']},
+      {key:'공공데이터', label:'📊 공공데이터', kw:['공공데이터','오픈데이터']},
+      {key:'데이터·AI',  label:'🤖 데이터·AI',  kw:['데이터','빅데이터','AI','인공지능','머신러닝','딥러닝','분석']},
+      {key:'디자인',     label:'🎨 디자인',     kw:['디자인','포스터','일러스트','캐릭터','UX','UI']},
+      {key:'창업',       label:'🚀 창업',       kw:['창업','스타트업','벤처','사업']},
+      {key:'환경',       label:'🌿 환경',       kw:['환경','기후','탄소','에너지','친환경']},
+      {key:'문학',       label:'✏ 문학',        kw:['문학','글쓰기','소설','에세이','독후감','시']},
+      {key:'아이디어',   label:'💡 아이디어',   kw:['아이디어','창의','혁신']},
+    ];
+    var REGIONS = [
+      {key:'전국', label:'🇰🇷 전국', kw:['전국']},
+      {key:'서울', label:'서울',   kw:['서울']},
+      {key:'부산', label:'부산',   kw:['부산']},
+      {key:'광주', label:'광주',   kw:['광주']},
+      {key:'대구', label:'대구',   kw:['대구']},
+      {key:'인천', label:'인천',   kw:['인천']},
+      {key:'대전', label:'대전',   kw:['대전']},
+      {key:'경기', label:'경기',   kw:['경기']},
+      {key:'강원', label:'강원',   kw:['강원']},
+      {key:'충청', label:'충청',   kw:['충청','충북','충남']},
+      {key:'전라', label:'전라',   kw:['전라','전북','전남','전주']},
+      {key:'경상', label:'경상',   kw:['경상','경북','경남']},
+      {key:'제주', label:'제주',   kw:['제주']},
+    ];
+
+    function hasKw(text, kws) {
+      var t = text.toLowerCase();
+      return kws.some(function(k) { return t.indexOf(k.toLowerCase()) !== -1; });
+    }
+    function getTopics(c) {
+      var text = c.title + ' ' + (c.tags||[]).join(' ');
+      return TOPICS.filter(function(t) { return hasKw(text, t.kw); }).map(function(t) { return t.key; });
+    }
+    function getRegion(c) {
+      var text = c.title;
+      for (var i = 0; i < REGIONS.length; i++) {
+        if (hasKw(text, REGIONS[i].kw)) return REGIONS[i].key;
+      }
+      return '';
+    }
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    var overlay   = document.getElementById('cs-overlay');
+    var sheet     = document.getElementById('cs-sheet');
+    var searchInp = document.getElementById('cs-search-inp');
+    var listEl    = document.getElementById('cs-list');
+    var topicEl   = document.getElementById('cs-topic-chips');
+    var regionEl  = document.getElementById('cs-region-chips');
+
+    function buildChips(containerEl, items, activeKey) {
+      containerEl.innerHTML = items.map(function(it) {
+        return '<button class="cs-chip' + (activeKey === it.key ? ' cs-on' : '') + '" data-v="' + esc(it.key) + '">' + it.label + '</button>';
+      }).join('');
+    }
+
+    topicEl.addEventListener('click', function(e) {
+      var b = e.target.closest('.cs-chip'); if (!b) return;
+      _activeTopic = b.dataset.v;
+      buildChips(topicEl, [{key:'',label:'전체'}].concat(TOPICS), _activeTopic);
+      buildChips(regionEl, [{key:'',label:'전체'}].concat(REGIONS), _activeRegion);
+      renderList();
+    });
+    regionEl.addEventListener('click', function(e) {
+      var b = e.target.closest('.cs-chip'); if (!b) return;
+      _activeRegion = b.dataset.v;
+      buildChips(topicEl, [{key:'',label:'전체'}].concat(TOPICS), _activeTopic);
+      buildChips(regionEl, [{key:'',label:'전체'}].concat(REGIONS), _activeRegion);
+      renderList();
+    });
+    listEl.addEventListener('click', function(e) {
+      var item = e.target.closest('.cs-item'); if (!item) return;
+      if (_onSelect) _onSelect(item.dataset.id || '', item.dataset.title || '');
+      closeSheet();
+    });
+    searchInp.addEventListener('input', renderList);
+
+    function renderList() {
+      if (!_contests) return;
+      var q = (searchInp.value||'').trim().toLowerCase();
+      var filtered = _contests.filter(function(c) {
+        if (q && c.title.toLowerCase().indexOf(q) === -1) return false;
+        if (_activeTopic && getTopics(c).indexOf(_activeTopic) === -1) return false;
+        if (_activeRegion && getRegion(c) !== _activeRegion) return false;
+        return true;
+      });
+      var html = '<div class="cs-item cs-item--none" data-id="" data-title="">공모전 미지정</div>';
+      if (filtered.length === 0) {
+        html += '<div class="cs-empty">검색 결과가 없어요</div>';
+      } else {
+        html += filtered.map(function(c) {
+          return '<div class="cs-item" data-id="' + c.id + '" data-title="' + esc(c.title) + '">🏆 ' + esc(c.title) + '</div>';
+        }).join('');
+      }
+      listEl.innerHTML = html;
+    }
+
+    async function loadContests() {
+      if (_contests !== null) return;
+      try {
+        var r = await fetch('/api/contests/active');
+        _contests = await r.json();
+      } catch(e) { _contests = []; }
+    }
+
+    window.openContestSheet = async function(onSelect) {
+      _onSelect = onSelect;
+      _activeTopic = '';
+      _activeRegion = '';
+      searchInp.value = '';
+      listEl.innerHTML = '<div class="cs-empty">불러오는 중...</div>';
+      buildChips(topicEl, [{key:'',label:'전체'}].concat(TOPICS), '');
+      buildChips(regionEl, [{key:'',label:'전체'}].concat(REGIONS), '');
+      overlay.style.display = 'block';
+      setTimeout(function() { sheet.classList.add('cs-open'); }, 10);
+      document.body.style.overflow = 'hidden';
+      await loadContests();
+      buildChips(topicEl, [{key:'',label:'전체'}].concat(TOPICS), '');
+      buildChips(regionEl, [{key:'',label:'전체'}].concat(REGIONS), '');
+      renderList();
+      setTimeout(function() { searchInp.focus(); }, 320);
+    };
+
+    function closeSheet() {
+      sheet.classList.remove('cs-open');
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
+    }
+
+    overlay.addEventListener('click', closeSheet);
+    document.getElementById('cs-close-btn').addEventListener('click', closeSheet);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && sheet.classList.contains('cs-open')) closeSheet();
+    });
+  })();
+  </script>
 </body>
 </html>

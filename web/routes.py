@@ -1080,6 +1080,24 @@ def api_contest_autocomplete():
     return jsonify([{"id": c.id, "title": c.title} for c in contests])
 
 
+@bp.route("/api/contests/active")
+@login_required
+def api_contests_active():
+    """파티 생성/관리 바텀 시트용 활성 공모전 목록."""
+    today = datetime.now(KST).date()
+    contests = (
+        Contest.query
+        .filter(Contest.hidden_at.is_(None))
+        .filter((Contest.deadline >= today) | (Contest.deadline.is_(None)))
+        .order_by(Contest.deadline.asc().nullslast(), Contest.id.desc())
+        .all()
+    )
+    return jsonify([
+        {"id": c.id, "title": c.title, "tags": c.field_tags or []}
+        for c in contests
+    ])
+
+
 @bp.route("/saved")
 def saved_page():
     """저장된 사건 + 논문 모음 페이지."""

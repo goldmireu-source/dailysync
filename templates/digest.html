@@ -467,12 +467,8 @@
     <div style="display:flex;flex-direction:column;gap:1rem;">
       <div>
         <label class="ptc-label">공모전 연결 (선택)</label>
-        <select class="ptc-inp" id="ptc-contest-sel" style="cursor:pointer;appearance:none;">
-          <option value="">공모전 미지정</option>
-          {% for c in active_contests %}
-          <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
-          {% endfor %}
-        </select>
+        <input type="hidden" id="ptc-contest-id" value="">
+        <button type="button" class="ptc-inp cs-trigger" id="ptc-contest-btn">공모전 선택하기</button>
       </div>
       <div>
         <label class="ptc-label">파티 이름 <span style="color:var(--danger);">*</span></label>
@@ -514,12 +510,8 @@
       </div>
       <div>
         <label class="ptc-label">공모전 연결</label>
-        <select class="ptc-inp" id="ptm-contest-sel" style="cursor:pointer;appearance:none;">
-          <option value="">공모전 미지정</option>
-          {% for c in active_contests %}
-          <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
-          {% endfor %}
-        </select>
+        <input type="hidden" id="ptm-contest-id" value="">
+        <button type="button" class="ptc-inp cs-trigger" id="ptm-contest-btn">공모전 선택하기</button>
       </div>
       <div>
         <label class="ptc-label">최대 인원</label>
@@ -610,6 +602,7 @@
         <button class="pc-action pc-action--manage"
                 data-pid="{{ p.id }}" data-title="{{ p.title | e }}"
                 data-desc="{{ (p.description or '') | e }}" data-cid="{{ p.contest_id or '' }}"
+                data-ctitle="{{ (p.contest_title or '') | e }}"
                 data-max="{{ p.max_members }}"
                 onclick="openManageModal(this)">⚙ 관리</button>
         {% endif %}
@@ -641,17 +634,28 @@
   const closeBtn = document.getElementById('ptc-close-btn');
   const errorEl  = document.getElementById('ptc-error');
 
-  function openModal(contestId) {
+  function openModal() {
     errorEl.style.display = 'none';
     document.getElementById('ptc-title').value = '';
     document.getElementById('ptc-desc').value = '';
-    const sel = document.getElementById('ptc-contest-sel');
-    sel.value = contestId || '';
+    document.getElementById('ptc-contest-id').value = '';
+    const triggerBtn = document.getElementById('ptc-contest-btn');
+    triggerBtn.textContent = '공모전 선택하기';
+    triggerBtn.classList.remove('cs-has-val');
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(() => document.getElementById('ptc-title').focus(), 50);
   }
   function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+
+  document.getElementById('ptc-contest-btn').addEventListener('click', function() {
+    openContestSheet(function(id, title) {
+      document.getElementById('ptc-contest-id').value = id;
+      const btn = document.getElementById('ptc-contest-btn');
+      btn.textContent = title || '공모전 선택하기';
+      btn.classList.toggle('cs-has-val', !!id);
+    });
+  });
 
   if (openBtn) openBtn.addEventListener('click', openModal);
   closeBtn.addEventListener('click', closeModal);
@@ -671,7 +675,7 @@
         body:JSON.stringify({
           title,
           description: document.getElementById('ptc-desc').value.trim(),
-          contest_id: document.getElementById('ptc-contest-sel').value || null,
+          contest_id: document.getElementById('ptc-contest-id').value || null,
           max_members: +document.getElementById('ptc-max').value,
         }),
       });
@@ -693,12 +697,26 @@
     document.getElementById('ptm-pid').value   = btn.dataset.pid;
     document.getElementById('ptm-title').value = btn.dataset.title;
     document.getElementById('ptm-desc').value  = btn.dataset.desc;
-    document.getElementById('ptm-contest-sel').value = btn.dataset.cid || '';
+    const cid    = btn.dataset.cid || '';
+    const ctitle = btn.dataset.ctitle || '';
+    document.getElementById('ptm-contest-id').value = cid;
+    const triggerBtn = document.getElementById('ptm-contest-btn');
+    triggerBtn.textContent = ctitle || '공모전 선택하기';
+    triggerBtn.classList.toggle('cs-has-val', !!cid);
     document.getElementById('ptm-max').value   = btn.dataset.max || '6';
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(() => document.getElementById('ptm-title').focus(), 50);
   };
+
+  document.getElementById('ptm-contest-btn').addEventListener('click', function() {
+    openContestSheet(function(id, title) {
+      document.getElementById('ptm-contest-id').value = id;
+      const btn = document.getElementById('ptm-contest-btn');
+      btn.textContent = title || '공모전 선택하기';
+      btn.classList.toggle('cs-has-val', !!id);
+    });
+  });
 
   function closeModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
   document.getElementById('ptm-close-btn').addEventListener('click', closeModal);
@@ -717,7 +735,7 @@
         body: JSON.stringify({
           title,
           description: document.getElementById('ptm-desc').value.trim(),
-          contest_id: document.getElementById('ptm-contest-sel').value || null,
+          contest_id: document.getElementById('ptm-contest-id').value || null,
           max_members: +document.getElementById('ptm-max').value,
         }),
       });
