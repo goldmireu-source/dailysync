@@ -1560,14 +1560,12 @@ def api_party_messages(party_id: int):
 def api_profile_update():
     """이름 / 비밀번호 변경 (아이디 변경 불가)."""
     data = request.get_json(silent=True) or {}
-    display_name    = (data.get("display_name") or "").strip()
-    password        = data.get("password") or ""
+    display_name     = (data.get("display_name") or "").strip()
+    class_num        = data.get("class_num")
+    password         = data.get("password") or ""
     password_confirm = data.get("password_confirm") or ""
 
     KO_RE = re.compile(r"[가-힣ㄱ-ㅎㅏ-ㅣ]")
-
-    if not display_name and not password:
-        return jsonify({"error": "변경할 항목을 입력해주세요."}), 400
 
     if display_name:
         has_ko = bool(KO_RE.search(display_name))
@@ -1575,6 +1573,15 @@ def api_profile_update():
         if len(display_name) > max_len:
             return jsonify({"error": f"이름은 {'한글 포함 시 최대 4자' if has_ko else '영문 최대 14자'}입니다."}), 400
         current_user.display_name = display_name
+
+    if class_num is not None:
+        try:
+            cn = int(class_num)
+        except (TypeError, ValueError):
+            return jsonify({"error": "올바른 반을 선택해주세요."}), 400
+        if cn not in range(1, 8):
+            return jsonify({"error": "올바른 반을 선택해주세요."}), 400
+        current_user.class_num = cn
 
     if password:
         if len(password) > 10:
@@ -1584,7 +1591,7 @@ def api_profile_update():
         current_user.set_password(password)
 
     db.session.commit()
-    return jsonify({"ok": True, "display_name": current_user.display_name})
+    return jsonify({"ok": True, "display_name": current_user.display_name, "class_num": current_user.class_num})
 
 
 @bp.route("/api/parties/<int:party_id>/messages", methods=["POST"])

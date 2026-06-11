@@ -133,7 +133,7 @@
       <!-- 계정 정보 표시 (읽기 전용) -->
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;margin-bottom:1.5rem;">
         {% from "_badge.html" import class_badge %}
-        {{ class_badge(current_user.class_num, 36) }}
+        <span id="profile-card-badge">{{ class_badge(current_user.class_num, 36) }}</span>
         <div>
           <div id="profile-card-name" style="font-size:13px;font-weight:700;color:var(--text);">{{ current_user.display_name }}</div>
           <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">@{{ current_user.username }}</div>
@@ -142,6 +142,19 @@
       <div id="profile-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px;"></div>
       <div id="profile-success" style="display:none;background:#122a12;color:#5cb85c;border:1px solid #205a20;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px;"></div>
       <form id="profile-form" style="display:flex;flex-direction:column;gap:1.1rem;">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">반 변경</label>
+          <select name="class_num" id="profile-class-sel"
+                  style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;appearance:none;cursor:pointer;">
+            <option value="1" {% if current_user.class_num == 1 %}selected{% endif %}>1반 AI헬스케어</option>
+            <option value="2" {% if current_user.class_num == 2 %}selected{% endif %}>2반 AI피지컬</option>
+            <option value="3" {% if current_user.class_num == 3 %}selected{% endif %}>3반 AI보안</option>
+            <option value="4" {% if current_user.class_num == 4 %}selected{% endif %}>4반 데이터분석A</option>
+            <option value="5" {% if current_user.class_num == 5 %}selected{% endif %}>5반 AI금융</option>
+            <option value="6" {% if current_user.class_num == 6 %}selected{% endif %}>6반 서비스기획</option>
+            <option value="7" {% if current_user.class_num == 7 %}selected{% endif %}>7반 데이터분석B</option>
+          </select>
+        </div>
         <div>
           <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">이름 변경</label>
           <input class="auth-inp" type="text" name="display_name" id="profile-name-inp" maxlength="14"
@@ -389,10 +402,19 @@
       const nameInp  = document.getElementById('profile-name-inp');
       const KO_RE    = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
 
+      // 반 배지 SVG 동적 생성 (반 변경 후 페이지 리로드 없이 업데이트)
+      function buildBadgeSvg(cn, size) {
+        const C = {1:['#E05252','#fff'],2:['#F0A840','#fff'],3:['#F2C832','#5C5500'],
+                   4:['#5CB85C','#fff'],5:['#4DA6C8','#fff'],6:['#6B60BA','#fff'],7:['#C860A8','#fff']};
+        const [bg, fg] = C[cn] || ['#333','#888'];
+        return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;flex-shrink:0">'
+          +'<circle cx="50" cy="50" r="50" fill="'+bg+'"/>'
+          +'<text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-size="34" font-weight="800" fill="'+fg+'" font-family="Pretendard,sans-serif">'+cn+'반</text></svg>';
+      }
+
       window.openProfileModal = function() {
         errEl.style.display = 'none'; errEl.textContent = '';
         okEl.style.display  = 'none'; okEl.textContent  = '';
-        // 현재 이름을 헤더에서 읽어옴 (JS 업데이트 이후에도 최신값 반영)
         const hd = document.getElementById('hd-profile-name');
         nameInp.value = hd ? hd.textContent : '';
         document.getElementById('profile-pw-inp').value  = '';
@@ -429,6 +451,7 @@
         okEl.style.display  = 'none';
         const payload = {
           display_name: nameInp.value.trim(),
+          class_num: parseInt(document.getElementById('profile-class-sel').value, 10),
           password: document.getElementById('profile-pw-inp').value,
           password_confirm: document.getElementById('profile-pw2-inp').value,
         };
@@ -453,6 +476,12 @@
               const cn = document.getElementById('profile-card-name');
               if (hd) hd.textContent = data.display_name;
               if (cn) cn.textContent = data.display_name;
+            }
+            if (data.class_num) {
+              const hdb = document.getElementById('hd-profile-badge');
+              const cnb = document.getElementById('profile-card-badge');
+              if (hdb) hdb.innerHTML = buildBadgeSvg(data.class_num, 26);
+              if (cnb) cnb.innerHTML = buildBadgeSvg(data.class_num, 36);
             }
             btn.disabled = false;
             setTimeout(closeProfileModal, 1500);
