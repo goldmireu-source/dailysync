@@ -48,6 +48,8 @@ class ContestDraft:
     ai_exempt: bool = False
     # 소스 성격상 기관·기업 대상이 확실한 경우(예: 국가R&D 과제공고) → 기업한정 게이트로 제외
     company_targeted: bool = False
+    # 공모전 규정에 'AI 사용 금지/불가' 명시 → 수집 제외
+    ai_prohibited: bool = False
 
 
 # ---------- HTTP ----------

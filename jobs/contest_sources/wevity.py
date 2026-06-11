@@ -123,19 +123,39 @@ def _parse_period(text: str | None) -> tuple:
 
 _TARGET_LABELS = ("응모대상", "참가대상", "참가자격", "응모자격", "참가조건")
 
+# 공모전 본문에서 'AI 사용 금지/불가' 를 나타내는 패턴
+_AI_PROHIBITED_RES = [
+    re.compile(r"AI\s*(사용|활용|생성|창작|도구).{0,10}(금지|불가|않[은은]|미사용)", re.IGNORECASE),
+    re.compile(r"(인공지능|생성형\s*AI).{0,15}(금지|불가|사용\s*않[은은]|미사용)"),
+    re.compile(r"AI를?\s*사용하지\s*않[은은]"),
+    re.compile(r"AI\s*(생성|작품|결과물|산출물|창작물).{0,5}(불가|금지)"),
+    re.compile(r"(ChatGPT|Midjourney|Stable\s*Diffusion|이미지\s*생성\s*AI).{0,10}(금지|불가)"),
+    re.compile(r"순수\s*(인간|사람|창작자).{0,5}창작"),
+]
+
+
+def _is_ai_prohibited_text(text: str) -> bool:
+    """페이지 전문에 AI 사용 금지 문구가 있으면 True."""
+    for pat in _AI_PROHIBITED_RES:
+        if pat.search(text):
+            return True
+    return False
+
 
 def _fetch_detail(ix: str) -> tuple:
-    """상세페이지에서 (start_at, deadline, image_url, target) 교차검증.
+    """상세페이지에서 (start_at, deadline, image_url, target, ai_prohibited) 교차검증.
 
     - 접수기간: li.dday-area 의 '시작 ~ 마감' 명시 날짜 (목록 D-day보다 정확)
     - 포스터: div.thumb 안 img (배너/광고 이미지 /upload/banner/ 와 구분 — /upload/ 만 채택)
     - 참가대상: li > span.tit='응모대상' 의 값 (소속원 한정 판정 근거; 예 '제한없음')
-    실패 시 (None, None, None, None).
+    - ai_prohibited: 전문 텍스트에서 AI 사용 금지 문구 탐지
+    실패 시 (None, None, None, None, False).
     """
     resp = http_get(
         BASE, params={"c": "find", "s": 1, "gbn": "view", "ix": ix}, encoding="utf-8",
     )
     soup = BeautifulSoup(resp.text, "lxml")
+    full_text = soup.get_text(" ")
 
     start_at = deadline = image_url = target = None
     li = soup.select_one("li.dday-area")
@@ -160,7 +180,11 @@ def _fetch_detail(ix: str) -> tuple:
                 target = val[:300]
                 break
 
-    return start_at, deadline, image_url, target
+    ai_prohibited = _is_ai_prohibited_text(full_text)
+    if ai_prohibited:
+        logger.info(f"wevity ix={ix}: AI 사용 금지 명시 → 수집 제외")
+
+    return start_at, deadline, image_url, target, ai_prohibited
 
 
 @register("wevity")
@@ -231,7 +255,7 @@ def fetch() -> list[ContestDraft]:
         if not _is_ai_relevant(hay):
             continue
         try:
-            start_at, deadline, image_url, target = _fetch_detail(ix)
+            start_at, deadline, image_url, target, ai_prohibited = _fetch_detail(ix)
             if deadline:           # 명시 마감일 — 목록 D-day(±1일 오차)보다 우선
                 d.deadline = deadline
             if start_at:
@@ -240,6 +264,8 @@ def fetch() -> list[ContestDraft]:
                 d.image_url = image_url
             if target:             # 응모대상 — 소속원 한정 게이트 근거
                 d.target = target
+            if ai_prohibited:
+                d.ai_prohibited = True
             enriched += 1
             time.sleep(DETAIL_SLEEP)
         except Exception as e:

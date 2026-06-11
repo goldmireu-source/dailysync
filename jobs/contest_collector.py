@@ -128,6 +128,9 @@ def _deadline_ok(deadline) -> bool:
 
 def _passes_gates(draft) -> tuple[bool, str]:
     """게이트 통과 여부 + 탈락 사유."""
+    # 0. AI 사용 금지 명시 — 'AI 활용' 공모전 큐레이션 취지에 반함
+    if draft.ai_prohibited:
+        return False, "ai_prohibited"
     # 1. AI 관련 (AI 전용 카테고리/플랫폼은 면제)
     if not draft.ai_exempt:
         hay = " ".join(filter(None, [draft.title, " ".join(draft.field_tags or []), draft.host or ""]))
@@ -320,7 +323,7 @@ def collect_all_contests() -> dict:
     stats: dict = {
         "sources": {},
         "total_fetched": 0, "total_new": 0, "total_updated": 0,
-        "rejected": {"not_ai": 0, "company_only": 0, "members_only": 0, "not_public": 0, "expired": 0},
+        "rejected": {"ai_prohibited": 0, "not_ai": 0, "company_only": 0, "members_only": 0, "not_public": 0, "expired": 0},
     }
 
     # 1. 소스별 수집 (best-effort)
