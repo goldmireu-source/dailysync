@@ -99,12 +99,16 @@ def _is_members_only(target: str | None) -> bool:
 
 # ---------- 게이트 2c: 일반인 개방 여부 ----------
 # 정책: '일반인에게 열린' 공모전만 남긴다. 참가대상이 학생·청소년처럼 특정 대상층에만
-# 한정되고 일반인은 참여 불가하면 제외. (예: 성균관대 대회 '대학(원)생' 한정)
-# 아래 토큰이 참가대상에 하나라도 있으면 일반인 개방으로 본다.
+# 한정되고 일반인은 참여 불가하면 제외. (예: 대학(원)생 한정, 특정 사 임직원 한정)
 _PUBLIC_OPEN_TOKENS = (
-    "누구나", "누구든", "제한없음", "제한 없음", "일반인", "일반 성인",
+    "누구나", "누구든", "일반인", "일반 성인",
     "전국민", "전 국민", "국민", "시민", "내국인", "성인",
 )
+# '제한없음' / '제한 없음' 은 "전공 및 학년 제한 없음" 처럼 세부조건(전공·학년·나이 등)
+# 해제에도 쓰여 단순 서브스트링 매칭 시 오탐이 생긴다.
+# → 앞 20자 이내에 세부 한정어가 없을 때만 '참가 개방' 신호로 인정한다.
+_RESTRICT_NONE_RE = re.compile(r"제한\s?없음")
+_SCOPE_QUALIFIERS = ("전공", "학년", "나이", "성별", "지역", "연령", "국적", "소속", "나이대")
 
 
 def _is_open_to_public(target: str | None) -> bool:
@@ -115,7 +119,14 @@ def _is_open_to_public(target: str | None) -> bool:
     """
     if not target:
         return True
-    return any(tok in target for tok in _PUBLIC_OPEN_TOKENS)
+    if any(tok in target for tok in _PUBLIC_OPEN_TOKENS):
+        return True
+    # "제한없음/제한 없음" — 세부조건 해제가 아닌 참가 개방 맥락인지 확인
+    for m in _RESTRICT_NONE_RE.finditer(target):
+        window = target[max(0, m.start() - 20): m.start()]
+        if not any(w in window for w in _SCOPE_QUALIFIERS):
+            return True
+    return False
 
 
 # ---------- 게이트 3: 마감 안 지남 ----------
