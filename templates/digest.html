@@ -17,6 +17,7 @@
     <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>⭐ <span class="hd-num" id="saved-count">{{ saved_total }}</span></a>
     <a href="?tab={{ tab }}&hidden=1" class="hd-chip" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display:none;"{% endif %}>👁 <span class="hd-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span></a>
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
+    <a href="{{ url_for('web.admin') }}" class="hd-chip" title="관리자 페이지">⚙</a>
     {% endif %}
     {% if current_user.is_authenticated %}
     <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 20) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
