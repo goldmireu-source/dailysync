@@ -2,8 +2,11 @@
 import os
 import re
 import secrets
+import threading
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone, date
 from functools import wraps
+from time import time as _time
 
 from flask import Blueprint, render_template, abort, request, redirect, url_for, jsonify, g, current_app
 from flask_login import current_user, login_user, logout_user, login_required
@@ -16,6 +19,36 @@ from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_t
 bp = Blueprint("web", __name__)
 
 KST = timezone(timedelta(hours=9))
+
+# ===== 인-메모리 레이트 리미터 (단일 프로세스 전용) =====
+_rl_lock = threading.Lock()
+_rl_store: dict = defaultdict(list)
+
+def _rate_ok(key: str, limit: int, window_sec: int) -> bool:
+    """True=허용, False=차단. window_sec 내 limit 회 초과 시 차단."""
+    now = _time()
+    with _rl_lock:
+        _rl_store[key] = [t for t in _rl_store[key] if now - t < window_sec]
+        if len(_rl_store[key]) >= limit:
+            return False
+        _rl_store[key].append(now)
+        return True
+
+def _client_ip() -> str:
+    """요청 클라이언트 IP (리버스 프록시 고려)."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+def _sec_warn(event: str, detail: str = "") -> None:
+    """보안 이벤트 로깅."""
+    ip = _client_ip()
+    uid = current_user.get_id() if current_user.is_authenticated else "-"
+    current_app.logger.warning(f"[SECURITY:{event}] ip={ip} uid={uid} {detail}")
+
+# 아이디 허용 문자: 한글·영문·숫자·밑줄
+_USERNAME_RE = re.compile(r'^[a-zA-Z0-9가-힣_]+$')
 
 
 def is_admin() -> bool:
@@ -69,17 +102,25 @@ def admin_login():
     error = None
     next_url = request.args.get("next") or ""
     if request.method == "POST":
-        username = (request.form.get("username") or "").strip()[:14]
-        password = (request.form.get("password") or "")[:10]
-        next_url = request.form.get("next") or ""
-        if next_url and (not next_url.startswith("/") or next_url.startswith("//")):
-            next_url = ""
-        user = AdminUser.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            login_user(user, remember=True)
-            dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
-            return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
-        error = "아이디 또는 비밀번호가 올바르지 않습니다."
+        ip = _client_ip()
+        if not _rate_ok(f"login:{ip}", 8, 300):
+            _sec_warn("LOGIN_RATE", "로그인 시도 초과")
+            error = "잠시 후 다시 시도해주세요. (5분간 8회 제한)"
+            if ajax:
+                return jsonify({"error": error}), 429
+        else:
+            username = (request.form.get("username") or "").strip()[:14]
+            password = (request.form.get("password") or "")[:10]
+            next_url = request.form.get("next") or ""
+            if next_url and (not next_url.startswith("/") or next_url.startswith("//")):
+                next_url = ""
+            user = AdminUser.query.filter_by(username=username).first()
+            if user and user.check_password(password):
+                login_user(user, remember=True)
+                dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
+                return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
+            error = "아이디 또는 비밀번호가 올바르지 않습니다."
+            _sec_warn("LOGIN_FAIL", f"username={username!r}")
         if ajax:
             return jsonify({"error": error}), 400
 
@@ -92,6 +133,14 @@ def admin_register():
     ajax = request.headers.get("X-Requested-With") == "fetch"
     error = None
     if request.method == "POST":
+        ip = _client_ip()
+        if not _rate_ok(f"register:{ip}", 3, 3600):
+            _sec_warn("REGISTER_RATE", "회원가입 시도 초과")
+            error = "잠시 후 다시 시도해주세요. (1시간에 3회 제한)"
+            if ajax:
+                return jsonify({"error": error}), 429
+            return render_template("admin_register.html", error=error)
+
         username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "")
         password_confirm = (request.form.get("password_confirm") or "")
@@ -107,6 +156,9 @@ def admin_register():
             error = "모든 항목을 입력해주세요."
         elif class_num is None or class_num not in range(1, 8):
             error = "반을 선택해주세요."
+        elif not _USERNAME_RE.match(username):
+            error = "아이디는 한글·영문·숫자·밑줄(_)만 사용할 수 있습니다."
+            _sec_warn("REGISTER_BADNAME", f"username={username!r}")
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
         elif len(username) > 14:
@@ -1455,6 +1507,10 @@ def party_detail(party_id: int):
 @login_required
 def api_create_party():
     """파티 생성."""
+    if not _rate_ok(f"party_create:{current_user.id}", 5, 86400):
+        _sec_warn("PARTY_CREATE_RATE")
+        return jsonify({"error": "파티 생성은 하루 5개까지 가능합니다."}), 429
+
     data = request.get_json(silent=True) or {}
     title = (data.get("title") or "").strip()
     description = (data.get("description") or "").strip()
@@ -1688,6 +1744,10 @@ def api_party_post_message(party_id: int):
         return jsonify({"error": "not_found"}), 404
     if not _is_member(party):
         return jsonify({"error": "참가자만 메시지를 보낼 수 있습니다."}), 403
+
+    if not _rate_ok(f"msg:{current_user.id}", 30, 60):
+        _sec_warn("MSG_RATE", f"party={party_id}")
+        return jsonify({"error": "메시지를 너무 빨리 보내고 있습니다. 잠시 후 다시 시도해주세요."}), 429
 
     data = request.get_json(silent=True) or {}
     content = (data.get("content") or "").strip()

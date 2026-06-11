@@ -19,7 +19,7 @@
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
     {% endif %}
     {% if current_user.is_authenticated %}
-    <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 26) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
+    <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 20) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃">로그아웃</a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
@@ -178,7 +178,7 @@
 <div id="search-results-area" style="display: none;"></div>
 
 {# ===== 전체 기사 목록 (접이식, 뉴스 탭에서만) ===== #}
-{% if tab == 'news' and articles_flat %}
+{% if tab == 'news' and articles_flat and is_admin %}
 <details class="article-list-details">
   <summary class="article-list-toggle">전체 기사 목록 {{ total_articles_flat }}건</summary>
   <div class="article-list">
@@ -815,8 +815,8 @@
 {# 모바일 — 사이드바 열림 시 어둡게 깔리는 오버레이 #}
 <div class="gloss-overlay" id="gloss-overlay" onclick="closeGloss()"></div>
 
-{# 모바일 floating 버튼 (사이드바 닫혀 있을 때만 표시) #}
-<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전">📖</button>
+{# 모바일 floating 버튼 (사이드바 닫혀 있을 때, 공모전 탭 제외) #}
+{% if tab != 'contests' %}<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전">📖</button>{% endif %}
 
 {# 호버 툴팁 #}
 <div class="gloss-tooltip" id="gloss-tooltip"></div>

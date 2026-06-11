@@ -3145,7 +3145,7 @@ body.modal-open {
 }
 .nav-pill {
   flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  padding: 13px 16px; border-radius: 11px;
+  padding: 13px 16px; border-radius: 11px; white-space: nowrap;
   font-size: 15.5px; font-weight: 700; color: var(--text-muted); text-decoration: none;
   transition: background .18s, color .18s, box-shadow .18s;
 }
@@ -3471,7 +3471,7 @@ footer a { color: var(--text-dim); }
 }
 .cs-fire { filter: drop-shadow(0 0 6px rgba(255,120,80,0.6)); }
 
-.contest-swiper { padding: 26px 0 8px; }
+.contest-swiper { padding: 26px 0 8px; overflow: visible !important; }
 .contest-swiper .swiper-slide.cs-slide {
   width: 300px;
   transition: opacity .4s;
@@ -3541,6 +3541,8 @@ footer a { color: var(--text-dim); }
   .site-tagline { display: none; }
   .hd-chip { padding: 5px 9px; font-size: 11.5px; gap: 3px; }
   .hd-num { font-size: 11.5px; }
+  .refresh-label { display: none; }
+  #hd-profile-name { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* 메인 네비: 패딩·마진·폰트 축소 */
   .main-nav { padding: 4px; margin: 0 0 10px; border-radius: 12px; }
@@ -3552,9 +3554,10 @@ footer a { color: var(--text-dim); }
   .subtabs { padding: 3px; gap: 2px; flex: 1 0 auto; }
   .subtab { padding: 6px 10px; font-size: 12px; gap: 4px; border-radius: 6px; }
   .st-num { font-size: 10px; }
-  .date-mini { margin-left: auto; }
-  .date-mini a, .date-mini span.disabled { width: 26px; height: 26px; font-size: 15px; border-radius: 6px; }
-  .date-mini input[type=date] { padding: 3px 4px; font-size: 10px; max-width: 76px; }
+  .date-mini { margin-left: auto; flex-wrap: nowrap; }
+  .date-mini a, .date-mini span.disabled { width: 26px; height: 26px; font-size: 15px; border-radius: 6px; flex-shrink: 0; }
+  .date-mini input[type=date] { padding: 3px 5px; font-size: 11px; min-width: 88px; max-width: 105px; }
+  .date-range-sep { flex-shrink: 0; }
 
   /* 인라인 검색: 입력창 컴팩트 */
   .inline-search { margin: 0 0 8px; }
