@@ -120,6 +120,57 @@
     </div>
   </div>
 
+  <!-- ===== 회원정보 수정 모달 (로그인 사용자만) ===== -->
+  {% if current_user.is_authenticated %}
+  <div id="profile-overlay" aria-modal="true" role="dialog"
+       style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,0.65);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:1rem;">
+    <div id="profile-card"
+         style="background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:2rem;width:min(420px,100%);position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto;animation:authIn .18s ease-out;">
+      <button id="profile-close-btn" title="닫기"
+              style="position:absolute;top:1rem;right:1rem;width:30px;height:30px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s,border-color .15s;font-family:inherit;line-height:1;">✕</button>
+      <div class="brand" style="margin-bottom:.25rem;font-size:.95rem;">DAILY <span class="accent">SYNC</span></div>
+      <h2 style="font-size:1.2rem;margin:.2rem 0 1.5rem;color:var(--text);font-weight:700;">회원정보 수정</h2>
+      <!-- 계정 정보 표시 (읽기 전용) -->
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;margin-bottom:1.5rem;">
+        {% from "_badge.html" import class_badge %}
+        {{ class_badge(current_user.class_num, 36) }}
+        <div>
+          <div id="profile-card-name" style="font-size:13px;font-weight:700;color:var(--text);">{{ current_user.display_name }}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">@{{ current_user.username }}</div>
+        </div>
+      </div>
+      <div id="profile-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px;"></div>
+      <div id="profile-success" style="display:none;background:#122a12;color:#5cb85c;border:1px solid #205a20;border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:13px;"></div>
+      <form id="profile-form" style="display:flex;flex-direction:column;gap:1.1rem;">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">이름 변경</label>
+          <input class="auth-inp" type="text" name="display_name" id="profile-name-inp" maxlength="14"
+                 placeholder="변경할 이름 입력 (빈칸 = 유지)"
+                 style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;">
+          <div style="font-size:11px;color:var(--text-faint);margin-top:4px;">한글 포함 시 최대 4자 · 영문 최대 14자</div>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">새 비밀번호</label>
+          <input class="auth-inp" type="password" name="password" id="profile-pw-inp" maxlength="10"
+                 placeholder="변경할 비밀번호 (빈칸 = 유지)"
+                 style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">비밀번호 확인</label>
+          <input class="auth-inp" type="password" name="password_confirm" id="profile-pw2-inp" maxlength="10"
+                 placeholder="비밀번호 확인"
+                 style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;">
+        </div>
+        <button type="submit" id="profile-save-btn"
+                style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;letter-spacing:.02em;transition:opacity .15s;">저장하기</button>
+      </form>
+      <div style="text-align:center;margin-top:1.5rem;font-size:13px;">
+        <a href="{{ url_for('web.admin_logout') }}" style="color:#c07070;text-decoration:none;font-weight:600;">로그아웃 →</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <style>
     @keyframes authIn {
       from { opacity:0; transform:translateY(-12px) scale(.97); }
@@ -326,6 +377,98 @@
         if (history.length > 1) { e.preventDefault(); history.back(); }
       });
     });
+
+    // ===== 회원정보 수정 모달 =====
+    {% if current_user.is_authenticated %}
+    (function() {
+      const overlay  = document.getElementById('profile-overlay');
+      if (!overlay) return;
+      const form     = document.getElementById('profile-form');
+      const errEl    = document.getElementById('profile-error');
+      const okEl     = document.getElementById('profile-success');
+      const nameInp  = document.getElementById('profile-name-inp');
+      const KO_RE    = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
+
+      window.openProfileModal = function() {
+        errEl.style.display = 'none'; errEl.textContent = '';
+        okEl.style.display  = 'none'; okEl.textContent  = '';
+        // 현재 이름을 헤더에서 읽어옴 (JS 업데이트 이후에도 최신값 반영)
+        const hd = document.getElementById('hd-profile-name');
+        nameInp.value = hd ? hd.textContent : '';
+        document.getElementById('profile-pw-inp').value  = '';
+        document.getElementById('profile-pw2-inp').value = '';
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(function() { nameInp.focus(); nameInp.select(); }, 50);
+      };
+
+      function closeProfileModal() {
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      document.getElementById('profile-close-btn').addEventListener('click', closeProfileModal);
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeProfileModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && overlay.style.display === 'flex') closeProfileModal();
+      });
+
+      // 이름 글자 수 제한
+      nameInp.addEventListener('input', function() {
+        const hasKo = KO_RE.test(this.value), lim = hasKo ? 4 : 14;
+        if (this.value.length > lim) this.value = this.value.slice(0, lim);
+      });
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('profile-save-btn');
+        btn.disabled = true;
+        errEl.style.display = 'none';
+        okEl.style.display  = 'none';
+        const payload = {
+          display_name: nameInp.value.trim(),
+          password: document.getElementById('profile-pw-inp').value,
+          password_confirm: document.getElementById('profile-pw2-inp').value,
+        };
+        try {
+          const r = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+            body: JSON.stringify(payload),
+          });
+          let data;
+          try { data = await r.json(); } catch (_) {
+            errEl.textContent = '서버 오류 (' + r.status + ')';
+            errEl.style.display = '';
+            btn.disabled = false;
+            return;
+          }
+          if (data.ok) {
+            okEl.textContent = '저장되었습니다.';
+            okEl.style.display = '';
+            if (data.display_name) {
+              const hd = document.getElementById('hd-profile-name');
+              const cn = document.getElementById('profile-card-name');
+              if (hd) hd.textContent = data.display_name;
+              if (cn) cn.textContent = data.display_name;
+            }
+            btn.disabled = false;
+            setTimeout(closeProfileModal, 1500);
+          } else {
+            errEl.textContent = data.error || '오류가 발생했습니다.';
+            errEl.style.display = '';
+            btn.disabled = false;
+          }
+        } catch (err) {
+          errEl.textContent = '연결 오류: ' + (err.message || '알 수 없는 오류');
+          errEl.style.display = '';
+          btn.disabled = false;
+        }
+      });
+    })();
+    {% endif %}
   </script>
 </body>
 </html>

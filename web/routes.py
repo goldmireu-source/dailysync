@@ -1,5 +1,6 @@
 """Web dashboard routes — 다이제스트 + 클러스터 상세 + 숨김 기능 + admin."""
 import os
+import re
 import secrets
 from datetime import datetime, timedelta, timezone, date
 from functools import wraps
@@ -1552,6 +1553,38 @@ def api_party_messages(party_id: int):
         }
         for m in msgs
     ])
+
+
+@bp.route("/api/profile/update", methods=["POST"])
+@login_required
+def api_profile_update():
+    """이름 / 비밀번호 변경 (아이디 변경 불가)."""
+    data = request.get_json(silent=True) or {}
+    display_name    = (data.get("display_name") or "").strip()
+    password        = data.get("password") or ""
+    password_confirm = data.get("password_confirm") or ""
+
+    KO_RE = re.compile(r"[가-힣ㄱ-ㅎㅏ-ㅣ]")
+
+    if not display_name and not password:
+        return jsonify({"error": "변경할 항목을 입력해주세요."}), 400
+
+    if display_name:
+        has_ko = bool(KO_RE.search(display_name))
+        max_len = 4 if has_ko else 14
+        if len(display_name) > max_len:
+            return jsonify({"error": f"이름은 {'한글 포함 시 최대 4자' if has_ko else '영문 최대 14자'}입니다."}), 400
+        current_user.display_name = display_name
+
+    if password:
+        if len(password) > 10:
+            return jsonify({"error": "비밀번호는 최대 10자입니다."}), 400
+        if password != password_confirm:
+            return jsonify({"error": "비밀번호가 일치하지 않습니다."}), 400
+        current_user.set_password(password)
+
+    db.session.commit()
+    return jsonify({"ok": True, "display_name": current_user.display_name})
 
 
 @bp.route("/api/parties/<int:party_id>/messages", methods=["POST"])

@@ -19,8 +19,8 @@
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
     {% endif %}
     {% if current_user.is_authenticated %}
-    {{ class_badge(current_user.class_num, 34) }}
-    <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--user" title="로그아웃">{{ current_user.display_name }} ↩</a>
+    <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정">{{ class_badge(current_user.class_num, 26) }}<span id="hd-profile-name">{{ current_user.display_name }}</span></button>
+    <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃">로그아웃</a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
     <a href="{{ url_for('web.admin_register') }}" class="hd-chip">회원가입</a>

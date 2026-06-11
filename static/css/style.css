@@ -3131,6 +3131,10 @@ body.modal-open {
 .hd-chip--login { border-color: var(--accent-dim); color: var(--accent); }
 .hd-chip--login:hover { background: var(--accent-bg); }
 .hd-chip--user { font-size: 12px; }
+.hd-chip--profile { padding-left: 5px; cursor: pointer; font-family: inherit; }
+.hd-chip--profile svg { flex-shrink: 0; border-radius: 50%; }
+.hd-chip--logout { color: #c07070; }
+.hd-chip--logout:hover { color: var(--danger, #e05252); border-color: #c07070; }
 
 /* 메인 네비 — 세그먼트 필 */
 .main-nav {
