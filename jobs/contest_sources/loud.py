@@ -1,18 +1,18 @@
 """라우드(loud.kr) — AI 공모전 전용 탭(/ai/contest/list).
 
-라우드소싱 AI 공모전 플랫폼. 목록이 Stunning SPA 라 헤드리스 렌더(_render)로 긁는다.
-실제 포스터는 로그인이 있어야 보이지만(카드엔 40x40 프로필만), 로그인 대신
-공모전 제목으로 이미지 검색(jobs/contest_sources/_imagesearch)해서 채운다 →
-여기선 image_url=None 으로 두고 contest_collector 의 fill_missing_images 가 채움.
+라우드소싱 AI 공모전 플랫폼. 목록이 SPA 라 헤드리스 렌더(_render)로 긁는다.
+카드 렌더 HTML 에서 이미지를 우선 추출하고, 없으면 상세페이지 og:image 를 HTTP GET 으로
+시도한다(Next.js SSR 메타태그는 로그인 없이 접근 가능).
 AI 공모전 전용 탭이므로 ai_exempt=True. 개인/크리에이터 참여 → target 없음(통과).
 """
 import logging
 import re
+import time
 from datetime import date, timedelta
 
 from bs4 import BeautifulSoup
 
-from jobs.contest_sources.base import ContestDraft, register, clean, today_kst
+from jobs.contest_sources.base import ContestDraft, register, clean, today_kst, http_get
 from jobs.contest_sources._render import render_html
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,22 @@ _DDAY_RE = re.compile(r"(\d+)\s*일\s*남음")
 _PERIOD_RE = re.compile(r"(\d{2})\.(\d{1,2})\.(\d{1,2})")
 # 상태 배지: '5일 남음'(접수중) | '심사중' | '종료' | '발표' | '접수예정' ...
 _OPEN_RE = re.compile(r"\d+\s*일\s*남음")
+DETAIL_SLEEP = 0.5
+
+
+def _fetch_og_image(cid: str) -> str | None:
+    """상세페이지 og:image 추출 (SSR 메타태그 — 로그인 불필요)."""
+    try:
+        resp = http_get(f"{BASE}/contest/view/{cid}", encoding="utf-8")
+        soup = BeautifulSoup(resp.text, "lxml")
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            src = og["content"].strip()
+            if src and src.startswith("http"):
+                return src
+    except Exception:
+        pass
+    return None
 
 
 def _is_open(a) -> bool:
@@ -94,12 +110,24 @@ def fetch() -> list[ContestDraft]:
             if dm:
                 deadline = base_day + timedelta(days=int(dm.group(1)))
 
+        # 이미지: 렌더된 카드 HTML 에서 우선 추출, 없으면 상세페이지 og:image 시도
+        image_url = None
+        card_img = a.find("img", src=True)
+        if card_img:
+            src = card_img.get("src", "")
+            if src and not src.startswith("data:") and "placeholder" not in src.lower():
+                image_url = src if src.startswith("http") else f"{BASE}{src}"
+        if not image_url:
+            image_url = _fetch_og_image(cid)
+            if image_url:
+                time.sleep(DETAIL_SLEEP)
+
         out.append(ContestDraft(
             source="loud",
             external_id=f"loud:{cid}",
             url=f"{BASE}/contest/view/{cid}",
             title=title[:500],
-            image_url=None,  # 검색으로 채움 (fill_missing_images)
+            image_url=image_url,
             category="공모전",
             field_tags=["AI"],
             deadline=deadline,
