@@ -27,14 +27,17 @@ from jobs.contest_sources.base import (
 logger = logging.getLogger(__name__)
 
 BASE = "https://www.wevity.com"
-# AI 공모전이 몰리는 분야 카테고리 (cidx). 위비티엔 'AI 전용' 단일 분야가 없어
-# AI 공고가 아래 셋에 흩어진다. 전 분야를 긁으면 무관 공고가 쏟아지고(상세
-# 교차검증 요청 낭비) 어차피 AI 게이트에서 탈락하므로, AI 밀집 분야로 한정한다.
+# AI 공모전이 몰리는 분야 카테고리 (cidx).
 #   20 = 웹/모바일/IT, 21 = 게임/소프트웨어, 22 = 과학/공학
 # (구버전 [20,25]는 25=네이밍/슬로건이라 낭비였고, 정작 21·22를 빠뜨렸음 — 2026-06 교정)
 AI_CATEGORIES = [20, 21, 22]
 PAGES_PER_CAT = 2  # 카테고리당 최근 N페이지 (2회/일 실행이라 최신분만으로 충분)
 DETAIL_SLEEP = 0.7  # 상세페이지 교차검증 간 rate-limit
+
+# 카테고리 기반 수집을 보완하는 키워드 검색 — 아이디어·창업·교육 등 IT 외 분야에
+# 분류된 AI 공모전(예: AI 퀴즈, 인공지능 아이디어 등)을 전 카테고리에서 포착한다.
+AI_SEARCH_TERMS = ["AI", "인공지능", "빅데이터"]
+KEYWORD_SEARCH_PAGES = 2  # 키워드당 최대 2페이지 (결과 없으면 조기 종료)
 
 
 def _parse_list_page(html: str, cidx: int) -> list[ContestDraft]:
@@ -179,7 +182,27 @@ def fetch() -> list[ContestDraft]:
     if empty_pages and not by_url:
         logger.error("wevity: 전 페이지 파싱 0건 — 파서 점검 필요(div.tit 셀렉터 확인)")
 
-    # 2단계: AI 관련 공고만 상세페이지 교차검증 (정확한 접수기간 + 포스터).
+    # 2단계: 키워드 검색으로 카테고리 미분류 AI 공모전 보완
+    # 아이디어·창업·교육 등 IT 외 분야에 분류된 AI 공모전을 전 카테고리에서 포착.
+    for term in AI_SEARCH_TERMS:
+        for gp in range(1, KEYWORD_SEARCH_PAGES + 1):
+            try:
+                resp = http_get(
+                    BASE,
+                    params={"c": "find", "s": 1, "sp": "name", "sw": term, "gbn": "viewok", "gp": gp},
+                    encoding="utf-8",
+                )
+                kw_drafts = _parse_list_page(resp.text, cidx=0)
+                if not kw_drafts:
+                    break  # 빈 페이지면 조기 종료
+                new_count = sum(1 for d in kw_drafts if by_url.setdefault(d.url, d) is d)
+                time.sleep(1.0)
+                if new_count == 0:
+                    break  # 전부 기존 항목과 중복이면 추가 페이지 불필요
+            except Exception as e:
+                logger.warning(f"wevity keyword={term!r} gp={gp} failed: {e}")
+
+    # 3단계: AI 관련 공고만 상세페이지 교차검증 (정확한 접수기간 + 포스터).
     # 비관련 공고는 어차피 중앙 게이트에서 탈락하므로 상세 요청을 아낀다.
     from jobs.contest_collector import _is_ai_relevant  # 순환 임포트 회피 — 함수 내 지연 임포트
 
@@ -206,5 +229,5 @@ def fetch() -> list[ContestDraft]:
         except Exception as e:
             logger.warning(f"wevity 상세 교차검증 실패 ix={ix}: {e}")
 
-    logger.info(f"wevity: 목록 {len(by_url)}건 / 상세 교차검증 {enriched}건")
+    logger.info(f"wevity: 카테고리+키워드 목록 {len(by_url)}건 / 상세 교차검증 {enriched}건")
     return list(by_url.values())
