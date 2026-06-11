@@ -58,6 +58,8 @@ jobs:
             'bcrypt>=3.2.0,<4.0.0' \
             'fastembed>=0.3.0' \
             -q
+          # DB 마이그레이션 (컬럼/테이블 추가, 멱등성 보장)
+          venv/bin/python3 migrate_party.py
           sudo systemctl restart daily-sync
           sleep 3
           sudo systemctl is-active daily-sync
