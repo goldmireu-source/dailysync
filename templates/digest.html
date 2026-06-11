@@ -616,7 +616,7 @@
         <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">채팅방 →</a>
       </div>
       {% elif p.is_open and member_count < p.max_members %}
-      <button class="pc-action pc-action--enter" data-pid="{{ p.id }}" onclick="joinPartyInline(this)">참가하기</button>
+      <a class="pc-action pc-action--enter" href="{{ url_for('web.party_detail', party_id=p.id) }}">입장하기 →</a>
       {% else %}
       <a class="pc-action pc-action--view" href="{{ url_for('web.party_detail', party_id=p.id) }}">보기</a>
       {% endif %}
@@ -633,16 +633,6 @@
 {% endif %}
 
 <script>
-// 파티 참가
-async function joinPartyInline(btn) {
-  const pid = btn.dataset.pid;
-  btn.disabled = true;
-  const r = await fetch('/api/parties/' + pid + '/join', { method:'POST' });
-  const d = await r.json();
-  if (d.ok) { window.location.href = '/parties/' + pid; }
-  else { alert(d.error || '참가 실패'); btn.disabled = false; }
-}
-
 // 파티 생성 모달
 (function() {
   const overlay = document.getElementById('pt-create-overlay');

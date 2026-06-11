@@ -71,13 +71,14 @@
 .msg-body { max-width: 70%; display: flex; flex-direction: column; gap: 3px; }
 .msg-row--mine .msg-body { align-items: flex-end; }
 
-.msg-meta { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; }
+.msg-meta { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
 .msg-bubble {
-  padding: 9px 14px; border-radius: 16px; font-size: 13px; line-height: 1.55;
+  padding: 10px 15px; border-radius: 16px; font-size: 14px; line-height: 1.65;
   background: var(--bg-soft); color: var(--text); word-break: break-word;
+  border: 1px solid var(--border);
 }
 .msg-row--mine .msg-bubble {
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: #fff; border-color: transparent;
   border-bottom-right-radius: 4px;
 }
 .msg-row:not(.msg-row--mine) .msg-bubble {
@@ -154,7 +155,7 @@
         </button>
         <button class="pda-btn pda-btn--danger" id="pda-delete-btn">파티 삭제</button>
         {% else %}
-        <button class="pda-btn pda-btn--danger" id="pda-leave-btn">파티 탈퇴</button>
+        <button class="pda-btn pda-btn--danger pda-leave-trigger">파티 탈퇴</button>
         {% endif %}
       {% endif %}
     </div>
@@ -185,12 +186,22 @@
               rows="1" maxlength="1000"></textarea>
     <button class="pd-send-btn" id="chat-send-btn" title="전송">↑</button>
   </div>
+  {% if party.leader_id != current_user.id %}
+  <div style="text-align:right;padding:.4rem 1rem .6rem;border-top:1px solid var(--border);">
+    <button class="pda-leave-trigger" style="background:none;border:none;font-size:12px;color:var(--text-faint);cursor:pointer;font-family:inherit;padding:0;">파티 탈퇴하기 →</button>
+  </div>
+  {% endif %}
   {% else %}
   <div class="pd-lock">
-    <div class="pd-lock-icon">🔒</div>
-    <div style="font-weight:700;">파티원만 채팅에 참여할 수 있어요</div>
     {% if party.is_open and party.members | length < party.max_members %}
-    <div style="font-size:13px;">위 "파티 참가하기" 버튼으로 참가해보세요!</div>
+    <div class="pd-lock-icon">🎯</div>
+    <div style="font-weight:800;font-size:16px;color:var(--text);">파티에 참가하고 채팅에 입장하세요</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:.5rem;">현재 {{ party.members | length }}/{{ party.max_members }}명 모집 중</div>
+    <button class="pda-btn pda-btn--join" id="pda-join-btn" style="padding:12px 36px;font-size:14px;border-radius:10px;">파티 참가하기</button>
+    {% else %}
+    <div class="pd-lock-icon">🔒</div>
+    <div style="font-weight:700;font-size:15px;">채팅에 참여할 수 없어요</div>
+    <div style="font-size:13px;color:var(--text-dim);">{% if not party.is_open %}모집이 마감됐습니다{% else %}정원이 꽉 찼습니다{% endif %}</div>
     {% endif %}
   </div>
   {% endif %}
@@ -349,12 +360,14 @@ document.getElementById('pda-join-btn').addEventListener('click', async function
 
 {% if is_member and party.leader_id != current_user.id %}
 <script>
-document.getElementById('pda-leave-btn').addEventListener('click', async function() {
-  if (!confirm('파티에서 탈퇴하시겠어요?')) return;
-  const r = await fetch('/api/parties/{{ party.id }}/leave', { method: 'POST' });
-  const d = await r.json();
-  if (d.ok) { window.location.href = '/parties'; }
-  else { alert(d.error || '탈퇴 실패'); }
+document.querySelectorAll('.pda-leave-trigger').forEach(function(btn) {
+  btn.addEventListener('click', async function() {
+    if (!confirm('파티에서 탈퇴하시겠어요?')) return;
+    const r = await fetch('/api/parties/{{ party.id }}/leave', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) { window.location.href = '/parties'; }
+    else { alert(d.error || '탈퇴 실패'); }
+  });
 });
 </script>
 {% endif %}
