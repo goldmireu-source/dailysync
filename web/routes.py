@@ -13,7 +13,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -46,6 +46,27 @@ def _sec_warn(event: str, detail: str = "") -> None:
     ip = _client_ip()
     uid = current_user.get_id() if current_user.is_authenticated else "-"
     current_app.logger.warning(f"[SECURITY:{event}] ip={ip} uid={uid} {detail}")
+
+def _log_activity(action: str, user_id=None, username: str = "", detail: str = "") -> None:
+    """회원 활동 이력 DB 기록 (실패해도 메인 흐름 무중단)."""
+    try:
+        uid = user_id
+        uname = username
+        if uid is None and current_user.is_authenticated:
+            uid = current_user.id
+        if not uname and current_user.is_authenticated:
+            uname = current_user.username
+        record = UserActivity(
+            user_id=uid,
+            username=uname or None,
+            action=action,
+            ip=_client_ip(),
+            detail=detail or None,
+        )
+        db.session.add(record)
+        db.session.commit()
+    except Exception as exc:
+        current_app.logger.error(f"[ACTIVITY_LOG_ERROR] {exc}")
 
 # 아이디 허용 문자: 한글·영문·숫자·밑줄
 _USERNAME_RE = re.compile(r'^[a-zA-Z0-9가-힣_]+$')
@@ -117,9 +138,11 @@ def admin_login():
             user = AdminUser.query.filter_by(username=username).first()
             if user and user.check_password(password):
                 login_user(user, remember=True)
+                _log_activity("login_ok", user_id=user.id, username=user.username)
                 dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
                 return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
             error = "아이디 또는 비밀번호가 올바르지 않습니다."
+            _log_activity("login_fail", username=username)
             _sec_warn("LOGIN_FAIL", f"username={username!r}")
         if ajax:
             return jsonify({"error": error}), 400
@@ -183,6 +206,7 @@ def admin_register():
                 db.session.add(new_user)
                 db.session.commit()
                 login_user(new_user, remember=True)
+                _log_activity("register", user_id=new_user.id, username=new_user.username)
                 dest = url_for("web.admin") if role == "admin" else url_for("web.index")
                 return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
 
@@ -194,6 +218,8 @@ def admin_register():
 
 @bp.route("/admin-logout")
 def admin_logout():
+    if current_user.is_authenticated:
+        _log_activity("logout")
     logout_user()
     return redirect(url_for("web.index"))
 
@@ -1246,6 +1272,14 @@ def admin():
     # 회원 목록 (가입 순)
     admin_users = AdminUser.query.order_by(AdminUser.created_at.asc()).all()
 
+    # 최근 활동 이력 (최신 200건)
+    recent_activity = (
+        UserActivity.query
+        .order_by(UserActivity.created_at.desc())
+        .limit(200)
+        .all()
+    )
+
     return render_template(
         "admin.html",
         recent_runs=recent_runs,
@@ -1255,6 +1289,7 @@ def admin():
         scheduler_active=sched is not None,
         kst_offset=timedelta(hours=9),
         admin_users=admin_users,
+        recent_activity=recent_activity,
     )
 
 
@@ -1543,6 +1578,7 @@ def api_create_party():
     # 파티장 자동 입장
     db.session.add(PartyMember(party_id=party.id, user_id=current_user.id))
     db.session.commit()
+    _log_activity("party_create", detail=f"party_id={party.id}")
     return jsonify({"ok": True, "party_id": party.id})
 
 
@@ -1675,6 +1711,7 @@ def api_profile_update():
         current_user.set_password(password)
 
     db.session.commit()
+    _log_activity("profile_update")
     return jsonify({"ok": True, "display_name": current_user.display_name, "class_num": current_user.class_num})
 
 

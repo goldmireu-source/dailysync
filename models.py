@@ -47,6 +47,25 @@ class AdminUser(UserMixin, db.Model):
         return f"<AdminUser {self.username} ({self.role})>"
 
 
+# ---------- UserActivity (회원 활동 이력) ----------
+class UserActivity(db.Model):
+    """회원 로그인·가입·프로필 수정 등 활동 이력.
+
+    user_id 는 이벤트 발생 시점 FK (탈퇴 시 NULL 유지).
+    username 은 이벤트 시점 스냅샷이므로 항상 기록.
+    created_at 은 UTC naive; 표시 시 +9h KST 변환.
+    """
+    __tablename__ = "user_activity"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    username   = db.Column(db.String(14), nullable=True)   # 이벤트 시점 스냅샷
+    action     = db.Column(db.String(40), nullable=False)  # login_ok / login_fail / register / logout / profile_update / ...
+    ip         = db.Column(db.String(45), nullable=True)   # IPv4 또는 IPv6
+    detail     = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
 # ---------- User ----------
 class User(db.Model):
     __tablename__ = "users"
