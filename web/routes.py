@@ -487,6 +487,7 @@ def index():
         parties_list=parties_list,
         my_party_ids=my_party_ids,
         total_parties=total_parties,
+        active_contests=contests_all,
     )
 
 

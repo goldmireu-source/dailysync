@@ -464,10 +464,12 @@
     <div style="display:flex;flex-direction:column;gap:1rem;">
       <div>
         <label class="ptc-label">공모전 연결 (선택)</label>
-        <input class="ptc-inp" type="text" id="ptc-contest-search" placeholder="공모전 이름 검색…" autocomplete="off">
-        <div id="ptc-contest-results" style="display:none;position:absolute;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;z-index:9999;width:min(400px,80vw);margin-top:2px;"></div>
-        <input type="hidden" id="ptc-contest-id" value="">
-        <div id="ptc-contest-selected" style="margin-top:5px;font-size:12px;color:var(--accent);"></div>
+        <select class="ptc-inp" id="ptc-contest-sel" style="cursor:pointer;appearance:none;">
+          <option value="">공모전 미지정</option>
+          {% for c in active_contests %}
+          <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div>
         <label class="ptc-label">파티 이름 <span style="color:var(--danger);">*</span></label>
@@ -500,12 +502,27 @@
   {% endif %}
 </div>
 
+<!-- 공모전 필터 -->
+<div style="margin-bottom:1.2rem;">
+  <select id="party-filter-sel" class="ptc-inp" style="max-width:100%;cursor:pointer;appearance:none;">
+    <option value="">🔍 전체 공모전 보기</option>
+    {% for c in active_contests %}
+    <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div id="party-filter-empty" style="display:none;" class="pt-empty">
+  <div class="pt-empty-icon">🔍</div>
+  <div style="font-weight:700;font-size:16px;margin-bottom:.5rem;">해당 공모전 파티가 없어요</div>
+  <div>다른 공모전을 선택하거나 직접 파티를 만들어보세요!</div>
+</div>
+
 {% if parties_list %}
-<div class="party-grid">
+<div class="party-grid" id="party-grid">
   {% for p in parties_list %}
   {% set is_mine = p.id in my_party_ids %}
   {% set member_count = p.members | length %}
-  <div class="party-card {% if is_mine %}party-card--mine{% endif %}">
+  <div class="party-card {% if is_mine %}party-card--mine{% endif %}" data-cid="{{ p.contest_id or '' }}">
 
     <div class="pc-top">
       <div class="pc-title">{{ p.title }}</div>
@@ -583,13 +600,12 @@ async function joinPartyInline(btn) {
   const closeBtn = document.getElementById('ptc-close-btn');
   const errorEl  = document.getElementById('ptc-error');
 
-  function openModal() {
+  function openModal(contestId) {
     errorEl.style.display = 'none';
     document.getElementById('ptc-title').value = '';
     document.getElementById('ptc-desc').value = '';
-    document.getElementById('ptc-contest-id').value = '';
-    document.getElementById('ptc-contest-search').value = '';
-    document.getElementById('ptc-contest-selected').textContent = '';
+    const sel = document.getElementById('ptc-contest-sel');
+    sel.value = contestId || '';
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(() => document.getElementById('ptc-title').focus(), 50);
@@ -601,29 +617,6 @@ async function joinPartyInline(btn) {
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.style.display === 'flex') closeModal(); });
 
-  // 공모전 자동완성
-  let timer;
-  const cs = document.getElementById('ptc-contest-search');
-  const cr = document.getElementById('ptc-contest-results');
-  cs.addEventListener('input', function() {
-    clearTimeout(timer);
-    const q = this.value.trim();
-    if (!q) { cr.style.display='none'; return; }
-    timer = setTimeout(async () => {
-      try {
-        const r = await fetch('/api/contest-autocomplete?q=' + encodeURIComponent(q) + '&limit=8');
-        const d = await r.json();
-        if (!d.length) { cr.style.display='none'; return; }
-        cr.innerHTML = d.map(c =>
-          `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
-               data-id="${c.id}" data-title="${c.title.replace(/"/g,'&quot;')}"
-               onmousedown="selectContestInline(this)">🏆 ${c.title}</div>`
-        ).join('');
-        cr.style.display = '';
-      } catch(e) {}
-    }, 300);
-  });
-  cs.addEventListener('blur', () => setTimeout(() => { cr.style.display='none'; }, 150));
 
   // 제출
   document.getElementById('ptc-submit-btn').addEventListener('click', async function() {
@@ -637,7 +630,7 @@ async function joinPartyInline(btn) {
         body:JSON.stringify({
           title,
           description: document.getElementById('ptc-desc').value.trim(),
-          contest_id: document.getElementById('ptc-contest-id').value || null,
+          contest_id: document.getElementById('ptc-contest-sel').value || null,
           max_members: +document.getElementById('ptc-max').value,
         }),
       });
@@ -648,12 +641,25 @@ async function joinPartyInline(btn) {
   });
 })();
 
-function selectContestInline(el) {
-  document.getElementById('ptc-contest-id').value = el.dataset.id;
-  document.getElementById('ptc-contest-search').value = el.dataset.title;
-  document.getElementById('ptc-contest-selected').textContent = '✓ ' + el.dataset.title;
-  document.getElementById('ptc-contest-results').style.display = 'none';
-}
+// 공모전 필터
+(function() {
+  const filterSel = document.getElementById('party-filter-sel');
+  if (!filterSel) return;
+  filterSel.addEventListener('change', function() {
+    const cid = this.value;
+    const cards = document.querySelectorAll('#party-grid .party-card');
+    let visible = 0;
+    cards.forEach(function(c) {
+      const show = !cid || c.dataset.cid === cid;
+      c.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const emptyEl = document.getElementById('party-filter-empty');
+    const grid = document.getElementById('party-grid');
+    if (emptyEl) emptyEl.style.display = visible ? 'none' : '';
+    if (grid) grid.style.display = visible ? '' : 'none';
+  });
+})();
 </script>
 {% endif %}
 
