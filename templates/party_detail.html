@@ -140,7 +140,7 @@
     <div class="pd-actions">
       {% if not is_member %}
         {% if party.is_open and party.members | length < party.max_members %}
-        <button class="pda-btn pda-btn--join" id="pda-join-btn">파티 참가하기</button>
+        <button class="pda-btn pda-btn--join pda-join-trigger">파티 참가하기</button>
         {% else %}
         <span style="font-size:12px;color:var(--text-faint);padding:8px 0;">
           {% if not party.is_open %}모집이 마감됐습니다{% else %}정원이 꽉 찼습니다{% endif %}
@@ -197,7 +197,7 @@
     <div class="pd-lock-icon">🎯</div>
     <div style="font-weight:800;font-size:16px;color:var(--text);">파티에 참가하고 채팅에 입장하세요</div>
     <div style="font-size:13px;color:var(--text-dim);margin-bottom:.5rem;">현재 {{ party.members | length }}/{{ party.max_members }}명 모집 중</div>
-    <button class="pda-btn pda-btn--join" id="pda-join-btn" style="padding:12px 36px;font-size:14px;border-radius:10px;">파티 참가하기</button>
+    <button class="pda-btn pda-btn--join pda-join-trigger" style="padding:12px 36px;font-size:14px;border-radius:10px;">파티 참가하기</button>
     {% else %}
     <div class="pd-lock-icon">🔒</div>
     <div style="font-weight:700;font-size:15px;">채팅에 참여할 수 없어요</div>
@@ -348,12 +348,14 @@
 
 {% if not is_member and (party.is_open and party.members | length < party.max_members) %}
 <script>
-document.getElementById('pda-join-btn').addEventListener('click', async function() {
-  this.disabled = true;
-  const r = await fetch('/api/parties/{{ party.id }}/join', { method: 'POST' });
-  const d = await r.json();
-  if (d.ok) { window.location.reload(); }
-  else { alert(d.error || '참가 실패'); this.disabled = false; }
+document.querySelectorAll('.pda-join-trigger').forEach(function(btn) {
+  btn.addEventListener('click', async function() {
+    document.querySelectorAll('.pda-join-trigger').forEach(b => b.disabled = true);
+    const r = await fetch('/api/parties/{{ party.id }}/join', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) { window.location.reload(); }
+    else { alert(d.error || '참가 실패'); document.querySelectorAll('.pda-join-trigger').forEach(b => b.disabled = false); }
+  });
 });
 </script>
 {% endif %}
