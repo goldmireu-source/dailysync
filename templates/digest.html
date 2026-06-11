@@ -18,6 +18,8 @@
     <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
     {% endif %}
     {% if current_user.is_authenticated %}
+    {% set cn = current_user.class_num %}
+    <span class="class-badge class-badge--{{ cn if cn else 'none' }}" title="{{ cn }}반" style="width:28px;height:28px;font-size:10px;">{{ cn ~ '반' if cn else '?' }}</span>
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--user" title="로그아웃">{{ current_user.display_name }} ↩</a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
@@ -44,6 +46,7 @@
 <nav class="main-nav">
   <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">🏆 공모전<span class="nav-num">{{ total_contests }}</span></a>
   <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">📰 뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span></a>
+  <a href="{{ url_for('web.parties') }}" class="nav-pill">🎯 파티 찾기</a>
 </nav>
 {% endif %}
 

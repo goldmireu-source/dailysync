@@ -90,6 +90,19 @@
             <div id="reg-pw-status" style="font-size:11px;color:var(--text-faint);margin-top:4px;">비밀번호를 다시 입력해주세요</div>
           </div>
           <div>
+            <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">반 선택</label>
+            <select name="class_num" id="reg-class" required
+                    style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;appearance:none;cursor:pointer;">
+              <option value="" disabled selected>반 선택</option>
+              <option value="1">1반</option>
+              <option value="2">2반</option>
+              <option value="3">3반</option>
+              <option value="4">4반</option>
+              <option value="5">5반</option>
+              <option value="6">6반</option>
+            </select>
+          </div>
+          <div>
             <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">이름</label>
             <input class="auth-inp" type="text" name="display_name" id="reg-name" required
                    style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;transition:border-color .15s;">
@@ -114,6 +127,23 @@
     #auth-overlay .auth-inp:focus { border-color: var(--accent) !important; }
     #auth-close-btn:hover { background:var(--accent)!important; border-color:var(--accent)!important; color:#fff!important; }
     #reg-submit-btn:not(:disabled):hover { opacity:.88!important; }
+    #auth-overlay select { color: var(--text); }
+    #auth-overlay select option { background: var(--bg-soft); }
+
+    /* 반 배지 */
+    .class-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 50%;
+      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+      line-height: 1;
+    }
+    .class-badge--1 { background: #4e89ff; }
+    .class-badge--2 { background: #57d3a3; }
+    .class-badge--3 { background: #ffd166; color: #222; }
+    .class-badge--4 { background: #ff6b6b; }
+    .class-badge--5 { background: #b57bee; }
+    .class-badge--6 { background: #4ecdc4; }
+    .class-badge--none { background: var(--bg-soft); color: var(--text-dim); border: 1px solid var(--border); }
   </style>
 
   <script>

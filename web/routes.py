@@ -9,7 +9,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -95,9 +95,17 @@ def admin_register():
         password = (request.form.get("password") or "")
         password_confirm = (request.form.get("password_confirm") or "")
         display_name = (request.form.get("display_name") or "").strip()
+        class_num_raw = request.form.get("class_num") or ""
+
+        try:
+            class_num = int(class_num_raw) if class_num_raw else None
+        except ValueError:
+            class_num = None
 
         if not username or not password or not display_name:
             error = "모든 항목을 입력해주세요."
+        elif class_num is None or class_num not in range(1, 7):
+            error = "반을 선택해주세요."
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
         elif len(username) > 14:
@@ -114,7 +122,10 @@ def admin_register():
                 error = "이름은 영문 기준 최대 14자입니다."
             else:
                 role = "admin" if username == "admin" else "user"
-                new_user = AdminUser(username=username, display_name=display_name, role=role)
+                new_user = AdminUser(
+                    username=username, display_name=display_name,
+                    role=role, class_num=class_num,
+                )
                 new_user.set_password(password)
                 db.session.add(new_user)
                 db.session.commit()
@@ -1031,6 +1042,25 @@ def api_search():
     return (html, 200, {"Content-Type": "text/html; charset=utf-8"})
 
 
+@bp.route("/api/contest-autocomplete")
+@login_required
+def api_contest_autocomplete():
+    """파티 생성 시 공모전 검색 자동완성 (JSON)."""
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit") or 8), 20)
+    if not q:
+        return jsonify([])
+    contests = (
+        Contest.query
+        .filter(Contest.title.ilike(f"%{q}%"))
+        .filter(Contest.hidden_at.is_(None))
+        .order_by(Contest.fetched_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return jsonify([{"id": c.id, "title": c.title} for c in contests])
+
+
 @bp.route("/saved")
 def saved_page():
     """저장된 사건 + 논문 모음 페이지."""
@@ -1313,3 +1343,226 @@ def glossary_page():
     for t in terms:
         by_cat.setdefault(t.category, []).append(t)
     return render_template("glossary.html", terms_by_category=by_cat, total=len(terms))
+
+
+# ============================================================
+# 파티 (팀 빌딩)
+# ============================================================
+
+def _party_member_ids(party: Party) -> set[int]:
+    return {m.user_id for m in party.members}
+
+
+def _is_member(party: Party) -> bool:
+    if not current_user.is_authenticated:
+        return False
+    return current_user.id in _party_member_ids(party)
+
+
+@bp.route("/parties")
+@login_required
+def parties():
+    """파티 목록 페이지."""
+    filter_ = request.args.get("filter", "")
+    contest_id = request.args.get("contest_id")
+
+    q = Party.query
+    if contest_id:
+        q = q.filter(Party.contest_id == int(contest_id))
+
+    my_party_ids = {
+        m.party_id for m in PartyMember.query.filter_by(user_id=current_user.id).all()
+    }
+
+    if filter_ == "open":
+        q = q.filter(Party.is_open == True)
+    elif filter_ == "mine":
+        q = q.filter(Party.id.in_(my_party_ids))
+
+    all_parties = q.order_by(Party.created_at.desc()).all()
+    return render_template(
+        "parties.html",
+        parties=all_parties,
+        my_party_ids=my_party_ids,
+        filter_open=(filter_ == "open"),
+        filter_mine=(filter_ == "mine"),
+    )
+
+
+@bp.route("/parties/<int:party_id>")
+@login_required
+def party_detail(party_id: int):
+    """파티 상세 (채팅) 페이지."""
+    party = Party.query.get(party_id)
+    if not party:
+        abort(404)
+    is_member_ = _is_member(party)
+    return render_template(
+        "party_detail.html",
+        party=party,
+        is_member=is_member_,
+        member_ids=_party_member_ids(party),
+    )
+
+
+@bp.route("/api/parties", methods=["POST"])
+@login_required
+def api_create_party():
+    """파티 생성."""
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    description = (data.get("description") or "").strip()
+    contest_id = data.get("contest_id")
+    max_members = int(data.get("max_members") or 6)
+
+    if not title:
+        return jsonify({"error": "파티 이름을 입력해주세요."}), 400
+    if max_members < 2 or max_members > 20:
+        max_members = 6
+
+    contest_title = None
+    if contest_id:
+        c = Contest.query.get(int(contest_id))
+        if c:
+            contest_title = c.title
+
+    party = Party(
+        title=title,
+        description=description or None,
+        contest_id=int(contest_id) if contest_id else None,
+        contest_title=contest_title,
+        leader_id=current_user.id,
+        max_members=max_members,
+        is_open=True,
+    )
+    db.session.add(party)
+    db.session.flush()  # party.id 확보
+
+    # 파티장 자동 입장
+    db.session.add(PartyMember(party_id=party.id, user_id=current_user.id))
+    db.session.commit()
+    return jsonify({"ok": True, "party_id": party.id})
+
+
+@bp.route("/api/parties/<int:party_id>/join", methods=["POST"])
+@login_required
+def api_join_party(party_id: int):
+    """파티 참가."""
+    party = Party.query.get(party_id)
+    if not party:
+        return jsonify({"error": "파티를 찾을 수 없습니다."}), 404
+    if not party.is_open:
+        return jsonify({"error": "모집이 마감된 파티입니다."}), 400
+    if len(party.members) >= party.max_members:
+        return jsonify({"error": "파티 정원이 꽉 찼습니다."}), 400
+    if _is_member(party):
+        return jsonify({"error": "이미 참가한 파티입니다."}), 400
+
+    db.session.add(PartyMember(party_id=party_id, user_id=current_user.id))
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/parties/<int:party_id>/leave", methods=["POST"])
+@login_required
+def api_leave_party(party_id: int):
+    """파티 탈퇴 (파티장은 불가)."""
+    party = Party.query.get(party_id)
+    if not party:
+        return jsonify({"error": "파티를 찾을 수 없습니다."}), 404
+    if party.leader_id == current_user.id:
+        return jsonify({"error": "파티장은 탈퇴할 수 없습니다. 파티를 삭제해주세요."}), 400
+    member = PartyMember.query.filter_by(party_id=party_id, user_id=current_user.id).first()
+    if not member:
+        return jsonify({"error": "참가하지 않은 파티입니다."}), 400
+    db.session.delete(member)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/parties/<int:party_id>/close", methods=["POST"])
+@login_required
+def api_close_party(party_id: int):
+    """파티 모집 마감 / 재개 토글 (파티장 전용)."""
+    party = Party.query.get(party_id)
+    if not party or party.leader_id != current_user.id:
+        return jsonify({"error": "권한이 없습니다."}), 403
+    party.is_open = not party.is_open
+    db.session.commit()
+    return jsonify({"ok": True, "is_open": party.is_open})
+
+
+@bp.route("/api/parties/<int:party_id>/delete", methods=["POST"])
+@login_required
+def api_delete_party(party_id: int):
+    """파티 삭제 (파티장 또는 admin 전용)."""
+    party = Party.query.get(party_id)
+    if not party:
+        return jsonify({"error": "파티를 찾을 수 없습니다."}), 404
+    if party.leader_id != current_user.id and not is_admin():
+        return jsonify({"error": "권한이 없습니다."}), 403
+    db.session.delete(party)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/parties/<int:party_id>/messages", methods=["GET"])
+@login_required
+def api_party_messages(party_id: int):
+    """파티 메시지 폴링 (since_id 이후 최대 50개)."""
+    party = Party.query.get(party_id)
+    if not party:
+        return jsonify({"error": "not_found"}), 404
+    if not _is_member(party):
+        return jsonify({"error": "참가자만 읽을 수 있습니다."}), 403
+
+    since_id = request.args.get("since_id", 0, type=int)
+    msgs = (
+        PartyMessage.query
+        .filter(PartyMessage.party_id == party_id, PartyMessage.id > since_id)
+        .order_by(PartyMessage.created_at)
+        .limit(50)
+        .all()
+    )
+    return jsonify([
+        {
+            "id": m.id,
+            "user_id": m.user_id,
+            "display_name": m.user.display_name,
+            "class_num": m.user.class_num,
+            "content": m.content,
+            "ts": (m.created_at + timedelta(hours=9)).strftime("%H:%M"),
+        }
+        for m in msgs
+    ])
+
+
+@bp.route("/api/parties/<int:party_id>/messages", methods=["POST"])
+@login_required
+def api_party_post_message(party_id: int):
+    """파티 메시지 전송."""
+    party = Party.query.get(party_id)
+    if not party:
+        return jsonify({"error": "not_found"}), 404
+    if not _is_member(party):
+        return jsonify({"error": "참가자만 메시지를 보낼 수 있습니다."}), 403
+
+    data = request.get_json(silent=True) or {}
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"error": "내용을 입력해주세요."}), 400
+    if len(content) > 1000:
+        return jsonify({"error": "메시지는 최대 1000자입니다."}), 400
+
+    msg = PartyMessage(party_id=party_id, user_id=current_user.id, content=content)
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "id": msg.id,
+        "user_id": msg.user_id,
+        "display_name": current_user.display_name,
+        "class_num": current_user.class_num,
+        "content": msg.content,
+        "ts": (msg.created_at + timedelta(hours=9)).strftime("%H:%M"),
+    })

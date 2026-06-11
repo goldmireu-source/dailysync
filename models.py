@@ -32,6 +32,7 @@ class AdminUser(UserMixin, db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     display_name = db.Column(db.String(50), nullable=False)
     role = db.Column(db.String(10), default="user", nullable=False)  # admin | user
+    class_num = db.Column(db.Integer, nullable=True)  # 1~6반 (NULL = 미설정)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def set_password(self, raw: str) -> None:
@@ -237,6 +238,66 @@ class Contest(db.Model):
 
     def __repr__(self):
         return f"<Contest {self.id} {self.source} {self.title[:30]!r}>"
+
+
+# ---------- Party (팀 빌딩) ----------
+class Party(db.Model):
+    """공모전 팀 빌딩 파티."""
+    __tablename__ = "parties"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id"), nullable=True)
+    contest_title = db.Column(db.String(400), nullable=True)  # 공모전 삭제 대비 비정규화
+    leader_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=False)
+    description = db.Column(db.Text)
+    max_members = db.Column(db.Integer, default=6, nullable=False)
+    is_open = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    leader = db.relationship("AdminUser", foreign_keys=[leader_id], backref="led_parties")
+    members = db.relationship("PartyMember", backref="party", cascade="all, delete-orphan")
+    messages = db.relationship(
+        "PartyMessage", backref="party", cascade="all, delete-orphan",
+        order_by="PartyMessage.created_at",
+    )
+    contest = db.relationship("Contest", backref="parties")
+
+    def __repr__(self):
+        return f"<Party {self.id} {self.title!r}>"
+
+
+class PartyMember(db.Model):
+    """파티 구성원 (파티장 포함)."""
+    __tablename__ = "party_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    party_id = db.Column(db.Integer, db.ForeignKey("parties.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("AdminUser", backref="party_memberships")
+
+    __table_args__ = (db.UniqueConstraint("party_id", "user_id"),)
+
+    def __repr__(self):
+        return f"<PartyMember party={self.party_id} user={self.user_id}>"
+
+
+class PartyMessage(db.Model):
+    """파티 내 채팅 메시지."""
+    __tablename__ = "party_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    party_id = db.Column(db.Integer, db.ForeignKey("parties.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = db.relationship("AdminUser", backref="party_messages")
+
+    def __repr__(self):
+        return f"<PartyMessage {self.id} party={self.party_id}>"
 
 
 # ---------- JobRun ----------

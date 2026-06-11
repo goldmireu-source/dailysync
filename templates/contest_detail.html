@@ -65,6 +65,15 @@
 
     <h1 class="cd-title">{{ contest.title }}</h1>
 
+    <div class="cd-party-row">
+      <button class="cd-party-btn cd-party-btn--create" id="cd-party-create-btn" data-cid="{{ contest.id }}" data-ctitle="{{ contest.title }}">
+        🎯 파티 생성
+      </button>
+      <a class="cd-party-btn cd-party-btn--find" href="{{ url_for('web.parties') }}?contest_id={{ contest.id }}">
+        👥 파티 찾기
+      </a>
+    </div>
+
     {% if contest.summary_ko %}<p class="cd-summary">{{ contest.summary_ko }}</p>{% endif %}
 
     <dl class="cd-fields">
@@ -168,5 +177,157 @@
 })();
 </script>
 {% endif %}
+
+<style>
+.cd-party-row { display:flex; gap:10px; margin:1rem 0; flex-wrap:wrap; }
+.cd-party-btn {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:9px 18px; border-radius:10px; font-size:13px; font-weight:700;
+  cursor:pointer; font-family:inherit; text-decoration:none;
+  border:1px solid var(--border); transition:opacity .15s, background .15s;
+}
+.cd-party-btn--create { background:var(--accent); color:#fff; border-color:var(--accent); }
+.cd-party-btn--create:hover { opacity:.85; }
+.cd-party-btn--find { background:var(--bg-soft); color:var(--text-dim); }
+.cd-party-btn--find:hover { background:var(--border); color:var(--text); }
+
+/* 파티 생성 모달 */
+#cp-overlay {
+  display:none; position:fixed; inset:0; z-index:8000;
+  background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center; padding:1rem;
+}
+#cp-card {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:18px;
+  padding:2rem; width:min(460px,100%); position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,.5); animation:authIn .18s ease-out;
+}
+.cp-label { display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:600; letter-spacing:.04em; }
+.cp-input {
+  width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg-soft); color:var(--text); font-family:inherit; font-size:14px;
+  box-sizing:border-box; outline:none; transition:border-color .15s;
+}
+.cp-input:focus { border-color:var(--accent); }
+.cp-submit {
+  background:var(--accent); color:#fff; border:none; border-radius:8px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer;
+  font-family:inherit; width:100%; margin-top:4px; transition:opacity .15s;
+}
+.cp-submit:hover { opacity:.88; }
+.cp-close {
+  position:absolute; top:1rem; right:1rem; width:30px; height:30px;
+  background:none; border:1px solid var(--border); border-radius:8px;
+  color:var(--text-dim); font-size:15px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-family:inherit; transition:background .15s, color .15s;
+}
+.cp-close:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+@keyframes authIn {
+  from { opacity:0; transform:translateY(-10px) scale(.98); }
+  to   { opacity:1; transform:none; }
+}
+</style>
+
+<!-- 파티 생성 모달 -->
+<div id="cp-overlay">
+  <div id="cp-card">
+    <button class="cp-close" id="cp-close-btn">✕</button>
+    <div class="brand" style="margin-bottom:.25rem;font-size:.95rem;">DAILY <span class="accent">SYNC</span></div>
+    <h2 style="font-size:1.2rem;margin:.2rem 0 1.5rem;font-weight:700;">파티 생성</h2>
+    <div id="cp-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:13px;"></div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div>
+        <label class="cp-label">공모전</label>
+        <div id="cp-contest-name" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);font-size:13px;color:var(--text-dim);"></div>
+      </div>
+      <div>
+        <label class="cp-label">파티 이름 <span style="color:var(--danger);">*</span></label>
+        <input class="cp-input" type="text" id="cp-title" maxlength="80" placeholder="예: AI 공모전 팀원 모집 🚀">
+      </div>
+      <div>
+        <label class="cp-label">소개 (선택)</label>
+        <textarea class="cp-input" id="cp-desc" rows="3" maxlength="300" placeholder="팀 목표, 필요한 역할 등을 적어주세요" style="resize:vertical;"></textarea>
+      </div>
+      <div>
+        <label class="cp-label">최대 인원</label>
+        <select class="cp-input" id="cp-max" style="cursor:pointer;appearance:none;">
+          <option value="2">2명</option>
+          <option value="3">3명</option>
+          <option value="4">4명</option>
+          <option value="5">5명</option>
+          <option value="6" selected>6명</option>
+          <option value="8">8명</option>
+          <option value="10">10명</option>
+        </select>
+      </div>
+      <button class="cp-submit" id="cp-submit-btn">파티 만들기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const overlay = document.getElementById('cp-overlay');
+  const closeBtn = document.getElementById('cp-close-btn');
+  const createBtn = document.getElementById('cd-party-create-btn');
+  const submitBtn = document.getElementById('cp-submit-btn');
+  const errorEl  = document.getElementById('cp-error');
+
+  function openModal() {
+    const ctitle = createBtn.dataset.ctitle;
+    document.getElementById('cp-contest-name').textContent = ctitle || '(없음)';
+    errorEl.style.display = 'none';
+    document.getElementById('cp-title').value = '';
+    document.getElementById('cp-desc').value = '';
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('cp-title').focus(), 50);
+  }
+
+  function closeModal() {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  createBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') closeModal();
+  });
+
+  submitBtn.addEventListener('click', async function() {
+    const title = document.getElementById('cp-title').value.trim();
+    if (!title) { errorEl.textContent = '파티 이름을 입력해주세요.'; errorEl.style.display = ''; return; }
+    submitBtn.disabled = true;
+    errorEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/parties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: document.getElementById('cp-desc').value.trim(),
+          contest_id: createBtn.dataset.cid || null,
+          max_members: +document.getElementById('cp-max').value,
+        }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        window.location.href = '/parties/' + d.party_id;
+      } else {
+        errorEl.textContent = d.error || '오류가 발생했습니다.';
+        errorEl.style.display = '';
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      errorEl.textContent = '네트워크 오류가 발생했습니다.';
+      errorEl.style.display = '';
+      submitBtn.disabled = false;
+    }
+  });
+})();
+</script>
 
 {% endblock %}

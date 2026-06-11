@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}{{ party.title }} · 파티 · DAILY SYNC{% endblock %}
+
+{% block content %}
+<style>
+.pd-back { margin-bottom: 1rem; }
+
+/* 파티 헤더 카드 */
+.pd-header {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 1.4rem; margin-bottom: 1.2rem;
+}
+.pd-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.pd-title { font-size: 1.3rem; font-weight: 800; color: var(--text); margin: 0 0 .3rem; }
+.pd-contest-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text-faint); text-decoration: none;
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px;
+}
+.pd-contest-link:hover { color: var(--accent); border-color: var(--accent); }
+.pd-desc { font-size: 13px; color: var(--text-dim); margin: .7rem 0 0; line-height: 1.6; }
+
+/* 멤버 목록 */
+.pd-members { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+.pd-member-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 5px;
+  border-radius: 20px; background: var(--bg-soft);
+  border: 1px solid var(--border); font-size: 12px; color: var(--text-dim);
+}
+.pd-member-chip--leader { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); }
+
+/* 우측 액션 */
+.pd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pda-btn {
+  padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; border: 1px solid var(--border);
+  background: var(--bg-soft); color: var(--text-dim); transition: .15s;
+}
+.pda-btn:hover { background: var(--border); color: var(--text); }
+.pda-btn--danger:hover { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); border-color: var(--danger); }
+.pda-btn--join { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pda-btn--join:hover { opacity: .85; }
+
+/* 채팅 영역 */
+.pd-chat-wrap {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  display: flex; flex-direction: column; height: 60vh; min-height: 340px;
+}
+.pd-chat-log {
+  flex: 1; overflow-y: auto; padding: 1.2rem; display: flex; flex-direction: column; gap: .7rem;
+}
+/* 스크롤바 */
+.pd-chat-log::-webkit-scrollbar { width: 4px; }
+.pd-chat-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* 메시지 버블 */
+.msg-row { display: flex; gap: 9px; align-items: flex-end; }
+.msg-row--mine { flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff;
+}
+
+.msg-body { max-width: 70%; display: flex; flex-direction: column; gap: 3px; }
+.msg-row--mine .msg-body { align-items: flex-end; }
+
+.msg-meta { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 5px; }
+.msg-bubble {
+  padding: 9px 14px; border-radius: 16px; font-size: 13px; line-height: 1.55;
+  background: var(--bg-soft); color: var(--text); word-break: break-word;
+}
+.msg-row--mine .msg-bubble {
+  background: var(--accent); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.msg-row:not(.msg-row--mine) .msg-bubble {
+  border-bottom-left-radius: 4px;
+}
+
+/* 입력창 */
+.pd-chat-input-bar {
+  border-top: 1px solid var(--border); padding: .8rem 1rem;
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.pd-chat-input-bar textarea {
+  flex: 1; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-family: inherit; font-size: 13px; padding: 9px 12px;
+  resize: none; outline: none; max-height: 120px; min-height: 38px; transition: border-color .15s;
+  box-sizing: border-box;
+}
+.pd-chat-input-bar textarea:focus { border-color: var(--accent); }
+.pd-send-btn {
+  width: 38px; height: 38px; flex-shrink: 0; background: var(--accent); color: #fff;
+  border: none; border-radius: 10px; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; transition: opacity .15s;
+}
+.pd-send-btn:hover { opacity: .85; }
+.pd-send-btn:disabled { opacity: .35; cursor: default; }
+
+/* 비회원 잠금 */
+.pd-lock {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .8rem; padding: 2rem; color: var(--text-dim); text-align: center;
+}
+.pd-lock-icon { font-size: 2.5rem; }
+</style>
+
+<a href="{{ url_for('web.parties') }}" class="back-link pd-back">← 파티 목록</a>
+
+<!-- 파티 헤더 -->
+<div class="pd-header">
+  <div class="pd-header-top">
+    <div>
+      <h1 class="pd-title">{{ party.title }}</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        {% if party.contest_title %}
+        <a class="pd-contest-link"
+           href="{{ url_for('web.contest_detail', contest_id=party.contest_id) if party.contest_id else '#' }}">
+          🏆 {{ party.contest_title | truncate(60) }}
+        </a>
+        {% endif %}
+        {% if party.is_open %}
+        <span style="font-size:11px;font-weight:700;color:var(--success);">● 모집 중</span>
+        {% else %}
+        <span style="font-size:11px;font-weight:700;color:var(--danger);">● 모집 마감</span>
+        {% endif %}
+      </div>
+      {% if party.description %}<p class="pd-desc">{{ party.description }}</p>{% endif %}
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="pd-actions">
+      {% if not is_member %}
+        {% if party.is_open and party.members | length < party.max_members %}
+        <button class="pda-btn pda-btn--join" id="pda-join-btn">파티 참가하기</button>
+        {% else %}
+        <span style="font-size:12px;color:var(--text-faint);padding:8px 0;">
+          {% if not party.is_open %}모집이 마감됐습니다{% else %}정원이 꽉 찼습니다{% endif %}
+        </span>
+        {% endif %}
+      {% else %}
+        {% if party.leader_id == current_user.id %}
+        <button class="pda-btn" id="pda-toggle-open-btn"
+                data-open="{{ 'true' if party.is_open else 'false' }}">
+          {{ '모집 마감하기' if party.is_open else '모집 재개하기' }}
+        </button>
+        <button class="pda-btn pda-btn--danger" id="pda-delete-btn">파티 삭제</button>
+        {% else %}
+        <button class="pda-btn pda-btn--danger" id="pda-leave-btn">파티 탈퇴</button>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 멤버 목록 -->
+  <div class="pd-members">
+    {% for m in party.members %}
+    {% set cn = m.user.class_num %}
+    <div class="pd-member-chip {% if m.user_id == party.leader_id %}pd-member-chip--leader{% endif %}">
+      <div class="class-badge class-badge--{{ cn if cn else 'none' }}" style="width:22px;height:22px;font-size:9px;">
+        {{ cn if cn else '?' }}
+      </div>
+      {{ m.user.display_name }}
+      {% if m.user_id == party.leader_id %}<span style="color:var(--accent);font-size:10px;">👑</span>{% endif %}
+    </div>
+    {% endfor %}
+    <span style="font-size:12px;color:var(--text-faint);self-align:center;">{{ party.members | length }}/{{ party.max_members }}명</span>
+  </div>
+</div>
+
+<!-- 채팅 영역 -->
+<div class="pd-chat-wrap">
+  {% if is_member %}
+  <div class="pd-chat-log" id="chat-log"></div>
+  <div class="pd-chat-input-bar">
+    <textarea id="chat-input" placeholder="메시지를 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"
+              rows="1" maxlength="1000"></textarea>
+    <button class="pd-send-btn" id="chat-send-btn" title="전송">↑</button>
+  </div>
+  {% else %}
+  <div class="pd-lock">
+    <div class="pd-lock-icon">🔒</div>
+    <div style="font-weight:700;">파티원만 채팅에 참여할 수 있어요</div>
+    {% if party.is_open and party.members | length < party.max_members %}
+    <div style="font-size:13px;">위 "파티 참가하기" 버튼으로 참가해보세요!</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if is_member %}
+<script>
+(function() {
+  const PARTY_ID = {{ party.id }};
+  const MY_ID    = {{ current_user.id }};
+  const LOG      = document.getElementById('chat-log');
+  const INPUT    = document.getElementById('chat-input');
+  const SEND_BTN = document.getElementById('chat-send-btn');
+  const CLASS_COLORS = {1:'#4e89ff',2:'#57d3a3',3:'#ffd166',4:'#ff6b6b',5:'#b57bee',6:'#4ecdc4'};
+
+  let lastId = 0;
+
+  function avatarStyle(classNum) {
+    const c = CLASS_COLORS[classNum];
+    return c ? `background:${c};` : 'background:var(--bg-soft);color:var(--text-dim);border:1px solid var(--border);';
+  }
+
+  function buildBubble(msg) {
+    const mine = (msg.user_id === MY_ID);
+    const cn = msg.class_num;
+    const avatarText = cn ? cn + '반' : '?';
+    return `
+      <div class="msg-row${mine ? ' msg-row--mine' : ''}" data-mid="${msg.id}">
+        <div class="msg-avatar" style="${avatarStyle(cn)}" title="${msg.display_name}${cn ? ' · ' + cn + '반' : ''}">${avatarText}</div>
+        <div class="msg-body">
+          <div class="msg-meta">
+            ${!mine ? `<span style="font-weight:700;color:var(--text);">${msg.display_name}</span>` : ''}
+            <span>${msg.ts}</span>
+          </div>
+          <div class="msg-bubble">${escHtml(msg.content)}</div>
+        </div>
+      </div>`;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+
+  function scrollBottom() {
+    LOG.scrollTop = LOG.scrollHeight;
+  }
+
+  async function fetchMessages() {
+    try {
+      const r = await fetch(`/api/parties/${PARTY_ID}/messages?since_id=${lastId}`);
+      if (!r.ok) return;
+      const msgs = await r.json();
+      if (msgs.length) {
+        const atBottom = LOG.scrollHeight - LOG.scrollTop - LOG.clientHeight < 60;
+        msgs.forEach(m => {
+          LOG.insertAdjacentHTML('beforeend', buildBubble(m));
+          lastId = Math.max(lastId, m.id);
+        });
+        if (atBottom) scrollBottom();
+      }
+    } catch (e) {}
+  }
+
+  async function sendMessage() {
+    const content = INPUT.value.trim();
+    if (!content) return;
+    SEND_BTN.disabled = true;
+    try {
+      const r = await fetch(`/api/parties/${PARTY_ID}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        INPUT.value = '';
+        INPUT.style.height = '';
+        LOG.insertAdjacentHTML('beforeend', buildBubble(d));
+        lastId = Math.max(lastId, d.id);
+        scrollBottom();
+      }
+    } catch (e) {}
+    SEND_BTN.disabled = false;
+    INPUT.focus();
+  }
+
+  // 자동 높이 조절
+  INPUT.addEventListener('input', function() {
+    this.style.height = '';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  // Enter 전송 (Shift+Enter 줄바꿈)
+  INPUT.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  SEND_BTN.addEventListener('click', sendMessage);
+
+  // 초기 로드 + 3초 폴링
+  fetchMessages();
+  const poller = setInterval(fetchMessages, 3000);
+
+  // 파티장 액션
+  const toggleBtn = document.getElementById('pda-toggle-open-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', async function() {
+      const r = await fetch(`/api/parties/${PARTY_ID}/close`, { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) {
+        this.dataset.open = d.is_open ? 'true' : 'false';
+        this.textContent = d.is_open ? '모집 마감하기' : '모집 재개하기';
+        const badge = document.querySelector('.pd-header-top span[style*="color:var"]');
+        if (badge) {
+          badge.textContent = d.is_open ? '● 모집 중' : '● 모집 마감';
+          badge.style.color = d.is_open ? 'var(--success)' : 'var(--danger)';
+        }
+      }
+    });
+  }
+
+  const deleteBtn = document.getElementById('pda-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async function() {
+      if (!confirm('파티를 삭제하면 모든 채팅이 사라집니다. 삭제하시겠어요?')) return;
+      const r = await fetch(`/api/parties/${PARTY_ID}/delete`, { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) { window.location.href = '/parties'; }
+      else { alert(d.error || '삭제 실패'); }
+    });
+  }
+})();
+</script>
+{% endif %}
+
+{% if not is_member and (party.is_open and party.members | length < party.max_members) %}
+<script>
+document.getElementById('pda-join-btn').addEventListener('click', async function() {
+  this.disabled = true;
+  const r = await fetch('/api/parties/{{ party.id }}/join', { method: 'POST' });
+  const d = await r.json();
+  if (d.ok) { window.location.reload(); }
+  else { alert(d.error || '참가 실패'); this.disabled = false; }
+});
+</script>
+{% endif %}
+
+{% if is_member and party.leader_id != current_user.id %}
+<script>
+document.getElementById('pda-leave-btn').addEventListener('click', async function() {
+  if (!confirm('파티에서 탈퇴하시겠어요?')) return;
+  const r = await fetch('/api/parties/{{ party.id }}/leave', { method: 'POST' });
+  const d = await r.json();
+  if (d.ok) { window.location.href = '/parties'; }
+  else { alert(d.error || '탈퇴 실패'); }
+});
+</script>
+{% endif %}
+
+{% endblock %}
