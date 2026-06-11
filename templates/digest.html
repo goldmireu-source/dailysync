@@ -537,13 +537,10 @@
 </div>
 
 <!-- 공모전 필터 -->
-<div style="margin-bottom:1.2rem;">
-  <select id="party-filter-sel" class="ptc-inp" style="max-width:100%;cursor:pointer;appearance:none;">
-    <option value="">🔍 전체 공모전 보기</option>
-    {% for c in active_contests %}
-    <option value="{{ c.id }}">{{ c.title | truncate(60, end='…') }}</option>
-    {% endfor %}
-  </select>
+<div style="margin-bottom:1.2rem;display:flex;gap:8px;align-items:center;">
+  <input type="hidden" id="party-filter-cid" value="">
+  <button type="button" class="ptc-inp cs-trigger" id="party-filter-btn" style="flex:1;min-width:0;">🔍 전체 공모전 보기</button>
+  <button type="button" id="party-filter-clear" style="display:none;flex-shrink:0;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text-dim);cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;transition:background .15s,color .15s;">✕ 초기화</button>
 </div>
 <div id="party-filter-empty" style="display:none;" class="pt-empty">
   <div class="pt-empty-icon">🔍</div>
@@ -748,10 +745,13 @@
 
 // 공모전 필터
 (function() {
-  const filterSel = document.getElementById('party-filter-sel');
-  if (!filterSel) return;
-  filterSel.addEventListener('change', function() {
-    const cid = this.value;
+  const filterBtn  = document.getElementById('party-filter-btn');
+  const filterCid  = document.getElementById('party-filter-cid');
+  const clearBtn   = document.getElementById('party-filter-clear');
+  if (!filterBtn) return;
+
+  function applyFilter(cid) {
+    filterCid.value = cid;
     const cards = document.querySelectorAll('#party-grid .party-card');
     let visible = 0;
     cards.forEach(function(c) {
@@ -760,9 +760,24 @@
       if (show) visible++;
     });
     const emptyEl = document.getElementById('party-filter-empty');
-    const grid = document.getElementById('party-grid');
+    const grid    = document.getElementById('party-grid');
     if (emptyEl) emptyEl.style.display = visible ? 'none' : '';
-    if (grid) grid.style.display = visible ? '' : 'none';
+    if (grid)    grid.style.display    = visible ? '' : 'none';
+    clearBtn.style.display = cid ? '' : 'none';
+  }
+
+  filterBtn.addEventListener('click', function() {
+    openContestSheet(function(id, title) {
+      filterBtn.textContent = title ? ('🏆 ' + title) : '🔍 전체 공모전 보기';
+      filterBtn.classList.toggle('cs-has-val', !!id);
+      applyFilter(id);
+    });
+  });
+
+  clearBtn.addEventListener('click', function() {
+    filterBtn.textContent = '🔍 전체 공모전 보기';
+    filterBtn.classList.remove('cs-has-val');
+    applyFilter('');
   });
 })();
 </script>
