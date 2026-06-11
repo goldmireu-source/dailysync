@@ -168,11 +168,17 @@
       e.preventDefault(); openAuthModal('login');
     });
 
-    // ===== 링크 인터셉트 — /admin-login, /admin-register 클릭 시 모달 표시 =====
+    // ===== 링크 인터셉트 =====
+    // 비로그인 상태에서 보호된 페이지(/cluster, /paper, /contest 상세) 또는
+    // 로그인·회원가입 링크 클릭 시 모달 표시 (페이지 전환 없음).
+    const DS_AUTHED = {{ 'true' if current_user.is_authenticated else 'false' }};
+    const PROTECTED_RE = /^\/(cluster|paper|contest)\/\d/;
+
     document.addEventListener('click', function(e) {
       const a = e.target.closest('a[href]');
       if (!a) return;
       const href = a.getAttribute('href') || '';
+
       if (href.startsWith('/admin-login') || href === '{{ url_for("web.admin_login") }}') {
         e.preventDefault();
         const next = new URLSearchParams(href.split('?')[1] || '').get('next') || '';
@@ -180,6 +186,10 @@
       } else if (href.startsWith('/admin-register') || href === '{{ url_for("web.admin_register") }}') {
         e.preventDefault();
         openAuthModal('register');
+      } else if (!DS_AUTHED && PROTECTED_RE.test(href)) {
+        // 비로그인 → 보호된 상세 페이지 클릭 → 로그인 모달 표시
+        e.preventDefault();
+        openAuthModal('login', href);
       }
     });
 
