@@ -58,9 +58,12 @@ def context_admin():
 # ---------- Admin Login / Register ----------
 @bp.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
-    """아이디/비밀번호 로그인 폼."""
+    """아이디/비밀번호 로그인 폼. AJAX(X-Requested-With: fetch) 시 JSON 반환."""
+    ajax = request.headers.get("X-Requested-With") == "fetch"
+
     if current_user.is_authenticated:
-        return redirect(url_for("web.admin") if is_admin() else url_for("web.index"))
+        dest = url_for("web.admin") if is_admin() else url_for("web.index")
+        return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
 
     error = None
     next_url = request.args.get("next") or ""
@@ -68,22 +71,24 @@ def admin_login():
         username = (request.form.get("username") or "").strip()[:14]
         password = (request.form.get("password") or "")[:10]
         next_url = request.form.get("next") or ""
-        # 외부 도메인 리다이렉트 방지
         if next_url and (not next_url.startswith("/") or next_url.startswith("//")):
             next_url = ""
         user = AdminUser.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user, remember=True)
             dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
-            return redirect(dest)
+            return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
         error = "아이디 또는 비밀번호가 올바르지 않습니다."
+        if ajax:
+            return jsonify({"error": error}), 400
 
     return render_template("admin_login.html", error=error, next_url=next_url)
 
 
 @bp.route("/admin-register", methods=["GET", "POST"])
 def admin_register():
-    """신규 회원가입 폼. 자동 승인."""
+    """신규 회원가입 폼. 자동 승인. AJAX(X-Requested-With: fetch) 시 JSON 반환."""
+    ajax = request.headers.get("X-Requested-With") == "fetch"
     error = None
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
@@ -102,10 +107,7 @@ def admin_register():
         elif AdminUser.query.filter_by(username=username).first():
             error = "이미 사용 중인 아이디입니다."
         else:
-            has_korean = any(
-                '가' <= c <= '힣' or 'ㄱ' <= c <= 'ㅣ'
-                for c in display_name
-            )
+            has_korean = any('가' <= c <= '힣' or 'ㄱ' <= c <= 'ㅣ' for c in display_name)
             if has_korean and len(display_name) > 4:
                 error = "이름은 한글 포함 시 최대 4글자입니다."
             elif not has_korean and len(display_name) > 14:
@@ -117,7 +119,11 @@ def admin_register():
                 db.session.add(new_user)
                 db.session.commit()
                 login_user(new_user, remember=True)
-                return redirect(url_for("web.admin") if role == "admin" else url_for("web.index"))
+                dest = url_for("web.admin") if role == "admin" else url_for("web.index")
+                return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
+
+        if ajax:
+            return jsonify({"error": error}), 400
 
     return render_template("admin_register.html", error=error)
 
