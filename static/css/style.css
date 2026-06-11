@@ -3545,7 +3545,7 @@ footer a { color: var(--text-dim); }
   #hd-profile-name { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* 메인 네비: 패딩·마진·폰트 축소 */
-  .main-nav { padding: 4px; margin: 0 0 10px; border-radius: 12px; }
+  .main-nav { padding: 4px; margin: 14px 0 10px; border-radius: 12px; }
   .nav-pill { padding: 8px 10px; font-size: 13px; gap: 5px; border-radius: 8px; }
   .nav-num { font-size: 10.5px; padding: 1px 5px; min-width: 16px; }
 
