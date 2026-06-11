@@ -32,5 +32,17 @@
       · <a href="{{ url_for('web.admin') }}">admin</a>
     </footer>
   </div>
+  <script>
+    // .back-link 클릭 시 history.back() — 이전 페이지(페이지 번호 포함)로 복귀.
+    // 히스토리가 없을 때만 href fallback 사용.
+    document.querySelectorAll('a.back-link').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        if (history.length > 1) {
+          e.preventDefault();
+          history.back();
+        }
+      });
+    });
+  </script>
 </body>
 </html>
