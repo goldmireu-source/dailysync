@@ -1280,6 +1280,18 @@ def admin():
         .all()
     )
 
+    # 회원별 가입 IP (user_activity.action='register' 첫 번째 레코드)
+    register_logs = (
+        UserActivity.query
+        .filter(UserActivity.action == "register")
+        .order_by(UserActivity.created_at.asc())
+        .all()
+    )
+    register_ip_map: dict = {}   # username -> UserActivity 레코드
+    for r in register_logs:
+        if r.username and r.username not in register_ip_map:
+            register_ip_map[r.username] = r
+
     return render_template(
         "admin.html",
         recent_runs=recent_runs,
@@ -1290,6 +1302,7 @@ def admin():
         kst_offset=timedelta(hours=9),
         admin_users=admin_users,
         recent_activity=recent_activity,
+        register_ip_map=register_ip_map,
     )
 
 

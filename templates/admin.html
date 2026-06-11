@@ -233,34 +233,45 @@
       가입 회원 ({{ admin_users|length }}명)
     </h2>
     {% if admin_users %}
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); border-radius: 12px; overflow: hidden;">
+    <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: var(--bg-card); border-radius: 12px; overflow: hidden; min-width: 620px;">
       <thead>
         <tr style="border-bottom: 1px solid var(--border);">
-          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">아이디</th>
-          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">이름</th>
-          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">권한</th>
-          <th style="text-align: left; padding: 10px 14px; color: var(--text-dim); font-weight: 600;">가입일시 (KST)</th>
+          <th style="text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600;">아이디</th>
+          <th style="text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600;">이름</th>
+          <th style="text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600;">권한</th>
+          <th style="text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600; white-space: nowrap;">가입일시 (KST)</th>
+          <th style="text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600;">가입 IP</th>
         </tr>
       </thead>
       <tbody>
         {% for u in admin_users %}
+        {% set reg = register_ip_map.get(u.username) %}
         <tr style="border-bottom: 1px solid var(--border-soft);">
-          <td style="padding: 10px 14px; font-weight: 600; color: var(--text); font-family: monospace; font-size: 13px;">{{ u.username }}</td>
-          <td style="padding: 10px 14px; color: var(--text);">{{ u.display_name }}</td>
-          <td style="padding: 10px 14px;">
+          <td style="padding: 9px 12px; font-weight: 600; color: var(--text); font-family: monospace; font-size: 12px;">{{ u.username }}</td>
+          <td style="padding: 9px 12px; color: var(--text);">{{ u.display_name }}</td>
+          <td style="padding: 9px 12px;">
             {% if u.role == 'admin' %}
               <span style="background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700;">admin</span>
             {% else %}
               <span style="background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px;">user</span>
             {% endif %}
           </td>
-          <td style="padding: 10px 14px; font-size: 12px; color: var(--text-muted);">
-            {{ (u.created_at + kst_offset).strftime('%Y-%m-%d %H:%M:%S') }} KST
+          <td style="padding: 9px 12px; font-family: monospace; font-size: 11.5px; color: var(--text-muted); white-space: nowrap;">
+            {% if reg %}
+              {{ (reg.created_at + kst_offset).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] }}
+            {% else %}
+              {{ (u.created_at + kst_offset).strftime('%Y-%m-%d %H:%M:%S') }}
+            {% endif %}
+          </td>
+          <td style="padding: 9px 12px; font-family: monospace; font-size: 11.5px; color: var(--text-muted);">
+            {{ reg.ip if reg and reg.ip else '—' }}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p style="color: var(--text-dim); font-size: 13px; padding: 1rem 0;">가입된 회원이 없습니다.</p>
     {% endif %}
