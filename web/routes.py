@@ -209,7 +209,7 @@ def index():
         target_to = datetime.now(KST).date()
     # tab 은 아래 클러스터 쿼리보다 앞에서 미리 읽어야 articles_flat 분기에 활용 가능
     tab = request.args.get("tab", "contests")
-    if tab not in ("news", "papers", "contests"):
+    if tab not in ("news", "papers", "contests", "parties"):
         tab = "contests"
 
     start_utc, _ = _kst_day_bounds(target)
@@ -438,6 +438,20 @@ def index():
 
     total_articles = len(arts_today)
 
+    # ========== 파티 탭 ==========
+    parties_list = []
+    my_party_ids = set()
+    total_parties = Party.query.count()
+    if tab == "parties":
+        parties_list = Party.query.order_by(Party.created_at.desc()).all()
+        if current_user.is_authenticated:
+            my_party_ids = {
+                m.party_id for m in PartyMember.query.filter_by(user_id=current_user.id).all()
+            }
+        inline_clusters = []
+        paper_cardsets = []
+        contest_tiles = []
+
     return render_template(
         "digest.html",
         target_date=target,
@@ -469,6 +483,9 @@ def index():
         cat_counts=cat_counts,
         articles_flat=articles_flat,
         total_articles_flat=total_articles_flat,
+        parties_list=parties_list,
+        my_party_ids=my_party_ids,
+        total_parties=total_parties,
     )
 
 
