@@ -321,13 +321,15 @@ def index():
         tab = "contests"
 
     # 회원별 즐겨찾기 ID 세트 (북마크 버튼 상태 표시용)
+    user_bm_contest_ids = user_bm_cluster_ids = user_bm_paper_ids = set()
     if current_user.is_authenticated:
-        _bms = UserBookmark.query.filter_by(user_id=current_user.id).all()
-        user_bm_contest_ids = {b.item_id for b in _bms if b.item_type == "contest"}
-        user_bm_cluster_ids = {b.item_id for b in _bms if b.item_type == "cluster"}
-        user_bm_paper_ids = {b.item_id for b in _bms if b.item_type == "paper"}
-    else:
-        user_bm_contest_ids = user_bm_cluster_ids = user_bm_paper_ids = set()
+        try:
+            _bms = UserBookmark.query.filter_by(user_id=current_user.id).all()
+            user_bm_contest_ids = {b.item_id for b in _bms if b.item_type == "contest"}
+            user_bm_cluster_ids = {b.item_id for b in _bms if b.item_type == "cluster"}
+            user_bm_paper_ids = {b.item_id for b in _bms if b.item_type == "paper"}
+        except Exception:
+            pass
 
     start_utc, _ = _kst_day_bounds(target)
     _, end_utc = _kst_day_bounds(target_to)
@@ -1397,7 +1399,10 @@ def toggle_bookmark(item_type: str, item_id: int):
 @login_required
 def bookmarks():
     uid = current_user.id
-    bms = UserBookmark.query.filter_by(user_id=uid).order_by(UserBookmark.saved_at.desc()).all()
+    try:
+        bms = UserBookmark.query.filter_by(user_id=uid).order_by(UserBookmark.saved_at.desc()).all()
+    except Exception:
+        bms = []
 
     contest_ids = [b.item_id for b in bms if b.item_type == "contest"]
     cluster_ids = [b.item_id for b in bms if b.item_type == "cluster"]
