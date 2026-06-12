@@ -1167,7 +1167,7 @@ async function deleteKarrot(btn) {
 <div class="gloss-overlay" id="gloss-overlay" onclick="closeGloss()"></div>
 
 {# 모바일 floating 버튼 (사이드바 닫혀 있을 때, 공모전 탭 제외) #}
-{% if tab != 'contests' %}<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전">📖</button>{% endif %}
+{% if tab not in ('contests', 'parties', 'karrot') %}<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전">📖</button>{% endif %}
 
 {# 호버 툴팁 #}
 <div class="gloss-tooltip" id="gloss-tooltip"></div>
