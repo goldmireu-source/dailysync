@@ -69,6 +69,10 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         job_cleanup_old_data,
         job_collect_contests,
     )
+    from jobs.cleanup import cleanup_completed_karrot
+
+    def _job_karrot_cleanup():
+        cleanup_completed_karrot(hours=24)
 
     sched = BackgroundScheduler(timezone=KST)
 
@@ -111,6 +115,17 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         CronTrigger(hour=4, minute=0, timezone=KST),
         id="cleanup_old_data_daily",
         name="오래된 데이터 삭제 (매일 04:00)",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
+    # 매시 30분 — 완료된 당근 게시글 24h 후 자동 삭제
+    sched.add_job(
+        _wrap(app, _job_karrot_cleanup),
+        CronTrigger(minute=30, timezone=KST),
+        id="karrot_cleanup_hourly",
+        name="당근 완료 게시글 정리 (매시 :30)",
         replace_existing=True,
         max_instances=1,
         coalesce=True,

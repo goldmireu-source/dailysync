@@ -14,9 +14,38 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select
 
-from models import db, Article, Cluster, Paper, Contest
+from models import db, Article, Cluster, Paper, Contest, KarrotPost
 
 logger = logging.getLogger(__name__)
+
+
+def cleanup_completed_karrot(hours: int = 24) -> int:
+    """완료 후 hours 시간이 지난 당근 게시글 삭제. 삭제 건수 반환."""
+    import os
+    from flask import current_app
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    posts = (
+        KarrotPost.query
+        .filter(KarrotPost.status == "completed")
+        .filter(KarrotPost.completed_at < cutoff)
+        .all()
+    )
+    count = 0
+    for post in posts:
+        if post.image_url and "/uploads/karrot/" in post.image_url:
+            fname = os.path.basename(post.image_url)
+            try:
+                p = os.path.join(current_app.static_folder, "uploads", "karrot", fname)
+                if os.path.exists(p):
+                    os.remove(p)
+            except OSError:
+                pass
+        db.session.delete(post)
+        count += 1
+    if count:
+        db.session.commit()
+        logger.info(f"cleanup_completed_karrot — {count}건 삭제")
+    return count
 
 
 def cleanup_old_data(retention_days: int = 4) -> dict:

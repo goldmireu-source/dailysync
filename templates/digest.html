@@ -826,31 +826,36 @@
   background:var(--bg-card); border:1px solid var(--border); border-radius:16px;
   display:flex; flex-direction:column; overflow:hidden;
   transition:border-color .2s, transform .15s;
+  text-decoration:none; color:inherit;
+  cursor:pointer;
 }
 .karrot-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+.karrot-card--completed { opacity:.42; position:relative; pointer-events:none; }
+.karrot-card--completed::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 16px,rgba(255,255,255,.05) 16px,rgba(255,255,255,.05) 18px);
+}
 
-.kc-img {
-  width:100%; height:140px; object-fit:cover; display:block;
-  background:var(--bg-soft); flex-shrink:0;
-}
-.kc-img-placeholder {
-  width:100%; height:0; display:none;
-}
+.kc-img { width:100%; height:200px; object-fit:cover; display:block; background:var(--bg-soft); flex-shrink:0; }
 
 .kc-body { padding:1rem 1.1rem .9rem; display:flex; flex-direction:column; gap:.55rem; flex:1; }
 .kc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
 .kc-title { font-size:14.5px; font-weight:700; color:var(--text); line-height:1.35; flex:1; }
+.kc-badges { display:flex; gap:4px; flex-wrap:wrap; flex-shrink:0; }
 .kc-type-badge {
-  flex-shrink:0; font-size:10px; font-weight:700; padding:3px 8px;
-  border-radius:6px; white-space:nowrap;
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;
 }
-.kc-type-badge--share {
-  background:color-mix(in srgb,#5cb85c 15%,transparent);
-  color:#5cb85c; border:1px solid color-mix(in srgb,#5cb85c 30%,transparent);
+.kc-type-badge--share { background:color-mix(in srgb,#5cb85c 15%,transparent); color:#5cb85c; border:1px solid color-mix(in srgb,#5cb85c 30%,transparent); }
+.kc-type-badge--trade { background:color-mix(in srgb,#F0A840 15%,transparent); color:#c07820; border:1px solid color-mix(in srgb,#F0A840 30%,transparent); }
+.kc-class-badge {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);
 }
-.kc-type-badge--trade {
-  background:color-mix(in srgb,#F0A840 15%,transparent);
-  color:#c07820; border:1px solid color-mix(in srgb,#F0A840 30%,transparent);
+.kc-done-badge {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;
+  background:color-mix(in srgb,var(--danger) 12%,transparent);
+  color:var(--danger); border:1px solid color-mix(in srgb,var(--danger) 28%,transparent);
 }
 
 .kc-content {
@@ -865,7 +870,7 @@
 .kc-del-btn {
   padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700;
   cursor:pointer; font-family:inherit; border:1px solid var(--border);
-  background:var(--bg-soft); color:var(--text-dim); transition:.15s;
+  background:var(--bg-soft); color:var(--text-dim); transition:.15s; z-index:1; position:relative;
 }
 .kc-del-btn:hover { color:var(--danger); border-color:var(--danger); background:color-mix(in srgb,var(--danger) 8%,transparent); }
 
@@ -907,14 +912,14 @@
 }
 .kr-close:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
 
-/* 유형 토글 */
-.kr-type-row { display:flex; gap:8px; }
-.kr-type-btn {
-  flex:1; padding:10px; border-radius:8px; font-size:13px; font-weight:700;
+/* 유형·반 토글 공통 */
+.kr-toggle-row { display:flex; gap:6px; flex-wrap:wrap; }
+.kr-toggle-btn {
+  flex:1; min-width:fit-content; padding:9px 12px; border-radius:8px; font-size:12.5px; font-weight:700;
   cursor:pointer; font-family:inherit; border:1px solid var(--border);
-  background:var(--bg-soft); color:var(--text-dim); transition:.15s;
+  background:var(--bg-soft); color:var(--text-dim); transition:.15s; white-space:nowrap;
 }
-.kr-type-btn.kr-selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+.kr-toggle-btn.kr-selected { background:var(--accent); border-color:var(--accent); color:#fff; }
 
 /* 이미지 미리보기 */
 .kr-img-preview-wrap { position:relative; margin-top:6px; }
@@ -936,11 +941,25 @@
     <div style="display:flex;flex-direction:column;gap:1rem;">
       <div>
         <label class="kr-label">유형 <span style="color:var(--danger);">*</span></label>
-        <div class="kr-type-row">
-          <button type="button" class="kr-type-btn kr-selected" data-type="share" id="kr-btn-share">🎁 나눔하기</button>
-          <button type="button" class="kr-type-btn" data-type="trade" id="kr-btn-trade">🔄 물물교환</button>
+        <div class="kr-toggle-row">
+          <button type="button" class="kr-toggle-btn kr-selected" data-type="share" id="kr-btn-share">🎁 나눔하기</button>
+          <button type="button" class="kr-toggle-btn" data-type="trade" id="kr-btn-trade">🔄 물물교환</button>
         </div>
         <input type="hidden" id="kr-type-val" value="share">
+      </div>
+      <div>
+        <label class="kr-label">대상 반</label>
+        <div class="kr-toggle-row" id="kr-class-row">
+          <button type="button" class="kr-toggle-btn kr-selected" data-cls="">전체반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="1">1반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="2">2반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="3">3반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="4">4반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="5">5반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="6">6반</button>
+          <button type="button" class="kr-toggle-btn" data-cls="7">7반</button>
+        </div>
+        <input type="hidden" id="kr-class-val" value="">
       </div>
       <div>
         <label class="kr-label">제목 <span style="color:var(--danger);">*</span></label>
@@ -987,18 +1006,25 @@
 {% if karrot_list %}
 <div class="karrot-grid">
   {% for post in karrot_list %}
-  <div class="karrot-card" id="kcard-{{ post.id }}">
+  {% set completed = post.status == 'completed' %}
+  <a href="{{ url_for('web.karrot_detail', post_id=post.id) }}"
+     class="karrot-card {% if completed %}karrot-card--completed{% endif %}"
+     id="kcard-{{ post.id }}">
     {% if post.image_url %}
     <img class="kc-img" src="{{ post.image_url }}" alt="{{ post.title }}" loading="lazy">
     {% endif %}
     <div class="kc-body">
       <div class="kc-top">
         <div class="kc-title">{{ post.title }}</div>
-        {% if post.post_type == 'share' %}
-        <span class="kc-type-badge kc-type-badge--share">🎁 나눔</span>
-        {% else %}
-        <span class="kc-type-badge kc-type-badge--trade">🔄 교환</span>
-        {% endif %}
+        <div class="kc-badges">
+          {% if post.post_type == 'share' %}<span class="kc-type-badge kc-type-badge--share">🎁 나눔</span>
+          {% else %}<span class="kc-type-badge kc-type-badge--trade">🔄 교환</span>{% endif %}
+          {% if post.class_target %}<span class="kc-class-badge">{{ post.class_target }}반</span>
+          {% else %}<span class="kc-class-badge">전체반</span>{% endif %}
+          {% if completed %}
+          <span class="kc-done-badge">{{ '나눔완료' if post.post_type == 'share' else '교환완료' }}</span>
+          {% endif %}
+        </div>
       </div>
       {% if post.content %}
       <div class="kc-content">{{ post.content }}</div>
@@ -1009,11 +1035,12 @@
           {{ post.author.display_name }} · {{ post.created_at.strftime('%m.%d') }}
         </div>
         {% if current_user.is_authenticated and (post.author_id == current_user.id or is_admin) %}
-        <button class="kc-del-btn" data-pid="{{ post.id }}" onclick="deleteKarrot(this)">삭제</button>
+        <button class="kc-del-btn" data-pid="{{ post.id }}"
+                onclick="event.preventDefault();deleteKarrot(this)">삭제</button>
         {% endif %}
       </div>
     </div>
-  </div>
+  </a>
   {% endfor %}
 </div>
 {% else %}
@@ -1045,6 +1072,16 @@
     });
   });
 
+  // 반 토글
+  const classVal = document.getElementById('kr-class-val');
+  document.getElementById('kr-class-row').addEventListener('click', function(e) {
+    var btn = e.target.closest('.kr-toggle-btn');
+    if (!btn) return;
+    this.querySelectorAll('.kr-toggle-btn').forEach(function(b) { b.classList.remove('kr-selected'); });
+    btn.classList.add('kr-selected');
+    classVal.value = btn.dataset.cls;
+  });
+
   // 이미지 미리보기
   const imageInput   = document.getElementById('kr-image-input');
   const imageBtn     = document.getElementById('kr-image-btn');
@@ -1066,23 +1103,29 @@
   });
   imgRemoveBtn.addEventListener('click', function() {
     imageInput.value = '';
-    imgPreview.src = '';
-    imgPreview.style.display = 'none';
+    imgPreview.src = ''; imgPreview.style.display = 'none';
     imgRemoveBtn.style.display = 'none';
     imageBtn.textContent = '📷 사진 선택 (png/jpg/webp/gif)';
   });
 
-  function openModal() {
+  function resetModal() {
     errorEl.style.display = 'none';
     document.getElementById('kr-title').value = '';
     document.getElementById('kr-content').value = '';
     typeVal.value = 'share';
     shareBtn.classList.add('kr-selected');
     tradeBtn.classList.remove('kr-selected');
+    classVal.value = '';
+    document.getElementById('kr-class-row').querySelectorAll('.kr-toggle-btn').forEach(function(b,i) {
+      b.classList.toggle('kr-selected', i === 0);
+    });
     imageInput.value = '';
     imgPreview.src = ''; imgPreview.style.display = 'none';
     imgRemoveBtn.style.display = 'none';
     imageBtn.textContent = '📷 사진 선택 (png/jpg/webp/gif)';
+  }
+  function openModal() {
+    resetModal();
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(function() { document.getElementById('kr-title').focus(); }, 50);
@@ -1107,6 +1150,7 @@
       fd.append('post_type', typeVal.value);
       fd.append('title', title);
       fd.append('content', document.getElementById('kr-content').value.trim());
+      if (classVal.value) fd.append('class_target', classVal.value);
       const imgFile = imageInput.files[0];
       if (imgFile) fd.append('image', imgFile);
       const r = await fetch('/api/karrot', { method: 'POST', body: fd });

@@ -13,7 +13,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -107,6 +107,7 @@ def context_admin():
     return {
         "is_admin": is_admin(),
         "cardnews_bot_url": Config.CARDNEWS_BOT_URL,
+        "timedelta": timedelta,
     }
 
 
@@ -1887,10 +1888,14 @@ def api_karrot_create():
     if len(content) > 1000:
         return jsonify({"error": "내용은 최대 1000자입니다."}), 400
 
+    class_target_raw = request.form.get("class_target", "").strip()
+    class_target = int(class_target_raw) if class_target_raw.isdigit() and 1 <= int(class_target_raw) <= 7 else None
+
     post = KarrotPost(
         post_type=post_type,
         title=title,
         content=content or None,
+        class_target=class_target,
         author_id=current_user.id,
     )
     db.session.add(post)
@@ -1921,3 +1926,68 @@ def api_karrot_delete(post_id: int):
     db.session.delete(post)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@bp.route("/karrot/<int:post_id>")
+@login_required
+def karrot_detail(post_id: int):
+    """당근 게시글 상세 페이지."""
+    post = KarrotPost.query.get(post_id)
+    if not post:
+        abort(404)
+    my_app = KarrotApplication.query.filter_by(post_id=post_id, user_id=current_user.id).first()
+    applications = (
+        KarrotApplication.query.filter_by(post_id=post_id).all()
+        if post.author_id == current_user.id else []
+    )
+    return render_template(
+        "karrot_detail.html",
+        post=post,
+        my_app=my_app,
+        applications=applications,
+        is_author=(post.author_id == current_user.id),
+    )
+
+
+@bp.route("/api/karrot/<int:post_id>/apply", methods=["POST"])
+@login_required
+def api_karrot_apply(post_id: int):
+    """당근 게시글 신청."""
+    post = KarrotPost.query.get(post_id)
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if post.author_id == current_user.id:
+        return jsonify({"error": "본인 게시글에는 신청할 수 없습니다."}), 400
+    if post.status != "open":
+        return jsonify({"error": "이미 완료된 거래입니다."}), 400
+    if not _rate_ok(f"karrot_apply:{current_user.id}", 20, 86400):
+        return jsonify({"error": "신청 횟수를 초과했습니다."}), 429
+    existing = KarrotApplication.query.filter_by(post_id=post_id, user_id=current_user.id).first()
+    if existing:
+        return jsonify({"error": "이미 신청한 게시글입니다."}), 400
+    app_ = KarrotApplication(post_id=post_id, user_id=current_user.id)
+    db.session.add(app_)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/karrot/<int:post_id>/match/<int:user_id>", methods=["POST"])
+@login_required
+def api_karrot_match(post_id: int, user_id: int):
+    """당근 매칭 확정 (작성자만). 완료 처리 후 matched_user_id 세팅."""
+    post = KarrotPost.query.get(post_id)
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if post.author_id != current_user.id:
+        return jsonify({"error": "권한이 없습니다."}), 403
+    if post.status != "open":
+        return jsonify({"error": "이미 완료된 거래입니다."}), 400
+    app_ = KarrotApplication.query.filter_by(post_id=post_id, user_id=user_id).first()
+    if not app_:
+        return jsonify({"error": "해당 신청자를 찾을 수 없습니다."}), 404
+    post.status = "completed"
+    post.completed_at = datetime.utcnow()
+    post.matched_user_id = user_id
+    db.session.commit()
+    label = "나눔완료" if post.post_type == "share" else "교환완료"
+    return jsonify({"ok": True, "label": label})
