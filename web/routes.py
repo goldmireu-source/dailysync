@@ -13,7 +13,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication, AppSetting
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication, AppSetting, UserBookmark
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -119,11 +119,18 @@ def inject_admin_flag():
 
 @bp.app_context_processor
 def context_admin():
-    """모든 템플릿에서 is_admin + cardnews_bot URL 자동 노출."""
+    """모든 템플릿에서 is_admin + cardnews_bot URL + 보관함 카운트 자동 노출."""
+    bm_count = 0
+    if current_user.is_authenticated:
+        try:
+            bm_count = UserBookmark.query.filter_by(user_id=current_user.id).count()
+        except Exception:
+            pass
     return {
         "is_admin": is_admin(),
         "cardnews_bot_url": Config.CARDNEWS_BOT_URL,
         "timedelta": timedelta,
+        "bm_count": bm_count,
     }
 
 
@@ -312,6 +319,15 @@ def index():
     karrot_enabled = _get_setting("karrot_enabled", "false") == "true"
     if tab == "karrot" and not karrot_enabled and not is_admin():
         tab = "contests"
+
+    # 회원별 즐겨찾기 ID 세트 (북마크 버튼 상태 표시용)
+    if current_user.is_authenticated:
+        _bms = UserBookmark.query.filter_by(user_id=current_user.id).all()
+        user_bm_contest_ids = {b.item_id for b in _bms if b.item_type == "contest"}
+        user_bm_cluster_ids = {b.item_id for b in _bms if b.item_type == "cluster"}
+        user_bm_paper_ids = {b.item_id for b in _bms if b.item_type == "paper"}
+    else:
+        user_bm_contest_ids = user_bm_cluster_ids = user_bm_paper_ids = set()
 
     start_utc, _ = _kst_day_bounds(target)
     _, end_utc = _kst_day_bounds(target_to)
@@ -613,6 +629,9 @@ def index():
         karrot_filter=karrot_filter,
         karrot_class=karrot_class,
         karrot_enabled=karrot_enabled,
+        user_bm_contest_ids=user_bm_contest_ids,
+        user_bm_cluster_ids=user_bm_cluster_ids,
+        user_bm_paper_ids=user_bm_paper_ids,
     )
 
 
@@ -1351,6 +1370,69 @@ def admin():
         recent_activity=recent_activity,
         register_ip_map=register_ip_map,
         karrot_enabled=_get_setting("karrot_enabled", "false") == "true",
+    )
+
+
+# ---------- 보관함 (회원별 즐겨찾기) ----------
+@bp.route("/api/bookmark/<item_type>/<int:item_id>", methods=["POST"])
+@login_required
+def toggle_bookmark(item_type: str, item_id: int):
+    """즐겨찾기 토글 — 있으면 제거, 없으면 추가."""
+    if item_type not in ("contest", "cluster", "paper"):
+        return jsonify({"ok": False, "error": "invalid_type"}), 400
+    existing = UserBookmark.query.filter_by(
+        user_id=current_user.id, item_type=item_type, item_id=item_id
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({"ok": True, "bookmarked": False})
+    bm = UserBookmark(user_id=current_user.id, item_type=item_type, item_id=item_id)
+    db.session.add(bm)
+    db.session.commit()
+    return jsonify({"ok": True, "bookmarked": True})
+
+
+@bp.route("/bookmarks")
+@login_required
+def bookmarks():
+    uid = current_user.id
+    bms = UserBookmark.query.filter_by(user_id=uid).order_by(UserBookmark.saved_at.desc()).all()
+
+    contest_ids = [b.item_id for b in bms if b.item_type == "contest"]
+    cluster_ids = [b.item_id for b in bms if b.item_type == "cluster"]
+    paper_ids = [b.item_id for b in bms if b.item_type == "paper"]
+
+    contests = Contest.query.filter(Contest.id.in_(contest_ids)).all() if contest_ids else []
+    clusters = Cluster.query.filter(Cluster.id.in_(cluster_ids)).all() if cluster_ids else []
+    papers = Paper.query.filter(Paper.id.in_(paper_ids)).all() if paper_ids else []
+
+    # 북마크 저장 순서 유지
+    co = {bid: i for i, bid in enumerate(contest_ids)}
+    clo = {bid: i for i, bid in enumerate(cluster_ids)}
+    po = {bid: i for i, bid in enumerate(paper_ids)}
+    contests.sort(key=lambda x: co.get(x.id, 999))
+    clusters.sort(key=lambda x: clo.get(x.id, 999))
+    papers.sort(key=lambda x: po.get(x.id, 999))
+
+    # 기사·논문 합쳐서 날짜 내림차순 정렬
+    def _item_date(item):
+        if hasattr(item, "published_at"):
+            return item.published_at or datetime.min
+        a = item.articles.first()
+        return (a.published_at if a and a.published_at else datetime.min)
+
+    news_items = sorted(
+        [("cluster", c) for c in clusters] + [("paper", p) for p in papers],
+        key=lambda x: _item_date(x[1]),
+        reverse=True,
+    )
+
+    return render_template(
+        "bookmarks.html",
+        contests=contests,
+        news_items=news_items,
+        tab=request.args.get("tab", "contest"),
     )
 
 

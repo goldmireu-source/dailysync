@@ -406,6 +406,25 @@ class GlossaryTerm(db.Model):
         return f"<GlossaryTerm {self.term}>"
 
 
+# ---------- UserBookmark ----------
+class UserBookmark(db.Model):
+    """회원별 즐겨찾기 — contest / cluster / paper."""
+    __tablename__ = "user_bookmarks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=False, index=True)
+    item_type = db.Column(db.String(10), nullable=False)  # contest | cluster | paper
+    item_id = db.Column(db.Integer, nullable=False)
+    saved_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("AdminUser", backref="bookmarks")
+
+    __table_args__ = (db.UniqueConstraint("user_id", "item_type", "item_id"),)
+
+    def __repr__(self):
+        return f"<UserBookmark user={self.user_id} {self.item_type}={self.item_id}>"
+
+
 # ---------- AppSetting ----------
 class AppSetting(db.Model):
     """앱 전역 설정 (키-값 단순 저장소)."""

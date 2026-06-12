@@ -3,7 +3,7 @@
   위 ⅔ = 포스터 이미지(없으면 카테고리 그라데이션+아이콘), 아래 ⅓ = 제목.
   타일 클릭 → /contest/<id> 상세. admin 은 우상단 저장/숨김 버튼.
 #}
-{% macro render_contest_tile(t, show_hidden=false) %}
+{% macro render_contest_tile(t, show_hidden=false, is_bookmarked=false) %}
 <div class="contest-tile {% if t.urgent %}urgent{% endif %}" data-contest-id="{{ t.id }}">
   <a class="ct-link" href="/contest/{{ t.id }}">
     <div class="ct-image">
@@ -27,8 +27,14 @@
     </div>
   </a>
 
-  {% if g.is_admin %}
+  {% if current_user.is_authenticated %}
   <div class="ct-actions">
+    <button class="ct-action-btn bm-btn {% if is_bookmarked %}bookmarked{% endif %}"
+            title="{% if is_bookmarked %}보관함에서 제거{% else %}보관함에 저장{% endif %}"
+            onclick="event.preventDefault(); event.stopPropagation(); toggleBookmark('contest', {{ t.id }}, this)">
+      {% if is_bookmarked %}🔖{% else %}📎{% endif %}
+    </button>
+    {% if g.is_admin %}
     <button class="ct-action-btn save-btn {% if t.saved %}saved{% endif %}"
             title="{% if t.saved %}저장 해제{% else %}저장{% endif %}"
             onclick="event.preventDefault(); event.stopPropagation(); {% if t.saved %}unsaveItem('contest', {{ t.id }}){% else %}saveItem('contest', {{ t.id }}){% endif %}">
@@ -39,6 +45,7 @@
             onclick="event.preventDefault(); event.stopPropagation(); {% if show_hidden %}showItem('contest', {{ t.id }}){% else %}hideItem('contest', {{ t.id }}){% endif %}">
       {% if show_hidden %}↻{% else %}×{% endif %}
     </button>
+    {% endif %}
   </div>
   {% endif %}
 </div>

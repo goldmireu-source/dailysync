@@ -202,7 +202,7 @@
 {% endmacro %}
 
 
-{% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false) %}
+{% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false, is_bookmarked=false) %}
 <div class="carousel" id="car-{{ cid }}" data-{{ hide_kind }}-id="{{ hide_id }}">
   <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover'] %}1{% else %}0{% endif %}">
     {# Jinja 매크로는 호출 템플릿의 context 변수(is_admin)에 접근 불가.
@@ -219,6 +219,14 @@
               onclick="event.stopPropagation(); {% if show_hidden %}showItem('{{ hide_kind }}', {{ hide_id }}){% else %}hideItem('{{ hide_kind }}', {{ hide_id }}){% endif %}"
               title="{% if show_hidden %}복구{% else %}숨기기{% endif %}">
         {% if show_hidden %}↻{% else %}×{% endif %}
+      </button>
+      {% endif %}
+      {# 로그인 회원이면 북마크 버튼 #}
+      {% if current_user.is_authenticated %}
+      <button class="card-action-btn bm-btn {% if is_bookmarked %}bookmarked{% endif %}"
+              onclick="event.stopPropagation(); toggleBookmark('{{ hide_kind }}', {{ hide_id }}, this)"
+              title="{% if is_bookmarked %}보관함에서 제거{% else %}보관함에 저장{% endif %}">
+        {% if is_bookmarked %}🔖{% else %}📎{% endif %}
       </button>
       {% endif %}
       {# cluster 만 — 비로그인은 로그인 페이지로 #}

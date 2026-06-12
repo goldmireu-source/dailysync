@@ -20,6 +20,7 @@
     <a href="{{ url_for('web.admin') }}" class="hd-chip" title="관리자 페이지">⚙</a>
     {% endif %}
     {% if current_user.is_authenticated %}
+    <a href="/bookmarks" class="hd-chip" title="내 보관함">🔖 <span class="hd-num" id="bm-header-count">{{ bm_count }}</span></a>
     <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 20) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃"><svg class="logout-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="logout-txt">로그아웃</span></a>
     {% else %}
@@ -148,7 +149,7 @@
       'topic': c.topic,
       'meta': (src_count|string + '매체') if src_count >= 2 else (members[0].source.name if members else '')
     } %}
-    {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), c.saved_at is not none) }}
+    {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), c.saved_at is not none, is_bookmarked=(c.id in user_bm_cluster_ids)) }}
   {% endfor %}
 </div>
 
@@ -221,7 +222,7 @@
       'topic': p.title_ko or p.title,
       'meta': ('⭐ ' ~ p.hf_upvotes) if (p.hf_upvotes and p.hf_upvotes > 0) else 'arXiv'
     } %}
-    {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), p.saved_at is not none) }}
+    {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), p.saved_at is not none, is_bookmarked=(p.id in user_bm_paper_ids)) }}
   {% endfor %}
 </div>
 
@@ -312,7 +313,7 @@
   <div class="contest-help">마감 임박순 · AI 관련 공모전·경진대회만 모았어요. 타일을 누르면 상세로 이동합니다.</div>
   <div class="contest-grid">
     {% for t in contest_tiles %}
-      {{ render_contest_tile(t, show_hidden) }}
+      {{ render_contest_tile(t, show_hidden, is_bookmarked=(t.id in user_bm_contest_ids)) }}
     {% endfor %}
   </div>
 
@@ -1683,6 +1684,22 @@ async function unsaveItem(kind, id) {
       refreshCounts();
     }
   } catch (e) { console.error(e); }
+}
+
+async function toggleBookmark(itemType, itemId, btn) {
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/bookmark/${itemType}/${itemId}`, { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      btn.classList.toggle('bookmarked', data.bookmarked);
+      btn.textContent = data.bookmarked ? '🔖' : '📎';
+      btn.title = data.bookmarked ? '보관함에서 제거' : '보관함에 저장';
+      const countEl = document.getElementById('bm-header-count');
+      if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') + (data.bookmarked ? 1 : -1));
+    }
+  } catch (e) { console.error(e); }
+  btn.disabled = false;
 }
 
 async function restoreAll() {
