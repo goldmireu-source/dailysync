@@ -113,8 +113,9 @@ def admin_required(f):
 
 @bp.before_request
 def inject_admin_flag():
-    """모든 요청 시작 시 g.is_admin 세팅 (템플릿에서 쓸 수 있게)."""
+    """모든 요청 시작 시 g.is_admin / g.user_authenticated 세팅 (매크로에서 쓸 수 있게)."""
     g.is_admin = is_admin()
+    g.user_authenticated = current_user.is_authenticated
 
 
 @bp.app_context_processor
