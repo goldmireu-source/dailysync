@@ -1913,6 +1913,32 @@ def api_karrot_create():
     return jsonify({"ok": True, "post_id": post.id})
 
 
+@bp.route("/api/karrot/<int:post_id>/edit", methods=["POST"])
+@login_required
+def api_karrot_edit(post_id: int):
+    """당근 게시글 제목/내용 수정 (작성자 본인만, 완료 전)."""
+    post = KarrotPost.query.get(post_id)
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if post.author_id != current_user.id:
+        return jsonify({"error": "수정 권한이 없습니다."}), 403
+    if post.status == "completed":
+        return jsonify({"error": "완료된 게시글은 수정할 수 없습니다."}), 400
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "제목을 입력해주세요."}), 400
+    if len(title) > 100:
+        return jsonify({"error": "제목은 최대 100자입니다."}), 400
+    content = (data.get("content") or "").strip()
+    if len(content) > 1000:
+        return jsonify({"error": "내용은 최대 1000자입니다."}), 400
+    post.title = title
+    post.content = content or None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
 @bp.route("/api/karrot/<int:post_id>/delete", methods=["POST"])
 @login_required
 def api_karrot_delete(post_id: int):
