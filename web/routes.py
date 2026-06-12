@@ -288,7 +288,7 @@ def index():
         target_to = datetime.now(KST).date()
     # tab 은 아래 클러스터 쿼리보다 앞에서 미리 읽어야 articles_flat 분기에 활용 가능
     tab = request.args.get("tab", "contests")
-    if tab not in ("news", "papers", "contests", "parties"):
+    if tab not in ("news", "papers", "contests", "parties", "karrot"):
         tab = "contests"
 
     start_utc, _ = _kst_day_bounds(target)
