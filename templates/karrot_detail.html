@@ -38,10 +38,6 @@
   background: color-mix(in srgb, #5cb85c 18%, transparent);
   color: #5cb85c; border: 1px solid color-mix(in srgb, #5cb85c 35%, transparent);
 }
-.kd-type-badge--trade {
-  background: color-mix(in srgb, #F0A840 15%, transparent);
-  color: #c07820; border: 1px solid color-mix(in srgb, #F0A840 30%, transparent);
-}
 .kd-status-badge {
   font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 7px;
   background: color-mix(in srgb, var(--danger) 15%, transparent);
@@ -115,8 +111,6 @@
       <div class="kd-badges">
         {% if post.post_type == 'share' %}
         <span class="kd-type-badge kd-type-badge--share">🎁 나눔</span>
-        {% elif post.post_type == 'trade' %}
-        <span class="kd-type-badge kd-type-badge--trade">🔄 교환</span>
         {% else %}
         <span class="kd-type-badge" style="background:color-mix(in srgb,#4a9eff 18%,transparent);color:#2a7fdc;border:1px solid color-mix(in srgb,#4a9eff 35%,transparent);">📅 단기대여</span>
         {% if post.loan_period %}<span class="kd-class-badge" style="background:color-mix(in srgb,#4a9eff 10%,transparent);color:#2a7fdc;border-color:color-mix(in srgb,#4a9eff 22%,transparent);">{{ post.loan_period }}</span>{% endif %}
@@ -127,7 +121,7 @@
         <span class="kd-class-badge">전체반</span>
         {% endif %}
         {% if post.status == 'completed' %}
-        <span class="kd-status-badge">{{ '나눔완료' if post.post_type == 'share' else ('교환완료' if post.post_type == 'trade' else '대여완료') }}</span>
+        <span class="kd-status-badge">{{ '나눔완료' if post.post_type == 'share' else '대여완료' }}</span>
         {% endif %}
       </div>
     </div>

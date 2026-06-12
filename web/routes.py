@@ -560,7 +560,7 @@ def index():
     karrot_class = request.args.get("kclass", "all")
     if tab == "karrot":
         kq = KarrotPost.query
-        if karrot_filter in ("share", "trade", "loan"):
+        if karrot_filter in ("share", "loan"):
             kq = kq.filter_by(post_type=karrot_filter)
         if karrot_class.isdigit() and 1 <= int(karrot_class) <= 7:
             from sqlalchemy import or_
@@ -1916,7 +1916,7 @@ def api_karrot_create():
         return jsonify({"error": "게시글은 하루 10개까지 작성할 수 있습니다."}), 429
 
     post_type = (request.form.get("post_type") or "share").strip()
-    if post_type not in ("share", "trade", "loan"):
+    if post_type not in ("share", "loan"):
         post_type = "share"
     title = (request.form.get("title") or "").strip()
     if not title:
