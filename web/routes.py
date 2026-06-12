@@ -1717,11 +1717,18 @@ def api_profile_update():
         current_user.class_num = cn
 
     if password:
+        if not _rate_ok(f"pw_change_user:{current_user.id}", 5, 86400):
+            _log_activity("rate_limit", detail="pw_change 5/day 초과")
+            return jsonify({"error": "비밀번호 변경은 하루 5회까지 가능합니다."}), 429
+        if not _rate_ok(f"pw_change_ip:{_client_ip()}", 10, 86400):
+            _log_activity("rate_limit", detail="pw_change ip 10/day 초과")
+            return jsonify({"error": "비밀번호 변경은 하루 5회까지 가능합니다."}), 429
         if len(password) > 10:
             return jsonify({"error": "비밀번호는 최대 10자입니다."}), 400
         if password != password_confirm:
             return jsonify({"error": "비밀번호가 일치하지 않습니다."}), 400
         current_user.set_password(password)
+        _log_activity("password_change")
 
     db.session.commit()
     _log_activity("profile_update")

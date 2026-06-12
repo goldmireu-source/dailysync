@@ -164,22 +164,24 @@
       최근 활동 이력 (최신 {{ recent_activity|length }}건)
     </h2>
     {% set ACTION_COLOR = {
-      'login_ok':      '#4a7c59',
-      'login_fail':    '#c44',
-      'register':      '#3a7fbf',
-      'logout':        '#888',
-      'profile_update':'#b08000',
-      'party_create':  '#6b40ba',
-      'rate_limit':    '#c44',
+      'login_ok':        '#4a7c59',
+      'login_fail':      '#c44',
+      'register':        '#3a7fbf',
+      'logout':          '#888',
+      'profile_update':  '#b08000',
+      'password_change': '#c07030',
+      'party_create':    '#6b40ba',
+      'rate_limit':      '#c44',
     } %}
     {% set ACTION_LABEL = {
-      'login_ok':      '로그인',
-      'login_fail':    '로그인 실패',
-      'register':      '회원가입',
-      'logout':        '로그아웃',
-      'profile_update':'프로필 수정',
-      'party_create':  '파티 생성',
-      'rate_limit':    '차단',
+      'login_ok':        '로그인',
+      'login_fail':      '로그인 실패',
+      'register':        '회원가입',
+      'logout':          '로그아웃',
+      'profile_update':  '프로필 수정',
+      'password_change': '비밀번호 변경',
+      'party_create':    '파티 생성',
+      'rate_limit':      '차단',
     } %}
     {% if recent_activity %}
     <div style="overflow-x: auto;">
