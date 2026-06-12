@@ -21,7 +21,7 @@
     {% endif %}
     {% if current_user.is_authenticated %}
     <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 20) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
-    <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃">로그아웃</a>
+    <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃"><svg class="logout-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="logout-txt">로그아웃</span></a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
     <a href="{{ url_for('web.admin_register') }}" class="hd-chip">회원가입</a>
