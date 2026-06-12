@@ -49,7 +49,9 @@
   <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">🏆 공모전<span class="nav-num">{{ total_contests }}</span></a>
   <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">📰 뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span></a>
   <a href="?tab=parties" class="nav-pill {% if tab == 'parties' %}active{% endif %}">🎯 파티 찾기<span class="nav-num">{{ total_parties }}</span></a>
-  <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">🥕 인사교당근<span class="nav-num">{{ total_karrot }}</span></a>
+  {% if karrot_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
+  <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">🥕 인사교당근{% if not karrot_enabled %}<span style="font-size:10px;opacity:.5;margin-left:3px;">비공개</span>{% else %}<span class="nav-num">{{ total_karrot }}</span>{% endif %}</a>
+  {% endif %}
 </nav>
 </div>
 <script>

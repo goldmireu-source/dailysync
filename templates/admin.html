@@ -40,6 +40,22 @@
 <!-- 탭: 잡 · 스케줄 -->
 <div id="tab-jobs">
 
+<!-- 탭 공개 설정 -->
+<div class="detail-section" style="margin-bottom: 1.25rem;">
+  <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 0 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">탭 공개 설정</h2>
+  <div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border);">
+    <div style="flex: 1;">
+      <div style="font-size: 13px; font-weight: 600; color: var(--text);">🥕 인사교당근</div>
+      <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">비공개 상태에서는 관리자만 탭이 보이며 접근 가능합니다.</div>
+    </div>
+    <button id="karrot-toggle-btn" onclick="toggleKarrot()"
+            style="min-width: 90px; padding: 7px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background .15s, color .15s;
+                   {% if karrot_enabled %}background: #34d399; color: #fff;{% else %}background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border);{% endif %}">
+      {% if karrot_enabled %}🌐 공개 중{% else %}🔒 비공개{% endif %}
+    </button>
+  </div>
+</div>
+
 <div class="detail-section">
   <h2 style="font-size: 13px; font-weight: 500; color: var(--text-dim); margin: 0 0 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">등록된 잡 · 수동 실행</h2>
   <table style="width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); border-radius: 12px; overflow: hidden;">
@@ -345,6 +361,28 @@ const JOB_LABELS = {
   "{{ jid }}": "{{ lab }}",
   {% endfor %}
 };
+
+async function toggleKarrot() {
+  const btn = document.getElementById('karrot-toggle-btn');
+  btn.disabled = true;
+  const res = await fetch('/admin/toggle-karrot', { method: 'POST', headers: { 'X-CSRFToken': '' } });
+  const data = await res.json();
+  if (data.ok) {
+    if (data.karrot_enabled) {
+      btn.textContent = '🌐 공개 중';
+      btn.style.background = '#34d399';
+      btn.style.color = '#fff';
+      btn.style.border = 'none';
+    } else {
+      btn.textContent = '🔒 비공개';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.border = '';
+      btn.style.cssText += '; background: var(--bg-soft); color: var(--text-muted); border: 1px solid var(--border);';
+    }
+  }
+  btn.disabled = false;
+}
 
 async function runJob(jobId) {
   const btn = document.querySelector(`.run-btn[data-job="${jobId}"]`);

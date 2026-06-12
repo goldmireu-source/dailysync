@@ -406,6 +406,18 @@ class GlossaryTerm(db.Model):
         return f"<GlossaryTerm {self.term}>"
 
 
+# ---------- AppSetting ----------
+class AppSetting(db.Model):
+    """앱 전역 설정 (키-값 단순 저장소)."""
+    __tablename__ = "app_settings"
+
+    key = db.Column(db.String(60), primary_key=True)
+    value = db.Column(db.String(200), nullable=False, default="")
+
+    def __repr__(self):
+        return f"<AppSetting {self.key}={self.value!r}>"
+
+
 # ---------- Digest ----------
 class Digest(db.Model):
     __tablename__ = "digests"

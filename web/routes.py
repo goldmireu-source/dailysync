@@ -13,7 +13,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication, AppSetting
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -75,6 +75,22 @@ _USERNAME_RE = re.compile(r'^[a-zA-Z0-9가-힣_]+$')
 def is_admin() -> bool:
     """현재 요청이 admin 권한인지 (로그인 + role='admin' 모두 충족)."""
     return current_user.is_authenticated and current_user.role == "admin"
+
+
+def _get_setting(key: str, default: str = "") -> str:
+    """app_settings 테이블에서 값 조회. 없으면 default 반환."""
+    row = AppSetting.query.get(key)
+    return row.value if row else default
+
+
+def _set_setting(key: str, value: str) -> None:
+    """app_settings 테이블에 값 저장 (upsert)."""
+    row = AppSetting.query.get(key)
+    if row:
+        row.value = value
+    else:
+        db.session.add(AppSetting(key=key, value=value))
+    db.session.commit()
 
 
 def admin_required(f):
@@ -290,6 +306,11 @@ def index():
     # tab 은 아래 클러스터 쿼리보다 앞에서 미리 읽어야 articles_flat 분기에 활용 가능
     tab = request.args.get("tab", "contests")
     if tab not in ("news", "papers", "contests", "parties", "karrot"):
+        tab = "contests"
+
+    # 인사교당근 공개 여부 — 비공개 시 관리자 외 접근 차단
+    karrot_enabled = _get_setting("karrot_enabled", "false") == "true"
+    if tab == "karrot" and not karrot_enabled and not is_admin():
         tab = "contests"
 
     start_utc, _ = _kst_day_bounds(target)
@@ -591,6 +612,7 @@ def index():
         total_karrot=total_karrot,
         karrot_filter=karrot_filter,
         karrot_class=karrot_class,
+        karrot_enabled=karrot_enabled,
     )
 
 
@@ -1328,7 +1350,18 @@ def admin():
         admin_users=admin_users,
         recent_activity=recent_activity,
         register_ip_map=register_ip_map,
+        karrot_enabled=_get_setting("karrot_enabled", "false") == "true",
     )
+
+
+@bp.route("/admin/toggle-karrot", methods=["POST"])
+@admin_required
+def admin_toggle_karrot():
+    """인사교당근 탭 공개/비공개 토글."""
+    current = _get_setting("karrot_enabled", "false")
+    new_val = "false" if current == "true" else "true"
+    _set_setting("karrot_enabled", new_val)
+    return jsonify({"ok": True, "karrot_enabled": new_val == "true"})
 
 
 @bp.route("/admin/run/<job_id>", methods=["POST"])
