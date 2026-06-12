@@ -536,10 +536,17 @@ def index():
     karrot_list = []
     total_karrot = KarrotPost.query.count()
     karrot_filter = request.args.get("kfilter", "all")
+    karrot_class = request.args.get("kclass", "all")
     if tab == "karrot":
         kq = KarrotPost.query
         if karrot_filter in ("share", "trade", "loan"):
             kq = kq.filter_by(post_type=karrot_filter)
+        if karrot_class.isdigit() and 1 <= int(karrot_class) <= 7:
+            from sqlalchemy import or_
+            kq = kq.filter(or_(
+                KarrotPost.class_target == int(karrot_class),
+                KarrotPost.class_target.is_(None),
+            ))
         karrot_list = kq.order_by(KarrotPost.created_at.desc()).all()
         inline_clusters = []
         paper_cardsets = []
@@ -583,6 +590,7 @@ def index():
         karrot_list=karrot_list,
         total_karrot=total_karrot,
         karrot_filter=karrot_filter,
+        karrot_class=karrot_class,
     )
 
 

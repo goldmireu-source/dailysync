@@ -1021,12 +1021,19 @@
   {% endif %}
 </div>
 
-<!-- 필터 바 -->
+<!-- 유형 필터 -->
 <div class="kr-filter-bar">
-  <a href="?tab=karrot&kfilter=all" class="kr-chip {% if karrot_filter == 'all' %}active{% endif %}">전체 <span style="opacity:.6;">{{ karrot_list | length }}</span></a>
-  <a href="?tab=karrot&kfilter=share" class="kr-chip {% if karrot_filter == 'share' %}active{% endif %}">🎁 나눔</a>
-  <a href="?tab=karrot&kfilter=trade" class="kr-chip {% if karrot_filter == 'trade' %}active{% endif %}">🔄 물물교환</a>
-  <a href="?tab=karrot&kfilter=loan"  class="kr-chip {% if karrot_filter == 'loan'  %}active{% endif %}">📅 단기대여</a>
+  <a href="?tab=karrot&kfilter=all&kclass={{ karrot_class }}" class="kr-chip {% if karrot_filter == 'all' %}active{% endif %}">전체 <span style="opacity:.6;">{{ karrot_list | length }}</span></a>
+  <a href="?tab=karrot&kfilter=share&kclass={{ karrot_class }}" class="kr-chip {% if karrot_filter == 'share' %}active{% endif %}">🎁 나눔</a>
+  <a href="?tab=karrot&kfilter=trade&kclass={{ karrot_class }}" class="kr-chip {% if karrot_filter == 'trade' %}active{% endif %}">🔄 물물교환</a>
+  <a href="?tab=karrot&kfilter=loan&kclass={{ karrot_class }}"  class="kr-chip {% if karrot_filter == 'loan'  %}active{% endif %}">📅 단기대여</a>
+</div>
+<!-- 반 필터 -->
+<div class="kr-filter-bar" style="margin-top:-.6rem;">
+  <a href="?tab=karrot&kfilter={{ karrot_filter }}&kclass=all" class="kr-chip {% if karrot_class == 'all' %}active{% endif %}">전체반</a>
+  {% for n in range(1, 8) %}
+  <a href="?tab=karrot&kfilter={{ karrot_filter }}&kclass={{ n }}" class="kr-chip {% if karrot_class == n|string %}active{% endif %}">{{ n }}반</a>
+  {% endfor %}
 </div>
 
 {% if karrot_list %}
