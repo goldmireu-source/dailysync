@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_slides.html" import render_carousel %}
 {% block title %}내 보관함 · DAILY SYNC{% endblock %}
 
 {% block content %}
@@ -8,7 +9,7 @@
   <div class="brand" style="margin:0;">DAILY <span class="accent">SYNC</span> · 보관함</div>
 </div>
 <div class="page-meta" style="margin-bottom:1.5rem;">
-  공모전 {{ contest_tiles|length }}개 · 기사·논문 {{ news_items|length }}개
+  공모전 {{ contest_tiles|length }}개 · 기사·논문 {{ cluster_cardsets|length + paper_cardsets|length }}개
 </div>
 
 <style>
@@ -158,7 +159,7 @@
     🏆 공모전 <span class="nav-num">{{ contest_tiles|length }}</span>
   </button>
   <button class="bm-tab-btn {% if tab == 'news' %}active{% endif %}" data-tab="news">
-    📰 기사·논문 <span class="nav-num">{{ news_items|length }}</span>
+    📰 기사·논문 <span class="nav-num">{{ cluster_cardsets|length + paper_cardsets|length }}</span>
   </button>
 </div>
 
@@ -226,53 +227,55 @@
 
 <!-- ===== 기사·논문 탭 ===== -->
 <div id="bm-tab-news" {% if tab != 'news' %}style="display:none"{% endif %}>
-  {% if news_items %}
-  <div class="bm-filter-row">
-    <input type="text" id="bm-news-kw" placeholder="키워드 검색..." class="bm-search-inp">
-    <input type="text" id="bm-news-date" placeholder="날짜 (예: 2025-06)" class="bm-search-inp" style="max-width:160px;">
+  {% if not cluster_cardsets and not paper_cardsets %}
+  <div class="bm-empty">보관된 기사·논문이 없습니다.<span>뉴스/논문 카드의 📎 버튼을 눌러 저장하세요.</span></div>
+  {% else %}
+
+  {% if cluster_cardsets %}
+  <div style="font-size:12px;font-weight:600;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.75rem;">기사</div>
+  <div class="carousel-grid">
+    {% for item in cluster_cardsets %}
+    {% set c = item.cluster %}
+    {% set members = c.articles.all() %}
+    {% set src_count = members|map(attribute='source_id')|unique|list|length %}
+    {% set caption_meta = {
+      'topic': c.topic,
+      'meta': (src_count|string ~ '매체') if src_count >= 2 else (members[0].source.name if members else '')
+    } %}
+    {{ render_carousel('bmc' ~ c.id, 'cluster', item.cards, 'cluster', c.id, false, caption_meta, loop.index, false, true) }}
+    {% endfor %}
   </div>
   {% endif %}
 
-  <div id="bm-news-list">
-    {% if not news_items %}
-    <div class="bm-empty">보관된 기사·논문이 없습니다.<span>뉴스/논문 카드의 📎 버튼을 눌러 저장하세요.</span></div>
-    {% else %}
-    {% for item_type, item in news_items %}
-    {% if item_type == 'cluster' %}
-    {% set pub = item.articles.first() %}
-    <div class="bm-news-item"
-         data-id="{{ item.id }}" data-type="cluster"
-         data-text="{{ ((item.topic or '') ~ ' ' ~ (item.summary_ko or ''))|lower }}"
-         data-date="{{ (pub.published_at + timedelta(hours=9)).strftime('%Y-%m') if pub and pub.published_at else '' }}">
-      <div class="bm-ni-badge news-badge">기사</div>
-      <div class="bm-ni-body">
-        <a href="/cluster/{{ item.id }}" class="bm-ni-title">{{ item.topic or '(제목 없음)' }}</a>
-        <div class="bm-ni-excerpt">{{ (item.summary_ko or '')[:120] }}{% if (item.summary_ko or '')|length > 120 %}…{% endif %}</div>
-        <div class="bm-ni-meta">
-          {% if pub and pub.published_at %}{{ (pub.published_at + timedelta(hours=9)).strftime('%Y.%m.%d') }}{% endif %}
-        </div>
-      </div>
-      <button class="bm-remove-btn" onclick="removeBm('cluster', {{ item.id }}, this)" title="보관 해제">✕</button>
-    </div>
-    {% else %}
-    <div class="bm-news-item"
-         data-id="{{ item.id }}" data-type="paper"
-         data-text="{{ ((item.title_ko or item.title or '') ~ ' ' ~ (item.summary_ko or ''))|lower }}"
-         data-date="{{ item.published_at.strftime('%Y-%m') if item.published_at else '' }}">
-      <div class="bm-ni-badge paper-badge">논문</div>
-      <div class="bm-ni-body">
-        <a href="/paper/{{ item.id }}" class="bm-ni-title">{{ item.title_ko or item.title }}</a>
-        <div class="bm-ni-excerpt">{{ (item.summary_ko or item.abstract or '')[:120] }}{% if ((item.summary_ko or item.abstract or '')|length) > 120 %}…{% endif %}</div>
-        <div class="bm-ni-meta">
-          {% if item.published_at %}{{ item.published_at.strftime('%Y.%m.%d') }}{% endif %}
-          {% if item.authors %}· {{ item.authors[0] }}{% if item.authors|length > 1 %} 외 {{ item.authors|length - 1 }}명{% endif %}{% endif %}
-        </div>
-      </div>
-      <button class="bm-remove-btn" onclick="removeBm('paper', {{ item.id }}, this)" title="보관 해제">✕</button>
-    </div>
-    {% endif %}
+  {% if paper_cardsets %}
+  <div style="font-size:12px;font-weight:600;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin:{% if cluster_cardsets %}2rem{% else %}0{% endif %} 0 .75rem;">논문</div>
+  <div class="carousel-grid">
+    {% for item in paper_cardsets %}
+    {% set p = item.paper %}
+    {% set caption_meta = {
+      'topic': p.title_ko or p.title,
+      'meta': ('⭐ ' ~ p.hf_upvotes) if (p.hf_upvotes and p.hf_upvotes > 0) else 'arXiv'
+    } %}
+    {{ render_carousel('bmp' ~ p.id, 'paper', item.cards, 'paper', p.id, false, caption_meta, loop.index, false, true) }}
     {% endfor %}
-    {% endif %}
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+{# ===== 카드 확대 모달 ===== #}
+<div class="card-modal-overlay" id="card-modal-overlay" onclick="closeCardModal(event)">
+  <div class="card-modal" onclick="event.stopPropagation()">
+    <div class="card-modal-head">
+      <span class="label" id="card-modal-label">카드 상세</span>
+      <button class="card-modal-close" onclick="closeCardModal()" title="닫기 (ESC)">×</button>
+    </div>
+    <div class="card-modal-body" id="card-modal-body"></div>
+    <div class="card-modal-caption">
+      <span class="topic" id="card-modal-topic"></span>
+      <span class="meta" id="card-modal-meta"></span>
+    </div>
   </div>
 </div>
 
@@ -305,19 +308,6 @@ document.getElementById('bm-contest-kw')?.addEventListener('input', filterContes
 document.getElementById('bm-contest-date')?.addEventListener('input', filterContests);
 document.getElementById('bm-contest-sel')?.addEventListener('change', filterContests);
 
-// 기사·논문 필터
-function filterNews() {
-  const kw = (document.getElementById('bm-news-kw')?.value || '').toLowerCase().trim();
-  const dateStr = (document.getElementById('bm-news-date')?.value || '').trim();
-  document.querySelectorAll('#bm-news-list .bm-news-item').forEach(function(el) {
-    const tMatch = !kw || el.dataset.text.includes(kw);
-    const dMatch = !dateStr || el.dataset.date.includes(dateStr);
-    el.style.display = (tMatch && dMatch) ? '' : 'none';
-  });
-}
-document.getElementById('bm-news-kw')?.addEventListener('input', filterNews);
-document.getElementById('bm-news-date')?.addEventListener('input', filterNews);
-
 // 공모전 카드 보관 해제
 async function removeBmCard(itemType, itemId, btn) {
   const card = btn.closest('.bm-ct-card');
@@ -333,28 +323,206 @@ async function removeBmCard(itemType, itemId, btn) {
   } catch (e) { btn.disabled = false; }
 }
 
-// 기사·논문 보관 해제
-async function removeBm(itemType, itemId, btn) {
-  const item = btn.closest('.bm-news-item');
+// 카드뉴스의 📎 버튼 → 보관 해제 후 carousel 제거
+function toggleBookmark(itemType, itemId, btn) {
   btn.disabled = true;
-  try {
-    const r = await fetch('/api/bookmark/' + itemType + '/' + itemId, { method: 'POST' });
-    const data = await r.json();
-    if (data.ok && !data.bookmarked) {
-      item.style.transition = 'opacity .2s, transform .2s';
-      item.style.opacity = '0'; item.style.transform = 'translateX(8px)';
-      setTimeout(function() { item.remove(); updatePageCount(); }, 200);
-    } else { btn.disabled = false; }
-  } catch (e) { btn.disabled = false; }
+  fetch('/api/bookmark/' + itemType + '/' + itemId, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok && !data.bookmarked) {
+        const car = btn.closest('.carousel');
+        if (car) {
+          car.style.transition = 'opacity .2s, transform .2s';
+          car.style.opacity = '0'; car.style.transform = 'scale(.97)';
+          setTimeout(function() { car.remove(); updatePageCount(); }, 200);
+        }
+      } else { btn.disabled = false; }
+    })
+    .catch(function() { btn.disabled = false; });
 }
 
 function updatePageCount() {
   const cl = document.querySelectorAll('#bm-contest-list .bm-ct-card').length;
-  const nl = document.querySelectorAll('#bm-news-list .bm-news-item').length;
+  const nl = document.querySelectorAll('#bm-tab-news .carousel').length;
   const tabs = document.querySelectorAll('.bm-tab-btn');
   if (tabs[0]) tabs[0].querySelector('.nav-num').textContent = cl;
   if (tabs[1]) tabs[1].querySelector('.nav-num').textContent = nl;
 }
+
+// ========== 캐러셀 초기화 ==========
+function initCarousel(carousel) {
+  const stage = carousel.querySelector('.carousel-stage');
+  const slides = carousel.querySelectorAll('.slide');
+  const dots = carousel.querySelectorAll('.slide-dots .dot');
+  const prevBtn = carousel.querySelector('.slide-nav.prev');
+  const nextBtn = carousel.querySelector('.slide-nav.next');
+  const total = slides.length;
+  let current = 0;
+
+  function show(idx) {
+    if (idx < 0 || idx >= total) return;
+    current = idx;
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    const curSlide = slides[idx];
+    stage.dataset.cover = (curSlide.classList.contains('cover') || curSlide.classList.contains('paper-cover')) ? '1' : '0';
+    if (prevBtn) prevBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === total - 1;
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current - 1); });
+  if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current + 1); });
+  dots.forEach((d, i) => d.addEventListener('click', (e) => { e.stopPropagation(); show(i); }));
+
+  let touchStartX = 0;
+  stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) show(current + 1);
+      else show(current - 1);
+    }
+  });
+
+  let mouseStartX = 0;
+  let isDragging = false;
+  stage._dragHappened = false;
+  stage.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    mouseStartX = e.clientX;
+    isDragging = true;
+    stage._dragHappened = false;
+    stage.style.cursor = 'grabbing';
+    stage.style.userSelect = 'none';
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    stage.style.cursor = '';
+    stage.style.userSelect = '';
+    const dx = e.clientX - mouseStartX;
+    if (Math.abs(dx) > 40) {
+      stage._dragHappened = true;
+      document.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+      }, { capture: true, once: true });
+      if (dx < 0) show(current + 1);
+      else show(current - 1);
+    }
+  });
+  stage.addEventListener('mouseleave', () => {
+    if (isDragging) { isDragging = false; stage.style.cursor = ''; stage.style.userSelect = ''; }
+  });
+}
+
+(function() {
+  document.querySelectorAll('.carousel').forEach(initCarousel);
+
+  document.querySelectorAll('.carousel').forEach(function(carousel) {
+    const stage = carousel.querySelector('.carousel-stage');
+    if (!stage) return;
+    stage.addEventListener('click', function(e) {
+      if (stage._dragHappened) { stage._dragHappened = false; return; }
+      const target = e.target;
+      if (target.closest('.card-action-btn')) return;
+      if (target.closest('.slide-nav')) return;
+      if (target.closest('.slide-dots')) return;
+      if (target.closest('a')) return;
+      openCardModal(carousel);
+    });
+  });
+})();
+
+function openCardModal(carousel) {
+  const overlay = document.getElementById('card-modal-overlay');
+  const body = document.getElementById('card-modal-body');
+  const label = document.getElementById('card-modal-label');
+  const topicEl = document.getElementById('card-modal-topic');
+  const metaEl = document.getElementById('card-modal-meta');
+
+  const caption = carousel.querySelector('.carousel-caption');
+  if (caption) {
+    const topic = caption.querySelector('.topic-link');
+    const meta = caption.querySelector('.meta-right');
+    topicEl.textContent = topic ? topic.textContent : '';
+    metaEl.textContent = meta ? meta.textContent : '';
+  }
+  const isCluster = carousel.hasAttribute('data-cluster-id');
+  label.textContent = isCluster ? '🗞 뉴스 상세' : '📄 논문 상세';
+
+  const stage = carousel.querySelector('.carousel-stage');
+  const cloned = stage.cloneNode(true);
+  cloned.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('active', i === 0));
+  cloned.querySelectorAll('.slide-dots .dot').forEach((d, i) => d.classList.toggle('active', i === 0));
+  const firstSlide = cloned.querySelector('.slide');
+  if (firstSlide) {
+    cloned.dataset.cover = (firstSlide.classList.contains('cover') || firstSlide.classList.contains('paper-cover')) ? '1' : '0';
+  }
+  cloned.style.cursor = 'default';
+
+  body.innerHTML = '';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'carousel';
+  wrapper.appendChild(cloned);
+  body.appendChild(wrapper);
+  initCarousel(wrapper);
+
+  document.body.dataset.scrollY = String(window.scrollY);
+  document.body.style.top = `-${window.scrollY}px`;
+
+  overlay.classList.add('visible');
+  document.body.classList.add('modal-open');
+  if (!window.history.state || !window.history.state.cardModal) {
+    window.history.pushState({ cardModal: true }, '', window.location.href);
+  }
+}
+
+function closeCardModal(e) {
+  if (e && e.target && !e.target.classList.contains('card-modal-overlay')) {
+    if (e.target.closest && e.target.closest('.card-modal-close')) {
+      // 통과
+    } else if (e.target.closest && e.target.closest('.card-modal')) {
+      return;
+    }
+  }
+  const overlay = document.getElementById('card-modal-overlay');
+  if (!overlay.classList.contains('visible')) return;
+  overlay.classList.remove('visible');
+
+  const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+  document.body.classList.remove('modal-open');
+  document.body.style.top = '';
+  window.scrollTo(0, savedY);
+
+  if (window.history.state && window.history.state.cardModal) {
+    window.history.back();
+  }
+}
+
+window.addEventListener('popstate', function(e) {
+  const overlay = document.getElementById('card-modal-overlay');
+  if (overlay && overlay.classList.contains('visible')) {
+    overlay.classList.remove('visible');
+    const savedY = parseInt(document.body.dataset.scrollY || '0', 10);
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, savedY);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('card-modal-overlay');
+    if (overlay && overlay.classList.contains('visible')) closeCardModal();
+  }
+});
+
+// 보관함에선 관리자 save/hide 액션은 스텁 (carousel 매크로 호환)
+function hideItem() {}
+function showItem() {}
+function saveItem() {}
+function unsaveItem() {}
 </script>
 
 {% endblock %}
