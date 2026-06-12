@@ -319,6 +319,25 @@ class PartyMessage(db.Model):
         return f"<PartyMessage {self.id} party={self.party_id}>"
 
 
+# ---------- KarrotPost ----------
+class KarrotPost(db.Model):
+    """인사교당근 — 나눔 / 물물교환 게시글."""
+    __tablename__ = "karrot_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_type = db.Column(db.String(10), nullable=False, default="share")  # 'share' | 'trade'
+    title = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text)
+    image_url = db.Column(db.String(500))
+    author_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    author = db.relationship("AdminUser", backref="karrot_posts")
+
+    def __repr__(self):
+        return f"<KarrotPost {self.id} {self.post_type!r} {self.title!r}>"
+
+
 # ---------- JobRun ----------
 class JobRun(db.Model):
     """백그라운드 잡 실행 이력 (스케줄러용)."""

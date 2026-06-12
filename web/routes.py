@@ -13,7 +13,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost
 from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
 
 bp = Blueprint("web", __name__)
@@ -531,6 +531,21 @@ def index():
         paper_cardsets = []
         contest_tiles = []
 
+    # ========== 인사교당근 탭 ==========
+    karrot_list = []
+    total_karrot = KarrotPost.query.count()
+    karrot_filter = request.args.get("kfilter", "all")
+    if tab == "karrot":
+        kq = KarrotPost.query
+        if karrot_filter == "share":
+            kq = kq.filter_by(post_type="share")
+        elif karrot_filter == "trade":
+            kq = kq.filter_by(post_type="trade")
+        karrot_list = kq.order_by(KarrotPost.created_at.desc()).all()
+        inline_clusters = []
+        paper_cardsets = []
+        contest_tiles = []
+
     return render_template(
         "digest.html",
         target_date=target,
@@ -566,6 +581,9 @@ def index():
         my_party_ids=my_party_ids,
         total_parties=total_parties,
         active_contests=contests_all,
+        karrot_list=karrot_list,
+        total_karrot=total_karrot,
+        karrot_filter=karrot_filter,
     )
 
 
@@ -1825,3 +1843,81 @@ def api_party_post_message(party_id: int):
         "content": msg.content,
         "ts": (msg.created_at + timedelta(hours=9)).strftime("%H:%M"),
     })
+
+
+# ============================================================
+# 인사교당근 API
+# ============================================================
+
+def _karrot_upload_dir() -> str:
+    d = os.path.join(current_app.static_folder, "uploads", "karrot")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _delete_karrot_image(image_url: str | None):
+    if not image_url or "/uploads/karrot/" not in image_url:
+        return
+    fname = os.path.basename(image_url)
+    try:
+        p = os.path.join(_karrot_upload_dir(), fname)
+        if os.path.exists(p):
+            os.remove(p)
+    except OSError:
+        pass
+
+
+@bp.route("/api/karrot", methods=["POST"])
+@login_required
+def api_karrot_create():
+    """당근 게시글 생성 (multipart/form-data — image 포함 가능)."""
+    if not _rate_ok(f"karrot_create:{current_user.id}", 10, 86400):
+        _sec_warn("KARROT_CREATE_RATE")
+        return jsonify({"error": "게시글은 하루 10개까지 작성할 수 있습니다."}), 429
+
+    post_type = (request.form.get("post_type") or "share").strip()
+    if post_type not in ("share", "trade"):
+        post_type = "share"
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "제목을 입력해주세요."}), 400
+    if len(title) > 100:
+        return jsonify({"error": "제목은 최대 100자입니다."}), 400
+    content = (request.form.get("content") or "").strip()
+    if len(content) > 1000:
+        return jsonify({"error": "내용은 최대 1000자입니다."}), 400
+
+    post = KarrotPost(
+        post_type=post_type,
+        title=title,
+        content=content or None,
+        author_id=current_user.id,
+    )
+    db.session.add(post)
+    db.session.flush()  # id 확보
+
+    file = request.files.get("image")
+    if file and file.filename:
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if ext in ALLOWED_IMAGE_EXT:
+            fname = secure_filename(f"karrot_{post.id}_{secrets.token_hex(6)}.{ext}")
+            file.save(os.path.join(_karrot_upload_dir(), fname))
+            post.image_url = url_for("static", filename=f"uploads/karrot/{fname}")
+
+    db.session.commit()
+    return jsonify({"ok": True, "post_id": post.id})
+
+
+@bp.route("/api/karrot/<int:post_id>/delete", methods=["POST"])
+@login_required
+def api_karrot_delete(post_id: int):
+    """당근 게시글 삭제 (작성자 본인만)."""
+    post = KarrotPost.query.get(post_id)
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if post.author_id != current_user.id and not is_admin():
+        return jsonify({"error": "삭제 권한이 없습니다."}), 403
+    _delete_karrot_image(post.image_url)
+    db.session.delete(post)
+    db.session.commit()
+    return jsonify({"ok": True})
