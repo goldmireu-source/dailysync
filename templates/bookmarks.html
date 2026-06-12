@@ -8,7 +8,7 @@
   <div class="brand" style="margin:0;">DAILY <span class="accent">SYNC</span> · 보관함</div>
 </div>
 <div class="page-meta" style="margin-bottom:1.5rem;">
-  공모전 {{ contests|length }}개 · 기사·논문 {{ news_items|length }}개
+  공모전 {{ contest_tiles|length }}개 · 기사·논문 {{ news_items|length }}개
 </div>
 
 <style>
@@ -35,25 +35,74 @@
   cursor:pointer; min-width:140px; max-width:200px;
 }
 
-/* 공모전 아이템 */
-.bm-contest-item {
-  display:flex; align-items:center; gap:10px;
-  padding:12px 14px; background:var(--bg-card); border:1px solid var(--border);
-  border-radius:12px; margin-bottom:8px; transition:border-color .15s;
+/* ===== 공모전 이미지 카드 ===== */
+.bm-contest-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap:16px;
+  margin-bottom:1rem;
 }
-.bm-contest-item:hover { border-color:var(--accent-dim); }
-.bm-ci-body { flex:1; min-width:0; }
-.bm-ci-cat {
-  font-size:10px; font-weight:700; color:var(--text-dim);
-  letter-spacing:.05em; text-transform:uppercase; margin-bottom:3px;
+.bm-ct-card {
+  position:relative; border-radius:14px; overflow:hidden;
+  border:1px solid var(--border); background:var(--bg-card);
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+  cursor:pointer;
 }
-.bm-ci-title {
-  display:block; font-size:14px; font-weight:700; color:var(--text);
-  text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  margin-bottom:4px;
+.bm-ct-card:hover { transform:translateY(-2px); border-color:var(--accent-dim); box-shadow:0 6px 20px rgba(0,0,0,.25); }
+
+/* 이미지 영역 — 슬라이드 비율(16:9) */
+.bm-ct-img {
+  position:relative; width:100%; aspect-ratio:16/9; overflow:hidden;
+  background:var(--bg-soft);
 }
-.bm-ci-title:hover { color:var(--accent); }
-.bm-ci-meta { display:flex; gap:8px; font-size:11px; color:var(--text-muted); }
+.bm-ct-img img {
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  transition:transform .3s;
+}
+.bm-ct-card:hover .bm-ct-img img { transform:scale(1.04); }
+.bm-ct-fallback {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:2.5rem;
+}
+.bm-ct-img img.img-failed { opacity:0; }
+
+/* D-day 배지 — 좌상단 */
+.bm-ct-dday {
+  position:absolute; top:10px; left:10px; z-index:2;
+  background:rgba(0,0,0,.72); color:#fff; font-size:11px; font-weight:800;
+  padding:4px 9px; border-radius:7px; letter-spacing:.03em; backdrop-filter:blur(4px);
+}
+.bm-ct-dday.urgent { background:var(--danger); }
+
+/* 카테고리 배지 — 우상단 */
+.bm-ct-cat {
+  position:absolute; top:10px; right:42px; z-index:2;
+  background:rgba(0,0,0,.6); color:rgba(255,255,255,.85); font-size:10px; font-weight:700;
+  padding:3px 8px; border-radius:6px; letter-spacing:.04em; backdrop-filter:blur(4px);
+  max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* 보관 해제 버튼 — 우상단 */
+.bm-ct-remove {
+  position:absolute; top:8px; right:8px; z-index:3;
+  width:28px; height:28px; border-radius:7px;
+  background:rgba(0,0,0,.55); border:none; color:rgba(255,255,255,.8);
+  font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:background .15s, color .15s; backdrop-filter:blur(4px);
+}
+.bm-ct-remove:hover { background:rgba(200,40,40,.8); color:#fff; }
+
+/* 텍스트 영역 */
+.bm-ct-body { padding:12px 14px 13px; }
+.bm-ct-title {
+  display:block; font-size:13px; font-weight:700; color:var(--text);
+  text-decoration:none; line-height:1.45; margin-bottom:6px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.bm-ct-title:hover { color:var(--accent); }
+.bm-ct-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); gap:6px; }
+.bm-ct-host { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-ct-deadline { flex-shrink:0; color:var(--text-dim); }
 
 /* 기사·논문 아이템 */
 .bm-news-item {
@@ -77,7 +126,7 @@
 .bm-ni-excerpt { font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:4px; }
 .bm-ni-meta { font-size:11px; color:var(--text-dim); }
 
-/* 제거 버튼 */
+/* 제거 버튼 (기사·논문용) */
 .bm-remove-btn {
   flex-shrink:0; width:28px; height:28px; border-radius:7px;
   background:none; border:1px solid var(--border); color:var(--text-dim);
@@ -92,19 +141,18 @@
 }
 .bm-empty span { font-size:12px; opacity:.6; display:block; margin-top:4px; }
 
-@media (max-width:480px) {
+@media (max-width:560px) {
+  .bm-contest-grid { grid-template-columns:1fr; }
   .bm-filter-row { gap:6px; }
   .bm-search-inp { font-size:12px; }
   .bm-select { font-size:12px; }
-  .bm-ci-title { font-size:13px; }
-  .bm-ni-title { font-size:12px; }
 }
 </style>
 
 <!-- 탭 네비게이션 -->
 <div class="bm-tabs">
   <button class="bm-tab-btn {% if tab == 'contest' %}active{% endif %}" data-tab="contest">
-    🏆 공모전 <span class="nav-num">{{ contests|length }}</span>
+    🏆 공모전 <span class="nav-num">{{ contest_tiles|length }}</span>
   </button>
   <button class="bm-tab-btn {% if tab == 'news' %}active{% endif %}" data-tab="news">
     📰 기사·논문 <span class="nav-num">{{ news_items|length }}</span>
@@ -113,39 +161,62 @@
 
 <!-- ===== 공모전 탭 ===== -->
 <div id="bm-tab-contest" {% if tab != 'contest' %}style="display:none"{% endif %}>
-  {% if contests %}
+  {% if contest_tiles %}
   <div class="bm-filter-row">
     <input type="text" id="bm-contest-kw" placeholder="키워드 검색..." class="bm-search-inp">
     <input type="text" id="bm-contest-date" placeholder="마감 월 (예: 2025-06)" class="bm-search-inp" style="max-width:160px;">
     <select id="bm-contest-sel" class="bm-select">
       <option value="">전체 공모전</option>
-      {% for c in contests %}
-      <option value="{{ c.id }}">{{ c.title[:28] }}{% if c.title|length > 28 %}…{% endif %}</option>
+      {% for t in contest_tiles %}
+      <option value="{{ t.id }}">{{ t.title[:28] }}{% if t.title|length > 28 %}…{% endif %}</option>
       {% endfor %}
     </select>
   </div>
   {% endif %}
 
   <div id="bm-contest-list">
-    {% if not contests %}
+    {% if not contest_tiles %}
     <div class="bm-empty">보관된 공모전이 없습니다.<span>공모전 타일의 📎 버튼을 눌러 저장하세요.</span></div>
     {% else %}
-    {% for c in contests %}
-    <div class="bm-contest-item"
-         data-id="{{ c.id }}"
-         data-title="{{ c.title|lower }}"
-         data-deadline="{{ c.deadline.strftime('%Y-%m') if c.deadline else '' }}">
-      <div class="bm-ci-body">
-        <div class="bm-ci-cat">{{ c.category or '공모전' }}</div>
-        <a href="/contest/{{ c.id }}" class="bm-ci-title" target="_blank" rel="noopener">{{ c.title }}</a>
-        <div class="bm-ci-meta">
-          <span>{{ c.host or c.source }}</span>
-          {% if c.deadline %}<span>마감 {{ c.deadline.strftime('%Y.%m.%d') }}</span>{% endif %}
+    <div class="bm-contest-grid">
+    {% for t in contest_tiles %}
+    <div class="bm-ct-card"
+         data-id="{{ t.id }}"
+         data-title="{{ t.title|lower }}"
+         data-deadline="{{ t.deadline_str or '' }}">
+
+      <!-- 이미지 영역 -->
+      <a href="/contest/{{ t.id }}" target="_blank" rel="noopener">
+        <div class="bm-ct-img">
+          {% if t.image_url %}
+          <img src="{{ t.image_url }}" alt="{{ t.title }}" loading="lazy"
+               style="object-position:{{ t.image_pos_x }}% {{ t.image_pos_y }}%; transform:scale({{ t.image_scale }});"
+               onerror="this.classList.add('img-failed');">
+          {% endif %}
+          <div class="bm-ct-fallback" style="background:linear-gradient(135deg,{{ t.fallback_c1 }},{{ t.fallback_c2 }});">
+            <span>{{ t.fallback_icon }}</span>
+          </div>
+          <!-- D-day 좌상단 -->
+          <span class="bm-ct-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
+          <!-- 카테고리 -->
+          {% if t.category %}<span class="bm-ct-cat">{{ t.category }}</span>{% endif %}
+        </div>
+      </a>
+
+      <!-- 보관 해제 버튼 -->
+      <button class="bm-ct-remove" onclick="removeBmCard('contest', {{ t.id }}, this)" title="보관 해제">✕</button>
+
+      <!-- 텍스트 영역 -->
+      <div class="bm-ct-body">
+        <a href="/contest/{{ t.id }}" class="bm-ct-title" target="_blank" rel="noopener">{{ t.title }}</a>
+        <div class="bm-ct-meta">
+          <span class="bm-ct-host">{{ t.host or t.source }}</span>
+          <span class="bm-ct-deadline">{% if t.deadline_str %}~{{ t.deadline_str }}{% endif %}</span>
         </div>
       </div>
-      <button class="bm-remove-btn" onclick="removeBm('contest', {{ c.id }}, this)" title="보관 해제">✕</button>
     </div>
     {% endfor %}
+    </div>
     {% endif %}
   </div>
 </div>
@@ -220,7 +291,7 @@ function filterContests() {
   const kw = (document.getElementById('bm-contest-kw')?.value || '').toLowerCase().trim();
   const dateStr = (document.getElementById('bm-contest-date')?.value || '').trim();
   const selId = document.getElementById('bm-contest-sel')?.value || '';
-  document.querySelectorAll('#bm-contest-list .bm-contest-item').forEach(function(el) {
+  document.querySelectorAll('#bm-contest-list .bm-ct-card').forEach(function(el) {
     const tMatch = !kw || el.dataset.title.includes(kw);
     const dMatch = !dateStr || el.dataset.deadline.includes(dateStr);
     const iMatch = !selId || el.dataset.id === selId;
@@ -244,31 +315,42 @@ function filterNews() {
 document.getElementById('bm-news-kw')?.addEventListener('input', filterNews);
 document.getElementById('bm-news-date')?.addEventListener('input', filterNews);
 
-// 보관 해제
+// 공모전 카드 보관 해제
+async function removeBmCard(itemType, itemId, btn) {
+  const card = btn.closest('.bm-ct-card');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/bookmark/' + itemType + '/' + itemId, { method: 'POST' });
+    const data = await r.json();
+    if (data.ok && !data.bookmarked) {
+      card.style.transition = 'opacity .2s, transform .2s';
+      card.style.opacity = '0'; card.style.transform = 'scale(.95)';
+      setTimeout(function() { card.remove(); updatePageCount(); }, 200);
+    } else { btn.disabled = false; }
+  } catch (e) { btn.disabled = false; }
+}
+
+// 기사·논문 보관 해제
 async function removeBm(itemType, itemId, btn) {
-  const item = btn.closest('.bm-contest-item, .bm-news-item');
+  const item = btn.closest('.bm-news-item');
   btn.disabled = true;
   try {
     const r = await fetch('/api/bookmark/' + itemType + '/' + itemId, { method: 'POST' });
     const data = await r.json();
     if (data.ok && !data.bookmarked) {
       item.style.transition = 'opacity .2s, transform .2s';
-      item.style.opacity = '0';
-      item.style.transform = 'translateX(8px)';
+      item.style.opacity = '0'; item.style.transform = 'translateX(8px)';
       setTimeout(function() { item.remove(); updatePageCount(); }, 200);
     } else { btn.disabled = false; }
   } catch (e) { btn.disabled = false; }
 }
 
 function updatePageCount() {
-  const cl = document.querySelectorAll('#bm-contest-list .bm-contest-item').length;
+  const cl = document.querySelectorAll('#bm-contest-list .bm-ct-card').length;
   const nl = document.querySelectorAll('#bm-news-list .bm-news-item').length;
   const tabs = document.querySelectorAll('.bm-tab-btn');
   if (tabs[0]) tabs[0].querySelector('.nav-num').textContent = cl;
   if (tabs[1]) tabs[1].querySelector('.nav-num').textContent = nl;
-  // 메인 페이지 헤더 카운트도 동기화
-  const hc = document.getElementById('bm-header-count');
-  if (hc) hc.textContent = Math.max(0, parseInt(hc.textContent || '0') - 1);
 }
 </script>
 

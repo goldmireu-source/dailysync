@@ -1421,6 +1421,8 @@ def bookmarks():
     clusters.sort(key=lambda x: clo.get(x.id, 999))
     papers.sort(key=lambda x: po.get(x.id, 999))
 
+    contest_tiles = [build_contest_tile(c) for c in contests]
+
     # 기사·논문 합쳐서 날짜 내림차순 정렬
     def _item_date(item):
         if hasattr(item, "published_at"):
@@ -1436,7 +1438,7 @@ def bookmarks():
 
     return render_template(
         "bookmarks.html",
-        contests=contests,
+        contest_tiles=contest_tiles,
         news_items=news_items,
         tab=request.args.get("tab", "contest"),
     )
