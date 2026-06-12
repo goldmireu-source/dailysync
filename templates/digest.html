@@ -44,12 +44,27 @@
 
 {# ===== Top nav: 공모전(메인) / 뉴스·논문 / 파티 ===== #}
 {% if not show_hidden %}
-<nav class="main-nav">
+<div class="main-nav-wrap">
+<nav class="main-nav" id="main-nav">
   <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">🏆 공모전<span class="nav-num">{{ total_contests }}</span></a>
   <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">📰 뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span></a>
   <a href="?tab=parties" class="nav-pill {% if tab == 'parties' %}active{% endif %}">🎯 파티 찾기<span class="nav-num">{{ total_parties }}</span></a>
   <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">🥕 인사교당근<span class="nav-num">{{ total_karrot }}</span></a>
 </nav>
+</div>
+<script>
+(function() {
+  var nav  = document.getElementById('main-nav');
+  var wrap = nav && nav.parentElement;
+  if (!nav || !wrap) return;
+  function check() {
+    var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 4;
+    wrap.classList.toggle('nav-scrolled-end', atEnd);
+  }
+  nav.addEventListener('scroll', check, { passive: true });
+  check();
+})();
+</script>
 {% endif %}
 
 {% if tab not in ('contests', 'parties', 'karrot') and not inline_clusters and not articles_flat and not others and not papers %}

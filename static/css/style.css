@@ -3552,6 +3552,15 @@ footer a { color: var(--text-dim); }
   .hd-chip--logout { color: #e05252; border-color: #e0525244; padding: 5px 10px; }
 
   /* 메인 네비: 패딩·마진·폰트 축소 + 가로 스크롤 */
+  .main-nav-wrap { position: relative; }
+  .main-nav-wrap::after {
+    content: '';
+    position: absolute; right: 0; top: 0; bottom: 0; width: 48px;
+    background: linear-gradient(to right, transparent, var(--bg));
+    pointer-events: none; border-radius: 0 12px 12px 0;
+    transition: opacity .2s;
+  }
+  .main-nav-wrap.nav-scrolled-end::after { opacity: 0; }
   .main-nav { padding: 4px; margin: 14px 0 10px; border-radius: 12px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .main-nav::-webkit-scrollbar { display: none; }
   .nav-pill { flex: none; padding: 8px 10px; font-size: 13px; gap: 5px; border-radius: 8px; }
