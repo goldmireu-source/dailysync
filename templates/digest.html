@@ -847,6 +847,7 @@
 }
 .kc-type-badge--share { background:color-mix(in srgb,#5cb85c 15%,transparent); color:#5cb85c; border:1px solid color-mix(in srgb,#5cb85c 30%,transparent); }
 .kc-type-badge--trade { background:color-mix(in srgb,#F0A840 15%,transparent); color:#c07820; border:1px solid color-mix(in srgb,#F0A840 30%,transparent); }
+.kc-type-badge--loan  { background:color-mix(in srgb,#4a9eff 15%,transparent); color:#2a7fdc; border:1px solid color-mix(in srgb,#4a9eff 30%,transparent); }
 .kc-class-badge {
   font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;
   background:color-mix(in srgb,var(--accent) 12%,transparent);
@@ -944,8 +945,32 @@
         <div class="kr-toggle-row">
           <button type="button" class="kr-toggle-btn kr-selected" data-type="share" id="kr-btn-share">🎁 나눔하기</button>
           <button type="button" class="kr-toggle-btn" data-type="trade" id="kr-btn-trade">🔄 물물교환</button>
+          <button type="button" class="kr-toggle-btn" data-type="loan" id="kr-btn-loan">📅 단기대여</button>
         </div>
         <input type="hidden" id="kr-type-val" value="share">
+      </div>
+      <!-- 단기대여 기간 (loan 선택 시만 표시) -->
+      <div id="kr-loan-period-wrap" style="display:none;">
+        <label class="kr-label">대여 기간 <span style="color:var(--danger);">*</span></label>
+        <div class="kr-toggle-row" id="kr-period-row">
+          <button type="button" class="kr-toggle-btn kr-selected" data-period="무기한">무기한</button>
+          <button type="button" class="kr-toggle-btn" data-period="사용만료시점까지">사용만료시점까지</button>
+          <button type="button" class="kr-toggle-btn" data-period="custom">기간 지정</button>
+        </div>
+        <div id="kr-period-custom" style="display:none;margin-top:8px;display:none;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <button type="button" class="kr-toggle-btn" data-days="3">3일</button>
+            <button type="button" class="kr-toggle-btn" data-days="7">7일</button>
+            <button type="button" class="kr-toggle-btn" data-days="14">14일</button>
+            <button type="button" class="kr-toggle-btn" data-days="30">30일</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" id="kr-period-days" min="1" max="365" placeholder="직접 입력"
+                   style="width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+            <span style="font-size:13px;color:var(--text-dim);">일간</span>
+          </div>
+        </div>
+        <input type="hidden" id="kr-period-val" value="무기한">
       </div>
       <div>
         <label class="kr-label">대상 반</label>
@@ -1001,6 +1026,7 @@
   <a href="?tab=karrot&kfilter=all" class="kr-chip {% if karrot_filter == 'all' %}active{% endif %}">전체 <span style="opacity:.6;">{{ karrot_list | length }}</span></a>
   <a href="?tab=karrot&kfilter=share" class="kr-chip {% if karrot_filter == 'share' %}active{% endif %}">🎁 나눔</a>
   <a href="?tab=karrot&kfilter=trade" class="kr-chip {% if karrot_filter == 'trade' %}active{% endif %}">🔄 물물교환</a>
+  <a href="?tab=karrot&kfilter=loan"  class="kr-chip {% if karrot_filter == 'loan'  %}active{% endif %}">📅 단기대여</a>
 </div>
 
 {% if karrot_list %}
@@ -1018,7 +1044,9 @@
         <div class="kc-title">{{ post.title }}</div>
         <div class="kc-badges">
           {% if post.post_type == 'share' %}<span class="kc-type-badge kc-type-badge--share">🎁 나눔</span>
-          {% else %}<span class="kc-type-badge kc-type-badge--trade">🔄 교환</span>{% endif %}
+          {% elif post.post_type == 'trade' %}<span class="kc-type-badge kc-type-badge--trade">🔄 교환</span>
+          {% else %}<span class="kc-type-badge kc-type-badge--loan">📅 단기대여</span>{% endif %}
+          {% if post.post_type == 'loan' and post.loan_period %}<span class="kc-class-badge" style="background:color-mix(in srgb,#4a9eff 10%,transparent);color:#2a7fdc;border-color:color-mix(in srgb,#4a9eff 22%,transparent);">{{ post.loan_period }}</span>{% endif %}
           {% if post.class_target %}<span class="kc-class-badge">{{ post.class_target }}반</span>
           {% else %}<span class="kc-class-badge">전체반</span>{% endif %}
           {% if completed %}
@@ -1063,13 +1091,43 @@
   // 유형 토글
   const shareBtn = document.getElementById('kr-btn-share');
   const tradeBtn = document.getElementById('kr-btn-trade');
+  const loanBtn  = document.getElementById('kr-btn-loan');
   const typeVal  = document.getElementById('kr-type-val');
-  [shareBtn, tradeBtn].forEach(function(btn) {
+  const loanWrap = document.getElementById('kr-loan-period-wrap');
+  [shareBtn, tradeBtn, loanBtn].forEach(function(btn) {
     btn.addEventListener('click', function() {
-      shareBtn.classList.toggle('kr-selected', btn === shareBtn);
-      tradeBtn.classList.toggle('kr-selected', btn === tradeBtn);
+      [shareBtn, tradeBtn, loanBtn].forEach(function(b) { b.classList.remove('kr-selected'); });
+      btn.classList.add('kr-selected');
       typeVal.value = btn.dataset.type;
+      loanWrap.style.display = (btn.dataset.type === 'loan') ? '' : 'none';
     });
+  });
+
+  // 대여 기간 토글
+  const periodVal = document.getElementById('kr-period-val');
+  const periodCustom = document.getElementById('kr-period-custom');
+  document.getElementById('kr-period-row').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-period]');
+    if (!btn) return;
+    this.querySelectorAll('[data-period]').forEach(function(b) { b.classList.remove('kr-selected'); });
+    btn.classList.add('kr-selected');
+    var isCustom = btn.dataset.period === 'custom';
+    periodCustom.style.display = isCustom ? '' : 'none';
+    periodVal.value = isCustom ? '' : btn.dataset.period;
+  });
+  // 기간 지정 — 프리셋 일수
+  periodCustom.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-days]');
+    if (!btn) return;
+    this.querySelectorAll('[data-days]').forEach(function(b) { b.classList.remove('kr-selected'); });
+    btn.classList.add('kr-selected');
+    document.getElementById('kr-period-days').value = btn.dataset.days;
+    periodVal.value = btn.dataset.days + '일';
+  });
+  document.getElementById('kr-period-days').addEventListener('input', function() {
+    var v = parseInt(this.value);
+    periodCustom.querySelectorAll('[data-days]').forEach(function(b) { b.classList.remove('kr-selected'); });
+    periodVal.value = (v > 0) ? v + '일' : '';
   });
 
   // 반 토글
@@ -1113,8 +1171,15 @@
     document.getElementById('kr-title').value = '';
     document.getElementById('kr-content').value = '';
     typeVal.value = 'share';
+    [shareBtn, tradeBtn, loanBtn].forEach(function(b) { b.classList.remove('kr-selected'); });
     shareBtn.classList.add('kr-selected');
-    tradeBtn.classList.remove('kr-selected');
+    loanWrap.style.display = 'none';
+    periodVal.value = '무기한';
+    periodCustom.style.display = 'none';
+    document.getElementById('kr-period-days').value = '';
+    document.getElementById('kr-period-row').querySelectorAll('[data-period]').forEach(function(b,i) {
+      b.classList.toggle('kr-selected', i === 0);
+    });
     classVal.value = '';
     document.getElementById('kr-class-row').querySelectorAll('.kr-toggle-btn').forEach(function(b,i) {
       b.classList.toggle('kr-selected', i === 0);
@@ -1151,6 +1216,11 @@
       fd.append('title', title);
       fd.append('content', document.getElementById('kr-content').value.trim());
       if (classVal.value) fd.append('class_target', classVal.value);
+      if (typeVal.value === 'loan') {
+        var lp = periodVal.value.trim();
+        if (!lp) { errorEl.textContent = '대여 기간을 선택해주세요.'; errorEl.style.display = ''; btn.disabled = false; return; }
+        fd.append('loan_period', lp);
+      }
       const imgFile = imageInput.files[0];
       if (imgFile) fd.append('image', imgFile);
       const r = await fetch('/api/karrot', { method: 'POST', body: fd });

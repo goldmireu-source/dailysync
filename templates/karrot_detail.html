@@ -115,8 +115,11 @@
       <div class="kd-badges">
         {% if post.post_type == 'share' %}
         <span class="kd-type-badge kd-type-badge--share">🎁 나눔</span>
-        {% else %}
+        {% elif post.post_type == 'trade' %}
         <span class="kd-type-badge kd-type-badge--trade">🔄 교환</span>
+        {% else %}
+        <span class="kd-type-badge" style="background:color-mix(in srgb,#4a9eff 18%,transparent);color:#2a7fdc;border:1px solid color-mix(in srgb,#4a9eff 35%,transparent);">📅 단기대여</span>
+        {% if post.loan_period %}<span class="kd-class-badge" style="background:color-mix(in srgb,#4a9eff 10%,transparent);color:#2a7fdc;border-color:color-mix(in srgb,#4a9eff 22%,transparent);">{{ post.loan_period }}</span>{% endif %}
         {% endif %}
         {% if post.class_target %}
         <span class="kd-class-badge">{{ post.class_target }}반</span>
@@ -124,7 +127,7 @@
         <span class="kd-class-badge">전체반</span>
         {% endif %}
         {% if post.status == 'completed' %}
-        <span class="kd-status-badge">{{ '나눔완료' if post.post_type == 'share' else '교환완료' }}</span>
+        <span class="kd-status-badge">{{ '나눔완료' if post.post_type == 'share' else ('교환완료' if post.post_type == 'trade' else '대여완료') }}</span>
         {% endif %}
       </div>
     </div>
@@ -219,20 +222,66 @@ async function matchUser(btn) {
 
 {% if is_author %}
 <!-- 수정 모달 -->
+<style>
+.ed-lbl { display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:600; }
+.ed-inp { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-soft); color:var(--text); font-family:inherit; font-size:14px; box-sizing:border-box; outline:none; }
+.ed-toggle-row { display:flex; gap:6px; flex-wrap:wrap; }
+.ed-toggle-btn { flex:1; min-width:fit-content; padding:8px 10px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:var(--bg-soft); color:var(--text-dim); transition:.15s; white-space:nowrap; }
+.ed-toggle-btn.ed-selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+</style>
 <div id="edit-overlay" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1rem;">
   <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:2rem;width:min(460px,100%);position:relative;box-shadow:0 20px 60px rgba(0,0,0,.5);max-height:92vh;overflow-y:auto;">
     <button onclick="closeEdit()" style="position:absolute;top:1rem;right:1rem;width:30px;height:30px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">✕</button>
     <h2 style="font-size:1.1rem;font-weight:700;margin:0 0 1.4rem;">✏️ 게시글 수정</h2>
     <div id="edit-error" style="display:none;background:#2a1212;color:var(--danger);border:1px solid #5a2020;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:13px;"></div>
     <div style="display:flex;flex-direction:column;gap:1rem;">
+      <!-- 제목 -->
       <div>
-        <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;">제목 <span style="color:var(--danger);">*</span></label>
-        <input id="edit-title" maxlength="100" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;" value="{{ post.title | e }}">
+        <label class="ed-lbl">제목 <span style="color:var(--danger);">*</span></label>
+        <input id="edit-title" class="ed-inp" maxlength="100" value="{{ post.title | e }}">
       </div>
+      <!-- 내용 -->
       <div>
-        <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:600;">내용</label>
-        <textarea id="edit-content" maxlength="1000" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:14px;box-sizing:border-box;outline:none;resize:vertical;">{{ post.content or '' }}</textarea>
+        <label class="ed-lbl">내용</label>
+        <textarea id="edit-content" class="ed-inp" maxlength="1000" rows="4" style="resize:vertical;">{{ post.content or '' }}</textarea>
       </div>
+      <!-- 반 선택 -->
+      <div>
+        <label class="ed-lbl">대상 반</label>
+        <div class="ed-toggle-row" id="edit-class-row">
+          <button type="button" class="ed-toggle-btn {% if not post.class_target %}ed-selected{% endif %}" data-cls="">전체반</button>
+          {% for n in range(1,8) %}
+          <button type="button" class="ed-toggle-btn {% if post.class_target == n %}ed-selected{% endif %}" data-cls="{{ n }}">{{ n }}반</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="edit-class-val" value="{{ post.class_target or '' }}">
+      </div>
+      <!-- 이미지 -->
+      <div>
+        <label class="ed-lbl">사진</label>
+        {% if post.image_url %}
+        <div id="edit-cur-img-wrap" style="margin-bottom:8px;position:relative;display:inline-block;">
+          <img src="{{ post.image_url }}" style="max-height:140px;border-radius:8px;border:1px solid var(--border);display:block;">
+          <button type="button" id="edit-remove-img-btn"
+                  onclick="removeCurrentImg()"
+                  style="position:absolute;top:4px;right:4px;width:22px;height:22px;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <input type="hidden" id="edit-remove-img" value="0">
+        {% else %}
+        <input type="hidden" id="edit-remove-img" value="0">
+        {% endif %}
+        <input type="file" id="edit-image-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+        <button type="button" id="edit-image-btn"
+                style="width:100%;padding:9px 12px;border:1px dashed var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text-dim);font-family:inherit;font-size:13px;cursor:pointer;text-align:center;">
+          📷 새 사진으로 교체
+        </button>
+        <div style="position:relative;margin-top:6px;">
+          <img id="edit-img-preview" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:none;" alt="">
+          <button type="button" id="edit-img-remove-preview"
+                  style="position:absolute;top:6px;right:6px;width:24px;height:24px;background:rgba(0,0,0,.55);border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center;">✕</button>
+        </div>
+      </div>
+      <!-- 제출 -->
       <button id="edit-submit" onclick="submitEdit()"
               style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;transition:opacity .15s;">수정 완료</button>
     </div>
@@ -265,20 +314,57 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && document.getElementById('edit-overlay')?.style.display === 'flex') closeEdit();
 });
 
+// 반 토글
+document.getElementById('edit-class-row')?.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-cls]');
+  if (!btn) return;
+  this.querySelectorAll('[data-cls]').forEach(function(b) { b.classList.remove('ed-selected'); });
+  btn.classList.add('ed-selected');
+  document.getElementById('edit-class-val').value = btn.dataset.cls;
+});
+
+// 기존 이미지 제거
+function removeCurrentImg() {
+  document.getElementById('edit-cur-img-wrap').style.display = 'none';
+  document.getElementById('edit-remove-img').value = '1';
+}
+
+// 새 이미지 미리보기
+var editImageInput = document.getElementById('edit-image-input');
+var editImgPreview = document.getElementById('edit-img-preview');
+var editImgRemovePreview = document.getElementById('edit-img-remove-preview');
+document.getElementById('edit-image-btn')?.addEventListener('click', function() { editImageInput.click(); });
+editImageInput?.addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    editImgPreview.src = e.target.result;
+    editImgPreview.style.display = 'block';
+    editImgRemovePreview.style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+});
+editImgRemovePreview?.addEventListener('click', function() {
+  editImageInput.value = '';
+  editImgPreview.src = ''; editImgPreview.style.display = 'none';
+  this.style.display = 'none';
+});
+
 async function submitEdit() {
   const title = document.getElementById('edit-title').value.trim();
   const errEl = document.getElementById('edit-error');
   if (!title) { errEl.textContent = '제목을 입력해주세요.'; errEl.style.display = ''; return; }
   const btn = document.getElementById('edit-submit');
   btn.disabled = true; errEl.style.display = 'none';
-  const r = await fetch('/api/karrot/' + POST_ID + '/edit', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      title: title,
-      content: document.getElementById('edit-content').value.trim()
-    })
-  });
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('content', document.getElementById('edit-content').value.trim());
+  var cls = document.getElementById('edit-class-val').value;
+  if (cls) fd.append('class_target', cls);
+  fd.append('remove_image', document.getElementById('edit-remove-img').value);
+  if (editImageInput && editImageInput.files[0]) fd.append('image', editImageInput.files[0]);
+  const r = await fetch('/api/karrot/' + POST_ID + '/edit', { method: 'POST', body: fd });
   const d = await r.json();
   if (d.ok) { window.location.reload(); }
   else { errEl.textContent = d.error || '수정 실패'; errEl.style.display = ''; btn.disabled = false; }

@@ -325,11 +325,12 @@ class KarrotPost(db.Model):
     __tablename__ = "karrot_posts"
 
     id = db.Column(db.Integer, primary_key=True)
-    post_type = db.Column(db.String(10), nullable=False, default="share")  # 'share' | 'trade'
+    post_type = db.Column(db.String(10), nullable=False, default="share")  # 'share' | 'trade' | 'loan'
     title = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text)
     image_url = db.Column(db.String(500))
     class_target = db.Column(db.Integer, nullable=True)  # None=전체, 1~7=특정 반
+    loan_period = db.Column(db.String(50), nullable=True)  # 단기대여 기간 (무기한/사용만료시점까지/N일)
     status = db.Column(db.String(10), nullable=False, default="open")  # 'open' | 'completed'
     completed_at = db.Column(db.DateTime, nullable=True)
     matched_user_id = db.Column(db.Integer, db.ForeignKey("admin_users.id"), nullable=True)

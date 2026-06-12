@@ -46,6 +46,7 @@ def main():
             "status":          "ALTER TABLE karrot_posts ADD COLUMN status VARCHAR(10) NOT NULL DEFAULT 'open'",
             "completed_at":    "ALTER TABLE karrot_posts ADD COLUMN completed_at DATETIME",
             "matched_user_id": "ALTER TABLE karrot_posts ADD COLUMN matched_user_id INTEGER REFERENCES admin_users(id)",
+            "loan_period":     "ALTER TABLE karrot_posts ADD COLUMN loan_period VARCHAR(50)",
         }
         added = []
         for col, sql in new_cols.items():

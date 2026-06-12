@@ -538,10 +538,8 @@ def index():
     karrot_filter = request.args.get("kfilter", "all")
     if tab == "karrot":
         kq = KarrotPost.query
-        if karrot_filter == "share":
-            kq = kq.filter_by(post_type="share")
-        elif karrot_filter == "trade":
-            kq = kq.filter_by(post_type="trade")
+        if karrot_filter in ("share", "trade", "loan"):
+            kq = kq.filter_by(post_type=karrot_filter)
         karrot_list = kq.order_by(KarrotPost.created_at.desc()).all()
         inline_clusters = []
         paper_cardsets = []
@@ -1877,7 +1875,7 @@ def api_karrot_create():
         return jsonify({"error": "게시글은 하루 10개까지 작성할 수 있습니다."}), 429
 
     post_type = (request.form.get("post_type") or "share").strip()
-    if post_type not in ("share", "trade"):
+    if post_type not in ("share", "trade", "loan"):
         post_type = "share"
     title = (request.form.get("title") or "").strip()
     if not title:
@@ -1891,11 +1889,17 @@ def api_karrot_create():
     class_target_raw = request.form.get("class_target", "").strip()
     class_target = int(class_target_raw) if class_target_raw.isdigit() and 1 <= int(class_target_raw) <= 7 else None
 
+    loan_period = None
+    if post_type == "loan":
+        lp = (request.form.get("loan_period") or "").strip()
+        loan_period = lp if lp else "무기한"
+
     post = KarrotPost(
         post_type=post_type,
         title=title,
         content=content or None,
         class_target=class_target,
+        loan_period=loan_period,
         author_id=current_user.id,
     )
     db.session.add(post)
@@ -1924,17 +1928,38 @@ def api_karrot_edit(post_id: int):
         return jsonify({"error": "수정 권한이 없습니다."}), 403
     if post.status == "completed":
         return jsonify({"error": "완료된 게시글은 수정할 수 없습니다."}), 400
-    data = request.get_json(silent=True) or {}
-    title = (data.get("title") or "").strip()
+    title = (request.form.get("title") or "").strip()
     if not title:
         return jsonify({"error": "제목을 입력해주세요."}), 400
     if len(title) > 100:
         return jsonify({"error": "제목은 최대 100자입니다."}), 400
-    content = (data.get("content") or "").strip()
+    content = (request.form.get("content") or "").strip()
     if len(content) > 1000:
         return jsonify({"error": "내용은 최대 1000자입니다."}), 400
     post.title = title
     post.content = content or None
+
+    class_target_raw = request.form.get("class_target", "").strip()
+    post.class_target = int(class_target_raw) if class_target_raw.isdigit() and 1 <= int(class_target_raw) <= 7 else None
+
+    if post.post_type == "loan":
+        lp = (request.form.get("loan_period") or "").strip()
+        if lp:
+            post.loan_period = lp
+
+    if request.form.get("remove_image") == "1":
+        _delete_karrot_image(post.image_url)
+        post.image_url = None
+    else:
+        file = request.files.get("image")
+        if file and file.filename:
+            ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+            if ext in ALLOWED_IMAGE_EXT:
+                _delete_karrot_image(post.image_url)
+                fname = secure_filename(f"karrot_{post.id}_{secrets.token_hex(6)}.{ext}")
+                file.save(os.path.join(_karrot_upload_dir(), fname))
+                post.image_url = url_for("static", filename=f"uploads/karrot/{fname}")
+
     db.session.commit()
     return jsonify({"ok": True})
 
