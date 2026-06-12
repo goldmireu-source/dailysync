@@ -1697,6 +1697,9 @@ async function toggleBookmark(itemType, itemId, btn) {
       btn.title = data.bookmarked ? '보관함에서 제거' : '보관함에 저장';
       const countEl = document.getElementById('bm-header-count');
       if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') + (data.bookmarked ? 1 : -1));
+      // 보관함 링크 탭 힌트: 기사·논문이면 ?tab=news
+      const bmLink = document.querySelector('a[href^="/bookmarks"]');
+      if (bmLink && itemType !== 'contest') bmLink.href = '/bookmarks?tab=news';
     }
   } catch (e) { console.error(e); }
   btn.disabled = false;

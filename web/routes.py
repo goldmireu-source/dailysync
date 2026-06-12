@@ -1423,24 +1423,17 @@ def bookmarks():
 
     contest_tiles = [build_contest_tile(c) for c in contests]
 
-    # 기사·논문 합쳐서 날짜 내림차순 정렬
-    def _item_date(item):
-        if hasattr(item, "published_at"):
-            return item.published_at or datetime.min
-        a = item.articles.first()
-        return (a.published_at if a and a.published_at else datetime.min)
+    cluster_cardsets = [{"cluster": c, "cards": build_cluster_cards(c)} for c in clusters]
+    paper_cardsets   = [{"paper": p,   "cards": build_paper_cards(p)}   for p in papers]
 
-    news_items = sorted(
-        [("cluster", c) for c in clusters] + [("paper", p) for p in papers],
-        key=lambda x: _item_date(x[1]),
-        reverse=True,
-    )
-
+    # 공모전 북마크 없고 기사·논문만 있으면 news 탭을 기본값으로
+    default_tab = "news" if (not contest_tiles and (cluster_cardsets or paper_cardsets)) else "contest"
     return render_template(
         "bookmarks.html",
         contest_tiles=contest_tiles,
-        news_items=news_items,
-        tab=request.args.get("tab", "contest"),
+        cluster_cardsets=cluster_cardsets,
+        paper_cardsets=paper_cardsets,
+        tab=request.args.get("tab", default_tab),
     )
 
 
