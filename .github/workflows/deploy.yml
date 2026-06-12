@@ -61,6 +61,9 @@ jobs:
           # DB 마이그레이션 (컬럼/테이블 추가, 멱등성 보장)
           venv/bin/python3 migrate_party.py
           venv/bin/python3 migrate_user_activity.py
+          venv/bin/python3 migrate_karrot.py
+          venv/bin/python3 migrate_settings.py
+          venv/bin/python3 migrate_bookmarks.py
           sudo systemctl restart daily-sync
           sleep 3
           sudo systemctl is-active daily-sync
