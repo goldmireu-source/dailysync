@@ -3554,10 +3554,10 @@ footer a { color: var(--text-dim); }
   /* 메인 네비: 패딩·마진·폰트 축소 + 가로 스크롤 */
   .main-nav-wrap { position: relative; }
   .main-nav-wrap::after {
-    content: '';
-    position: absolute; right: 0; top: 0; bottom: 0; width: 48px;
-    background: linear-gradient(to right, transparent, var(--bg));
-    pointer-events: none; border-radius: 0 12px 12px 0;
+    content: '›';
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 22px; font-weight: 700; line-height: 1;
+    pointer-events: none;
     transition: opacity .2s;
   }
   .main-nav-wrap.nav-scrolled-end::after { opacity: 0; }
