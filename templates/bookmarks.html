@@ -180,7 +180,7 @@
 
   <div id="bm-contest-list">
     {% if not contest_tiles %}
-    <div class="bm-empty">보관된 공모전이 없습니다.<span>공모전 타일의 📎 버튼을 눌러 저장하세요.</span></div>
+    <div class="bm-empty">보관된 공모전이 없습니다.<span>공모전 타일의 보관 버튼을 눌러 저장하세요.</span></div>
     {% else %}
     <div class="bm-contest-grid">
     {% for t in contest_tiles %}
@@ -228,7 +228,7 @@
 <!-- ===== 기사·논문 탭 ===== -->
 <div id="bm-tab-news" {% if tab != 'news' %}style="display:none"{% endif %}>
   {% if not cluster_cardsets and not paper_cardsets %}
-  <div class="bm-empty">보관된 기사·논문이 없습니다.<span>뉴스/논문 카드의 📎 버튼을 눌러 저장하세요.</span></div>
+  <div class="bm-empty">보관된 기사·논문이 없습니다.<span>뉴스/논문 카드의 보관 버튼을 눌러 저장하세요.</span></div>
   {% else %}
 
   {% if cluster_cardsets %}

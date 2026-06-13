@@ -2521,6 +2521,9 @@ body.modal-open {
 .card-action-btn.hide-btn.show-btn {
   color: var(--accent);
 }
+/* 보관 버튼: 텍스트라 auto 너비 */
+.card-action-btn.bm-btn { width: auto; padding: 0 5px; font-size: 11px; font-weight: 700; letter-spacing: -.01em; }
+.card-action-btn.bm-btn.bookmarked { color: var(--accent); }
 
 /* 카테고리 컬러별로 액션 버튼 보더 톤 매칭 */
 .slide.cover.policy ~ .card-actions .card-action-btn,
@@ -2938,6 +2941,9 @@ body.modal-open {
 }
 .ct-action-btn:hover { background: #fff; color: var(--text); }
 .ct-action-btn.save-btn.saved { color: var(--accent); }
+/* 보관 버튼: 텍스트라 auto 너비 */
+.ct-action-btn.bm-btn { width: auto; padding: 0 7px; font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
+.ct-action-btn.bm-btn.bookmarked { color: var(--accent); }
 
 .card-vanishing { opacity: 0; transform: scale(0.92); transition: opacity 0.22s, transform 0.22s; }
 
@@ -3466,7 +3472,7 @@ footer a { color: var(--text-dim); }
 /* ============================================================
    v3.4 — 공모전 3D 코버플로우 쇼케이스 (마감 임박)
    ============================================================ */
-.contest-showcase { margin: 4px 0 30px; }
+.contest-showcase { margin: 4px 0 30px; overflow-x: clip; /* 가로 드래그로 검은 화면 보이는 거 방지 */ }
 .cs-head {
   display: flex; align-items: center; gap: 8px;
   font-size: 16px; font-weight: 800; color: var(--text); margin: 0 0 16px;

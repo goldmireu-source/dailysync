@@ -226,7 +226,7 @@
       <button class="card-action-btn bm-btn {% if is_bookmarked %}bookmarked{% endif %}"
               onclick="event.stopPropagation(); toggleBookmark('{{ hide_kind }}', {{ hide_id }}, this)"
               title="{% if is_bookmarked %}보관함에서 제거{% else %}보관함에 저장{% endif %}">
-        {% if is_bookmarked %}🔖{% else %}📎{% endif %}
+        보관
       </button>
       {% endif %}
       {# 카드뉴스 생성 버튼 — 관리자 전용 #}

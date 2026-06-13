@@ -1693,7 +1693,7 @@ async function toggleBookmark(itemType, itemId, btn) {
     const data = await r.json();
     if (data.ok) {
       btn.classList.toggle('bookmarked', data.bookmarked);
-      btn.textContent = data.bookmarked ? '🔖' : '📎';
+      btn.textContent = '보관';
       btn.title = data.bookmarked ? '보관함에서 제거' : '보관함에 저장';
       const countEl = document.getElementById('bm-header-count');
       if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent || '0') + (data.bookmarked ? 1 : -1));
