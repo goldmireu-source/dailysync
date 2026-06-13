@@ -3136,6 +3136,9 @@ body.modal-open {
 .hd-chip:hover { border-color: var(--accent-dim); color: var(--accent); }
 .hd-num { font-weight: 800; color: var(--accent); }
 .hd-chip--login { border-color: var(--accent-dim); color: var(--accent); }
+/* PC: 보관함 아이콘 숨기고 텍스트 표시 */
+.bm-hd-icon { display: none; }
+.bm-hd-text { display: inline; }
 .hd-chip--login:hover { background: var(--accent-bg); }
 .hd-chip--user { font-size: 12px; }
 .hd-chip--profile { padding-left: 5px; cursor: pointer; font-family: inherit; }
@@ -3555,6 +3558,9 @@ footer a { color: var(--text-dim); }
   .site-actions { gap: 5px; }
   .logout-txt { display: none; }
   .logout-ico { display: block; }
+  /* 모바일: 보관함 아이콘 표시, 텍스트 숨김 */
+  .bm-hd-icon { display: inline; }
+  .bm-hd-text { display: none; }
   .hd-chip--logout { color: #e05252; border-color: #e0525244; padding: 5px 10px; }
 
   /* 메인 네비: 패딩·마진·폰트 축소 + 가로 스크롤 */
