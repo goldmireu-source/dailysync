@@ -23,6 +23,7 @@ from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_t
 bp = Blueprint("web", __name__)
 
 KST = timezone(timedelta(hours=9))
+PAGE_SIZE = 12  # 목록 페이지 기본 페이지당 항목 수
 
 # ===== 인-메모리 레이트 리미터 (단일 프로세스 전용) =====
 _rl_lock = threading.Lock()
@@ -451,7 +452,6 @@ def index():
     total_filtered = len(scored)
 
     # ========== 페이지네이션 ==========
-    PAGE_SIZE = 12
     try:
         page = max(1, int(request.args.get("page", 1)))
     except (TypeError, ValueError):
@@ -503,14 +503,13 @@ def index():
     hidden_papers_count = papers_q.filter(Paper.hidden_at.isnot(None)).count()
     total_papers_filtered = len(papers_all)
 
-    # 논문 탭이면 페이지네이션 12개씩 + total_pages 덮어쓰기
-    PAPER_PAGE_SIZE = 12
+    # 논문 탭이면 페이지네이션 + total_pages 덮어쓰기
     if tab == "papers":
-        paper_total_pages = max(1, (total_papers_filtered + PAPER_PAGE_SIZE - 1) // PAPER_PAGE_SIZE)
+        paper_total_pages = max(1, (total_papers_filtered + PAGE_SIZE - 1) // PAGE_SIZE)
         if page > paper_total_pages:
             page = paper_total_pages
-        p_start = (page - 1) * PAPER_PAGE_SIZE
-        papers = papers_all[p_start:p_start + PAPER_PAGE_SIZE]
+        p_start = (page - 1) * PAGE_SIZE
+        papers = papers_all[p_start:p_start + PAGE_SIZE]
         total_pages = paper_total_pages  # 페이저는 논문 페이지로
     else:
         papers = []
@@ -548,14 +547,13 @@ def index():
         _urgent = [c for c in contests_all if c.deadline is not None][:9]
         contest_showcase = [build_contest_tile(c) for c in _urgent]
 
-    CONTEST_PAGE_SIZE = 12
     contest_tiles = []
     if tab == "contests":
-        c_total_pages = max(1, (total_contests + CONTEST_PAGE_SIZE - 1) // CONTEST_PAGE_SIZE)
+        c_total_pages = max(1, (total_contests + PAGE_SIZE - 1) // PAGE_SIZE)
         if page > c_total_pages:
             page = c_total_pages
-        c_start = (page - 1) * CONTEST_PAGE_SIZE
-        page_contests = contests_all[c_start:c_start + CONTEST_PAGE_SIZE]
+        c_start = (page - 1) * PAGE_SIZE
+        page_contests = contests_all[c_start:c_start + PAGE_SIZE]
         contest_tiles = [build_contest_tile(c) for c in page_contests]
         total_pages = c_total_pages
         # 다른 탭 카드 비움
@@ -685,7 +683,6 @@ CONTEST_CATEGORIES = ["공모전", "창업경진대회", "경진대회", "해커
 @admin_required
 def contest_fetch_meta():
     """사용자가 붙여넣은 공모전 URL 의 og:title/og:image 추출(자동 채움용)."""
-    import re
     import requests
     url = (request.args.get("url") or "").strip()
     if not url:
@@ -1169,7 +1166,6 @@ def search_page():
     total = 0
     total_pages = 1
     page = 1
-    PAGE_SIZE = 12
 
     if q:
         all_cardsets, total, _ = _run_cluster_search(q, from_date, to_date, limit=None)

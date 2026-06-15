@@ -15,7 +15,6 @@ from datetime import datetime, timedelta, timezone
 import feedparser
 import requests
 
-from app import create_app
 from models import db, Source, Article
 
 logger = logging.getLogger(__name__)
@@ -23,6 +22,11 @@ logger = logging.getLogger(__name__)
 USER_AGENT = "Mozilla/5.0 (compatible; AINewsDigest/0.1; +personal-use)"
 FETCH_TIMEOUT = 20
 KST = timezone(timedelta(hours=9))
+
+# DB 칼럼 너비에 맞춘 문자열 잘라내기 한도
+_TITLE_MAX = 500
+_DESCRIPTION_MAX = 5000
+_SOURCE_ERROR_MAX = 1000
 
 COLLECT_DAYS_BACK = int(os.getenv("COLLECT_DAYS_BACK", "0"))
 
@@ -195,7 +199,7 @@ def collect_source(source: Source, cutoff: datetime, prefetched=None) -> dict:
                 continue
 
             title = (entry.get("title") or "").strip()
-            description = (entry.get("summary") or entry.get("description") or "").strip()[:5000]
+            description = (entry.get("summary") or entry.get("description") or "").strip()[:_DESCRIPTION_MAX]
 
             if apply_filter and not _is_ai_relevant(title, description, source.lang):
                 stats["filtered"] += 1
@@ -205,7 +209,7 @@ def collect_source(source: Source, cutoff: datetime, prefetched=None) -> dict:
                 source_id=source.id,
                 url=url,
                 url_hash=url_hash,
-                title=title[:500],
+                title=title[:_TITLE_MAX],
                 description=description,
                 published_at=published,
                 is_ai_relevant=True,
@@ -220,7 +224,7 @@ def collect_source(source: Source, cutoff: datetime, prefetched=None) -> dict:
         db.session.rollback()
         stats["error"] = str(e)
         try:
-            source.last_error = str(e)[:1000]
+            source.last_error = str(e)[:_SOURCE_ERROR_MAX]
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -258,6 +262,7 @@ def collect_all() -> list[dict]:
 
 
 if __name__ == "__main__":
+    from app import create_app
     app = create_app()
     with app.app_context():
         print(f"수집 윈도우: KST {(datetime.now(KST) - timedelta(days=COLLECT_DAYS_BACK)).strftime('%Y-%m-%d')} 자정 이후 발행분")

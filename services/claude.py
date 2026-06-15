@@ -8,6 +8,7 @@ services/gemini.py 와 동일한 generate_json() 인터페이스 제공.
 import json
 import logging
 import re
+import threading
 import time
 
 from anthropic import Anthropic
@@ -21,6 +22,7 @@ _client: Anthropic | None = None
 # Tier 1 분당 50요청 — 안전 마진 1.2초 (50/min)
 CLAUDE_MIN_INTERVAL = 1.2
 _last_call: float = 0.0
+_throttle_lock = threading.Lock()
 
 
 def _get_client() -> Anthropic:
@@ -32,11 +34,14 @@ def _get_client() -> Anthropic:
     return _client
 
 
-def _throttle():
+def _throttle() -> None:
+    """API 호출 간격 보장 (다중 스레드 안전)."""
     global _last_call
-    elapsed = time.time() - _last_call
-    if elapsed < CLAUDE_MIN_INTERVAL:
-        time.sleep(CLAUDE_MIN_INTERVAL - elapsed)
+    with _throttle_lock:
+        elapsed = time.time() - _last_call
+        wait = CLAUDE_MIN_INTERVAL - elapsed
+    if wait > 0:
+        time.sleep(wait)
 
 
 def _extract_json(text: str) -> dict:

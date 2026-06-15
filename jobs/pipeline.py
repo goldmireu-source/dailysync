@@ -11,6 +11,10 @@ from models import db, JobRun
 
 logger = logging.getLogger(__name__)
 
+# 오류 메시지 잘라내기 한도 (DB Text 칼럼 및 JSON stats 저장용)
+_ERR_MSG_MAX = 300
+_ERR_TRACEBACK_MAX = 1500
+
 
 def create_job_run(job_name: str, triggered_by: str = "manual") -> int:
     """JobRun 을 queued 상태로 미리 생성 → ID 즉시 반환.
@@ -85,7 +89,7 @@ def _track(job_name: str, triggered_by: str = "scheduler", run_id: int | None = 
         run.status = "success"
     except Exception as e:
         run.status = "failed"
-        run.error = f"{type(e).__name__}: {str(e)[:500]}\n\n{traceback.format_exc()[:1500]}"
+        run.error = f"{type(e).__name__}: {str(e)[:_ERR_MSG_MAX]}\n\n{traceback.format_exc()[:_ERR_TRACEBACK_MAX]}"
         run.stats = stats
         logger.exception(f"job {job_name} failed")
     finally:
@@ -151,7 +155,7 @@ def job_embed_and_cluster(triggered_by: str = "scheduler", run_id: int | None = 
             stats["articles_error"] = str(s_a["error"])[:300]
         stats["papers_embedded"] = s_p.get("success", 0)
         if s_p.get("error"):
-            stats["papers_error"] = str(s_p["error"])[:300]
+            stats["papers_error"] = str(s_p["error"])[:_ERR_MSG_MAX]
         stats["clusters_processed"] = s_c.get("processed", 0)
         stats["clusters_created"] = s_c.get("created", 0)
         stats["clusters_joined"] = s_c.get("joined", 0)
@@ -271,7 +275,7 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
         except Exception as e:
             logger.exception("collect_all failed in refresh_now")
             stats["news_new"] = 0
-            stats["news_error"] = str(e)[:200]
+            stats["news_error"] = str(e)[:_ERR_MSG_MAX]
 
         # 2. 논문 수집 (페치/임베딩보다 먼저 — 스킵 판단에 필요)
         _update_phase(run_id, "논문 수집 중")
@@ -330,7 +334,7 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             _cl = cluster_articles()
         except Exception as e:
             logger.exception("embed/cluster failed in refresh_now")
-            stats["embed_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+            stats["embed_error"] = f"{type(e).__name__}: {str(e)[:_ERR_MSG_MAX]}"
         finally:
             stats["articles_embedded"] = _a_emb.get("success", 0)
             stats["papers_embedded"] = _p_emb.get("success", 0)

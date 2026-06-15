@@ -28,11 +28,11 @@ class Config:
     # Haiku 4.5: 한국어 강함, $1/M in, $5/M out, 분당 50회+
     CLAUDE_SUMMARY_MODEL = os.getenv("CLAUDE_SUMMARY_MODEL", "claude-haiku-4-5")
 
-    # --- Gemini API (요약 메인 — Claude 대체, 무료 한도 분당 15회/일 1500회) ---
+    # --- Gemini API (미사용 — Claude 대체 예비 프로바이더) ---
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_SUMMARY_MODEL = os.getenv("GEMINI_SUMMARY_MODEL", "gemini-2.0-flash")
 
-    # --- (선택) Voyage AI ---
+    # --- Voyage AI (미사용 — 대체 임베딩 프로바이더) ---
     VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY", "")
     VOYAGE_EMBEDDING_MODEL = os.getenv("VOYAGE_EMBEDDING_MODEL", "voyage-3.5-lite")
 
@@ -54,7 +54,7 @@ class Config:
     PAPER_RECENT_DAYS = int(os.getenv("PAPER_RECENT_DAYS", "3"))
     DAILY_PAPER_PICK = int(os.getenv("DAILY_PAPER_PICK", "5"))
 
-    BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:5001")
 
     # --- 공모전 수집 ---
     # data.go.kr 서비스키 (K-Startup 공고 API용). 비어 있으면 해당 소스만 skip.

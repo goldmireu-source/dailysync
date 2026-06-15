@@ -20,6 +20,7 @@ CATEGORY_KEYS = {
 FACT_BUDGET = 300      # 한 슬라이드의 fact 영역 가용 픽셀 (카드 높이 420 기준)
 FACT_MIN_LEN = 5       # 5자 미만은 무효 fact (LLM 빈 응답 방지)
 SRC_BUDGET = 240       # source-card 한 장 가용 픽셀 (links-mini 80px 빼고)
+_LABEL_TITLE_MAX = 38  # 기사 링크 라벨 제목 최대 길이
 
 
 def _fact_cost(text: str) -> int:
@@ -38,33 +39,32 @@ def _fact_cost(text: str) -> int:
     return 18 + lines * 22 + 10  # gap 포함
 
 
+def _chunk_by_cost(items: list, cost_fn, budget: int) -> list[list]:
+    """비용 함수 기준으로 items 를 슬라이드 단위로 분할."""
+    chunks: list[list] = []
+    cur: list = []
+    cur_cost = 0
+    for item in items:
+        c = cost_fn(item)
+        if cur and cur_cost + c > budget:
+            chunks.append(cur)
+            cur, cur_cost = [item], c
+        else:
+            cur.append(item)
+            cur_cost += c
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
 def _chunk_facts(facts: list, budget: int = FACT_BUDGET) -> list[list]:
     """fact 리스트를 슬라이드 단위로 분할.
 
     각 슬라이드 안 fact 비용 합이 budget 을 넘으면 다음 슬라이드.
     빈 값/짧은 값 (FACT_MIN_LEN 미만) 은 제거.
     """
-    # 정제
     clean = [f for f in (facts or []) if f and len(f.strip()) >= FACT_MIN_LEN]
-    if not clean:
-        return []
-
-    chunks = []
-    cur = []
-    cur_cost = 0
-    for f in clean:
-        c = _fact_cost(f)
-        # 새 슬라이드로 시작해도 한 fact 가 budget 을 초과하면 그대로 한 장에 담음
-        if cur and cur_cost + c > budget:
-            chunks.append(cur)
-            cur = [f]
-            cur_cost = c
-        else:
-            cur.append(f)
-            cur_cost += c
-    if cur:
-        chunks.append(cur)
-    return chunks
+    return _chunk_by_cost(clean, _fact_cost, budget)
 
 
 def _src_cost(claim: str) -> int:
@@ -85,21 +85,17 @@ def _chunk_sources(src_list: list, budget: int = SRC_BUDGET) -> list[list]:
     """source-card 리스트를 슬라이드 단위로 분할."""
     if not src_list:
         return []
-    chunks = []
-    cur = []
-    cur_cost = 0
-    for s in src_list:
-        c = _src_cost(s.get("claim", ""))
-        if cur and cur_cost + c > budget:
-            chunks.append(cur)
-            cur = [s]
-            cur_cost = c
-        else:
-            cur.append(s)
-            cur_cost += c
-    if cur:
-        chunks.append(cur)
-    return chunks
+    return _chunk_by_cost(src_list, lambda s: _src_cost(s.get("claim", "")), budget)
+
+
+def _article_label(src: str, title: str) -> str:
+    """기사 링크용 '[매체명] 제목' 형식 라벨."""
+    title = (title or "").strip()
+    if not title:
+        return src
+    if len(title) > _LABEL_TITLE_MAX:
+        return f"[{src}] {title[:_LABEL_TITLE_MAX]}…"
+    return f"[{src}] {title}"
 
 
 def _dedup_links(members: list, max_links: int = 5) -> list[dict]:
@@ -110,42 +106,16 @@ def _dedup_links(members: list, max_links: int = 5) -> list[dict]:
         src = a.source.name
         if src not in seen:
             seen.add(src)
-            title = (a.title or "").strip()
-            label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
-            result.append({"name": label, "url": a.url})
+            result.append({"name": _article_label(src, a.title), "url": a.url})
             if len(result) >= max_links:
                 break
     return result
 
 
-def _best_match_article(claim: str, candidates: list):
-    """claim 텍스트와 제목 단어 overlap이 가장 높은 기사 반환.
-
-    한·영 공통으로 단순 토큰 분리 후 교집합 크기로 스코어링.
-    동점이면 가장 최신 기사 우선.
-    """
-    if not candidates:
-        return None
-    if len(candidates) == 1:
-        return candidates[0]
-
-    claim_tokens = set(claim.lower().split())
-    best, best_score = candidates[0], -1
-    for a in candidates:
-        tokens = set((a.title or "").lower().split())
-        score = len(claim_tokens & tokens)
-        if score > best_score:
-            best_score = score
-            best = a
-    return best
-
-
 def _article_link(article) -> dict:
     """단일 기사 → 링크 dict."""
     src = article.source.name if article.source else ""
-    title = (article.title or "").strip()
-    label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
-    return {"name": label, "url": article.url}
+    return {"name": _article_label(src, article.title), "url": article.url}
 
 
 def _primary_link(cluster, members: list) -> list[dict]:
@@ -228,9 +198,7 @@ def _top_relevant_links(cluster, members: list, max_links: int = 1) -> list[dict
     result = []
     for _sim, article in scored[:max_links]:
         src = article.source.name
-        title = (article.title or "").strip()
-        label = f"[{src}] {title[:38]}…" if len(title) > 38 else (f"[{src}] {title}" if title else src)
-        result.append({"name": label, "url": article.url})
+        result.append({"name": _article_label(src, article.title), "url": article.url})
     return result
 
 

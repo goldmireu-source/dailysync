@@ -20,7 +20,7 @@ for _stream in (sys.stdout, sys.stderr):
             pass
 
 from config import Config
-from models import db
+from models import db, JobRun
 from web.routes import bp as web_bp
 
 _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -64,7 +64,7 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     @login_manager.user_loader
     def load_user(user_id: str):
         from models import AdminUser
-        return AdminUser.query.get(int(user_id))
+        return db.session.get(AdminUser, int(user_id))
 
     app.register_blueprint(web_bp)
 
@@ -88,7 +88,6 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     with app.app_context():
         db.create_all()
         # 앱 재시작 전 orphan 상태(queued/running) 잡 → failed 로 정리
-        from models import JobRun
         orphans = JobRun.query.filter(JobRun.status.in_(["queued", "running"])).all()
         if orphans:
             for run in orphans:

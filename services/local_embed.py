@@ -1,11 +1,12 @@
-"""fastembed 로컬 임베딩 (paraphrase-multilingual-MiniLM-L12-v2, 384차원).
+"""fastembed 로컬 임베딩 서비스.
 
-torch 없이 ONNX Runtime 기반으로 동작 — pip install fastembed 한 줄, ~20MB.
+Config.LOCAL_EMBEDDING_MODEL 로 지정된 모델을 ONNX Runtime 기반으로 실행.
+torch 불필요 — pip install fastembed 한 줄, 최초 실행 시 hf_cache/ 에 모델 다운로드.
 - L2 정규화된 출력 (코사인 유사도 = dot product)
 - 한국어·영어 모두 지원
 """
 import logging
-from typing import Optional
+import threading
 
 from fastembed import TextEmbedding
 
@@ -13,25 +14,28 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
-_model: Optional[TextEmbedding] = None
 MAX_INPUT_CHARS = 8000
+
+_model: TextEmbedding | None = None
+_model_lock = threading.Lock()
 
 
 def _get_model() -> TextEmbedding:
     global _model
-    if _model is None:
-        model_name = Config.LOCAL_EMBEDDING_MODEL
-        print(f"[local_embed] 임베딩 모델 로딩 중: {model_name}")
-        _model = TextEmbedding(
-            model_name=model_name,
-            cache_dir="hf_cache",
-        )
-        print("[local_embed] 모델 로딩 완료")
+    with _model_lock:
+        if _model is None:
+            model_name = Config.LOCAL_EMBEDDING_MODEL
+            logger.info("[local_embed] 임베딩 모델 로딩 중: %s", model_name)
+            _model = TextEmbedding(
+                model_name=model_name,
+                cache_dir="hf_cache",
+            )
+            logger.info("[local_embed] 모델 로딩 완료")
     return _model
 
 
 def embed_texts(texts: list[str], input_type: str = "document") -> list[list[float]]:
-    """배치 임베딩 (384차원, L2 정규화).
+    """배치 임베딩 (L2 정규화).
 
     input_type 은 외부 임베딩 API 와의 인터페이스 호환을 위한 인자.
     """
