@@ -1743,7 +1743,7 @@ async function runRefresh() {
     btn.classList.remove('running');
     btn.classList.add('failed');
     setRefreshLabel('시작 실패', false);
-    status.innerHTML = `<div class="rs-error">${e.message}</div>`;
+    const _err1 = document.createElement('div'); _err1.className = 'rs-error'; _err1.textContent = e.message; status.innerHTML = ''; status.appendChild(_err1);
     status.style.display = 'block';
     setTimeout(resetRefresh, 5000);
   }
@@ -1813,7 +1813,7 @@ async function pollRefresh() {
         btn.classList.add('failed');
         setRefreshLabel('실패', false);
         btn.querySelector('.refresh-icon').textContent = '✗';
-        status.innerHTML = `<div class="rs-error">${run.error || '알 수 없는 오류'}</div>`;
+        const _err2 = document.createElement('div'); _err2.className = 'rs-error'; _err2.textContent = run.error || '알 수 없는 오류'; status.innerHTML = ''; status.appendChild(_err2);
         status.style.display = 'block';
         setTimeout(resetRefresh, 8000);
         return;

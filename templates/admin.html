@@ -511,6 +511,10 @@ document.querySelectorAll('.admin-tab').forEach(btn => {
   });
 });
 
+function _escHtml(s) {
+  return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+}
+
 function showFinishedNotice(jobId, label, status, duration, info) {
   // 화면 하단에 토스트
   const toast = document.createElement('div');
@@ -525,9 +529,9 @@ function showFinishedNotice(jobId, label, status, duration, info) {
     max-width: 360px;
     z-index: 1000;
   `;
-  let html = `<div style="font-weight: 700; margin-bottom: 4px;">${status === 'success' ? '✓' : '✗'} ${label}</div>`;
+  let html = `<div style="font-weight: 700; margin-bottom: 4px;">${status === 'success' ? '✓' : '✗'} ${_escHtml(label)}</div>`;
   if (duration) html += `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px;">${duration}초 소요</div>`;
-  if (info) html += `<div style="font-size: 11px; opacity: 0.8;">${info.substring(0, 200)}</div>`;
+  if (info) html += `<div style="font-size: 11px; opacity: 0.8;">${_escHtml(info.substring(0, 200))}</div>`;
   if (status === 'success' && ['summarize_news', 'summarize_papers', 'morning_pipeline'].includes(jobId)) {
     html += `<a class="go-digest-btn" href="/">다이제스트 확인 →</a>`;
   }

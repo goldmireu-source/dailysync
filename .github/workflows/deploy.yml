@@ -29,14 +29,14 @@ jobs:
             --exclude='*.log.*' \
             --exclude='instance/' \
             --exclude='.env' \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
             ./ ubuntu@${{ secrets.DEPLOY_HOST }}:~/ai-news-digest/
 
       - name: Deploy .env to server
         run: |
           printf '%s' "${{ secrets.ENV_FILE }}" | ssh \
             -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
+            -o StrictHostKeyChecking=yes \
             ubuntu@${{ secrets.DEPLOY_HOST }} \
             "cat > ~/ai-news-digest/.env && chmod 600 ~/ai-news-digest/.env"
 
@@ -44,7 +44,7 @@ jobs:
         timeout-minutes: 10
         run: |
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=20 \
               ubuntu@${{ secrets.DEPLOY_HOST }} << 'ENDSSH'

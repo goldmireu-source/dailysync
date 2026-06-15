@@ -1,8 +1,12 @@
 """Web dashboard routes — 다이제스트 + 클러스터 상세 + 숨김 기능 + admin."""
+import hmac
+import ipaddress
 import os
 import re
 import secrets
+import socket
 import threading
+import urllib.parse
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone, date
 from functools import wraps
@@ -156,10 +160,12 @@ def admin_login():
                 return jsonify({"error": error}), 429
         else:
             username = (request.form.get("username") or "").strip()[:14]
-            password = (request.form.get("password") or "")[:10]
+            password = (request.form.get("password") or "")[:72]
             next_url = request.form.get("next") or ""
-            if next_url and (not next_url.startswith("/") or next_url.startswith("//")):
-                next_url = ""
+            if next_url:
+                _p = urllib.parse.urlparse(next_url)
+                if _p.netloc or _p.scheme or next_url.startswith("//") or next_url.startswith("/\\"):
+                    next_url = ""
             user = AdminUser.query.filter_by(username=username).first()
             if user and user.check_password(password):
                 login_user(user, remember=True)
@@ -211,8 +217,8 @@ def admin_register():
             error = "비밀번호가 일치하지 않습니다."
         elif len(username) > 14:
             error = "아이디는 최대 14자입니다."
-        elif len(password) > 10:
-            error = "비밀번호는 최대 10자입니다."
+        elif len(password) > 72:
+            error = "비밀번호는 최대 72자입니다."
         elif AdminUser.query.filter_by(username=username).first():
             error = "이미 사용 중인 아이디입니다."
         else:
@@ -686,6 +692,16 @@ def contest_fetch_meta():
         return jsonify({"ok": False, "error": "no_url"}), 400
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    # SSRF 방어 — 내부/루프백 IP 차단
+    try:
+        _hostname = urllib.parse.urlparse(url).hostname or ""
+        if not _hostname:
+            return jsonify({"ok": False, "error": "잘못된 URL"}), 400
+        _resolved = ipaddress.ip_address(socket.gethostbyname(_hostname))
+        if _resolved.is_private or _resolved.is_loopback or _resolved.is_link_local:
+            return jsonify({"ok": False, "error": "허용되지 않는 주소입니다"}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "주소를 확인할 수 없습니다"}), 400
     try:
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AINewsDigest/0.1)"}, timeout=12)
         html = r.content.decode(r.apparent_encoding or "utf-8", errors="replace")
@@ -1471,6 +1487,7 @@ def admin_run_job(job_id: str):
 
 
 @bp.route("/api/job/<job_id>/latest", methods=["GET"])
+@admin_required
 def api_job_latest(job_id: str):
     """가장 최근 JobRun 상태 조회 (폴링용)."""
     if job_id not in JOB_LABELS:
@@ -1505,6 +1522,7 @@ def api_job_latest(job_id: str):
 
 
 @bp.route("/api/job/run/<int:run_id>", methods=["GET"])
+@admin_required
 def api_job_run(run_id: int):
     """특정 run_id 상태 조회."""
     run = JobRun.query.get(run_id)
@@ -1534,7 +1552,7 @@ def _cardnews_api_auth() -> bool:
     key = Config.CARDNEWS_API_KEY
     if not key:
         return True
-    return request.headers.get("X-Api-Key") == key
+    return hmac.compare_digest(request.headers.get("X-Api-Key", ""), key)
 
 
 @bp.route("/api/cluster/<int:cluster_id>", methods=["GET"])

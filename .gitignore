@@ -23,6 +23,7 @@ sentence_transformers/
 data/
 
 # ===== 로그 =====
+logs/
 *.log
 *.log.prev
 

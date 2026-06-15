@@ -5,8 +5,9 @@ from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_login import LoginManager
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Windows 콘솔(cp949) 에서 print 가 한글/이모지 인코딩 실패하지 않도록 stdout/stderr UTF-8 강제.
 # 잡 로그의 ✓/❌/⭐ 같은 문자가 cp949 로 인코딩 안 되면 print 가 예외를 던져
@@ -50,6 +51,9 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # 리버스 프록시(nginx) 뒤에서 X-Forwarded-For 신뢰 (1홉)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     db.init_app(app)
 
     # Flask-Login 초기화
@@ -71,6 +75,14 @@ def create_app(config_class=Config, with_scheduler: bool = True) -> Flask:
     @app.route("/healthz")
     def healthz():
         return {"status": "ok"}
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        return jsonify({"error": "not_found"}), 404
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        return jsonify({"error": "internal_server_error"}), 500
 
     # 스키마 보장 (JobRun 추가됐을 수 있음)
     with app.app_context():

@@ -77,3 +77,12 @@ class Config:
     # 카드뉴스 봇이 /api/cluster/<id> 등을 호출할 때 헤더(X-Api-Key)로 전달.
     # 비어있으면 인증 없이 허용 (로컬 개발 전용).
     CARDNEWS_API_KEY = os.getenv("CARDNEWS_API_KEY", "")
+
+    # --- 세션/쿠키 보안 ---
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    # HTTPS 배포 확인 후 아래 두 줄 주석 해제:
+    # SESSION_COOKIE_SECURE = True
+    # REMEMBER_COOKIE_SECURE = True
