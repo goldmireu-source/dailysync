@@ -64,6 +64,7 @@ jobs:
           venv/bin/python3 migrate_karrot.py
           venv/bin/python3 migrate_settings.py
           venv/bin/python3 migrate_bookmarks.py
+          venv/bin/python3 migrate_oss_contest.py
           sudo systemctl restart daily-sync
           sleep 3
           sudo systemctl is-active daily-sync
