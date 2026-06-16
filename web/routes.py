@@ -44,6 +44,9 @@ def _client_ip() -> str:
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
     return request.remote_addr or "unknown"
 
 def _sec_warn(event: str, detail: str = "") -> None:
