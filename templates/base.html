@@ -1,14 +1,27 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}DAILY SYNC{% endblock %}</title>
+  <script>
+    /* 깜빡임 방지: CSS 렌더 전에 테마 즉시 적용 */
+    (function() {
+      try {
+        var saved = localStorage.getItem('ds-theme');
+        if (saved === 'light' || saved === 'dark') {
+          document.documentElement.dataset.theme = saved;
+        } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      } catch(e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Syne:wght@700;800&family=Outfit:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     /* 컨테이너 폭 인라인 강제 — 외부 CSS 충돌 방지 */
@@ -391,6 +404,14 @@
       });
     });
 
+    // ===== 라이트/다크 토글 =====
+    window.toggleTheme = function() {
+      var cur = document.documentElement.dataset.theme || 'dark';
+      var next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem('ds-theme', next); } catch(e) {}
+    };
+
     // ===== 회원정보 수정 모달 =====
     {% if current_user.is_authenticated %}
     (function() {
@@ -499,6 +520,25 @@
     })();
     {% endif %}
   </script>
+
+  <!-- ===== 토스트 알림 루트 ===== -->
+  <div id="ds-toast-root" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- ===== ⌘K 커맨드 팔레트 ===== -->
+  <div id="cmd-overlay" role="dialog" aria-modal="true" aria-label="커맨드 팔레트">
+    <div id="cmd-panel">
+      <div id="cmd-input-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="cmd-input" type="text" placeholder="공모전·탭·용어 검색…" autocomplete="off" spellcheck="false">
+      </div>
+      <div id="cmd-results"></div>
+      <div id="cmd-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd> 이동</span>
+        <span><kbd>↵</kbd> 열기</span>
+        <span><kbd>ESC</kbd> 닫기</span>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== 공모전 선택 바텀 시트 ===== -->
   <div id="cs-overlay" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.55);"></div>
@@ -704,6 +744,195 @@
       if (e.key === 'Escape' && sheet.classList.contains('cs-open')) closeSheet();
     });
   })();
+  </script>
+  <script>
+  /* ===== 전역 유틸리티 ===== */
+
+  // 토스트
+  window.showToast = function(msg, type) {
+    type = type || 'info';
+    var root = document.getElementById('ds-toast-root');
+    if (!root) return;
+    var el = document.createElement('div');
+    el.className = 'ds-toast ' + type;
+    el.innerHTML = '<span class="t-dot"></span>' + msg;
+    root.appendChild(el);
+    setTimeout(function() {
+      el.classList.add('exit');
+      setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
+    }, 3000);
+  };
+
+  // 카드 진입 모션 (IntersectionObserver)
+  (function() {
+    if (!window.IntersectionObserver) {
+      document.querySelectorAll('.contest-tile').forEach(function(el) { el.classList.add('revealed'); });
+      return;
+    }
+    function revealTiles(root) {
+      var tiles = (root || document).querySelectorAll('.contest-tile:not(.revealed)');
+      var io = new IntersectionObserver(function(entries) {
+        var visible = entries.filter(function(e) { return e.isIntersecting; });
+        visible.forEach(function(e, i) {
+          var el = e.target;
+          setTimeout(function() { el.classList.add('revealed'); }, i * 50);
+          io.unobserve(el);
+        });
+      }, { threshold: 0.05 });
+      tiles.forEach(function(el) { io.observe(el); });
+    }
+    revealTiles();
+    window._revealNewTiles = revealTiles;
+  })();
+
+  // ⌘K 커맨드 팔레트
+  (function() {
+    var overlay = document.getElementById('cmd-overlay');
+    var input   = document.getElementById('cmd-input');
+    var results = document.getElementById('cmd-results');
+    if (!overlay || !input || !results) return;
+
+    var TABS = [
+      { label: '공모전 탭으로', href: '?tab=contests', meta: '탭' },
+      { label: '뉴스·논문 탭으로', href: '?tab=news', meta: '탭' },
+      { label: '파티 찾기 탭으로', href: '?tab=parties', meta: '탭' },
+      { label: '용어 사전 전체보기', href: '/glossary', meta: '페이지' },
+      { label: '내 보관함', href: '/bookmarks', meta: '페이지' },
+    ];
+
+    var _contests = null;
+    var _glossary = null;
+    var _active   = -1;
+
+    function open() {
+      overlay.classList.add('open');
+      input.value = '';
+      render('');
+      setTimeout(function() { input.focus(); }, 50);
+      document.body.style.overflow = 'hidden';
+      if (!_contests) loadData();
+    }
+    function close() {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    async function loadData() {
+      try {
+        var r = await fetch('/api/contests/active');
+        _contests = await r.json();
+      } catch(e) { _contests = []; }
+      try {
+        var r2 = await fetch('/api/glossary');
+        _glossary = await r2.json();
+      } catch(e) { _glossary = []; }
+      render(input.value);
+    }
+
+    function render(q) {
+      q = q.trim().toLowerCase();
+      var html = '';
+      var items = [];
+
+      // 탭 내비
+      var matchTabs = q ? TABS.filter(function(t) { return t.label.toLowerCase().includes(q); }) : TABS;
+      if (matchTabs.length) {
+        html += '<div class="cmd-section">내비게이션</div>';
+        matchTabs.slice(0,4).forEach(function(t, i) {
+          html += '<div class="cmd-item" data-href="' + t.href + '">'
+            + '<div class="cmd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>'
+            + '<span class="cmd-label">' + esc(t.label) + '</span>'
+            + '<span class="cmd-meta">' + esc(t.meta) + '</span></div>';
+          items.push(t.href);
+        });
+      }
+
+      // 공모전 검색
+      if (q && _contests && _contests.length) {
+        var mc = _contests.filter(function(c) { return c.title.toLowerCase().includes(q); }).slice(0,5);
+        if (mc.length) {
+          html += '<div class="cmd-section">공모전</div>';
+          mc.forEach(function(c) {
+            var href = '/contest/' + c.id;
+            html += '<div class="cmd-item" data-href="' + href + '">'
+              + '<div class="cmd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></div>'
+              + '<span class="cmd-label">' + esc(c.title) + '</span>'
+              + '<span class="cmd-meta">공모전</span></div>';
+            items.push(href);
+          });
+        }
+      }
+
+      // 글로사리
+      if (q && _glossary && _glossary.length) {
+        var mg = _glossary.filter(function(g) { return (g.term||'').toLowerCase().includes(q) || (g.term_ko||'').toLowerCase().includes(q); }).slice(0,4);
+        if (mg.length) {
+          html += '<div class="cmd-section">용어 사전</div>';
+          mg.forEach(function(g) {
+            var href = '/glossary#' + encodeURIComponent(g.term||'');
+            html += '<div class="cmd-item" data-href="' + href + '">'
+              + '<div class="cmd-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>'
+              + '<span class="cmd-label">' + esc(g.term||'') + (g.term_ko ? ' · ' + esc(g.term_ko) : '') + '</span>'
+              + '<span class="cmd-meta">사전</span></div>';
+            items.push(href);
+          });
+        }
+      }
+
+      if (!html) html = '<div class="cmd-empty">결과가 없어요</div>';
+      results.innerHTML = html;
+      results._items = items;
+      _active = -1;
+      updateActive();
+    }
+
+    function updateActive() {
+      var els = results.querySelectorAll('.cmd-item');
+      els.forEach(function(el, i) { el.classList.toggle('active', i === _active); });
+    }
+
+    function navigate() {
+      var items = results._items || [];
+      if (_active >= 0 && items[_active]) goto(items[_active]);
+      else {
+        var first = results.querySelector('.cmd-item');
+        if (first && first.dataset.href) goto(first.dataset.href);
+      }
+    }
+
+    function goto(href) {
+      close();
+      if (document.startViewTransition) document.startViewTransition(function() { window.location.href = href; });
+      else window.location.href = href;
+    }
+
+    results.addEventListener('click', function(e) {
+      var item = e.target.closest('.cmd-item');
+      if (item && item.dataset.href) goto(item.dataset.href);
+    });
+
+    input.addEventListener('input', function() { render(this.value); _active = -1; updateActive(); });
+    input.addEventListener('keydown', function(e) {
+      var items = results._items || [];
+      if (e.key === 'ArrowDown') { e.preventDefault(); _active = Math.min(_active + 1, items.length - 1); updateActive(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); _active = Math.max(_active - 1, -1); updateActive(); }
+      else if (e.key === 'Enter') { e.preventDefault(); navigate(); }
+    });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); overlay.classList.contains('open') ? close() : open(); }
+      if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    });
+
+    window.openCommandPalette = open;
+
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  })();
+
+  // View Transitions 폴백
+  if (!document.startViewTransition) {
+    document.startViewTransition = function(cb) { cb(); return { ready: Promise.resolve() }; };
+  }
   </script>
 </body>
 </html>

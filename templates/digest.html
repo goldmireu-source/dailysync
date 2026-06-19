@@ -14,19 +14,43 @@
   <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'">DAILY <span class="ds-accent">SYNC</span></a>
   <div class="site-actions">
     {% if is_admin and not show_hidden %}
-    <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>⭐ <span class="hd-num" id="saved-count">{{ saved_total }}</span></a>
-    <a href="?tab={{ tab }}&hidden=1" class="hd-chip" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display:none;"{% endif %}>👁 <span class="hd-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span></a>
-    <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()"><span class="refresh-icon">🔄</span><span class="refresh-label">새로고침</span></button>
-    <a href="{{ url_for('web.admin') }}" class="hd-chip" title="관리자 페이지">⚙</a>
+    <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span class="hd-num" id="saved-count">{{ saved_total }}</span>
+    </a>
+    <a href="?tab={{ tab }}&hidden=1" class="hd-chip" id="hidden-link" {% if (hidden_count + hidden_papers_count) == 0 %}style="display:none;"{% endif %}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="hd-num" id="hidden-count">{{ hidden_count + hidden_papers_count }}</span>
+    </a>
+    <button class="refresh-btn" id="refresh-btn" onclick="runRefresh()">
+      <svg class="refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      <span class="refresh-label">새로고침</span>
+    </button>
+    <a href="{{ url_for('web.admin') }}" class="hd-chip" title="관리자 페이지">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </a>
     {% endif %}
     {% if current_user.is_authenticated %}
-    <a href="/bookmarks" class="hd-chip hd-chip--bm" title="내 보관함"><span class="bm-hd-icon">🔖</span><span class="bm-hd-text">보관함</span> <span class="hd-num" id="bm-header-count">{{ bm_count }}</span></a>
+    <a href="/bookmarks" class="hd-chip hd-chip--bm" title="내 보관함">
+      <svg class="bm-hd-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span class="bm-hd-text">보관함</span>
+      <span class="hd-num" id="bm-header-count">{{ bm_count }}</span>
+    </a>
     <button class="hd-chip hd-chip--profile" onclick="openProfileModal()" title="회원정보 수정"><span id="hd-profile-badge">{{ class_badge(current_user.class_num, 20) }}</span><span id="hd-profile-name">{{ current_user.display_name }}</span></button>
     <a href="{{ url_for('web.admin_logout') }}" class="hd-chip hd-chip--logout" title="로그아웃"><svg class="logout-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="logout-txt">로그아웃</span></a>
     {% else %}
     <a href="{{ url_for('web.admin_login') }}" class="hd-chip hd-chip--login">로그인</a>
     <a href="{{ url_for('web.admin_register') }}" class="hd-chip">회원가입</a>
     {% endif %}
+    {# ⌘K 팔레트 열기 버튼 #}
+    <button class="hd-chip" onclick="window.openCommandPalette && openCommandPalette()" title="검색 (Ctrl+K)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </button>
+    {# 라이트/다크 토글 #}
+    <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="라이트/다크 전환" title="테마 전환 (현재: 다크)">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
   </div>
 </header>
 <div class="site-tagline">AI 공모전 · 뉴스 · 논문을 한곳에서</div>
@@ -47,11 +71,23 @@
 {% if not show_hidden %}
 <div class="main-nav-wrap">
 <nav class="main-nav" id="main-nav">
-  <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">🏆 공모전<span class="nav-num">{{ total_contests }}</span></a>
-  <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">📰 뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span></a>
-  <a href="?tab=parties" class="nav-pill {% if tab == 'parties' %}active{% endif %}">🎯 파티 찾기<span class="nav-num">{{ total_parties }}</span></a>
+  <a href="?tab=contests" class="nav-pill {% if tab == 'contests' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+    공모전<span class="nav-num">{{ total_contests }}</span>
+  </a>
+  <a href="?tab=news" class="nav-pill {% if news_active %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
+    뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span>
+  </a>
+  <a href="?tab=parties" class="nav-pill {% if tab == 'parties' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    파티 찾기<span class="nav-num">{{ total_parties }}</span>
+  </a>
   {% if karrot_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
-  <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">🥕 인사교당근{% if not karrot_enabled %}<span style="font-size:10px;opacity:.5;margin-left:3px;">비공개</span>{% else %}<span class="nav-num">{{ total_karrot }}</span>{% endif %}</a>
+  <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V22H10V9.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 9c-1.5.5-3 2-3 4"/></svg>
+    인사교당근{% if not karrot_enabled %}<span style="font-size:10px;opacity:.5;margin-left:3px;">비공개</span>{% else %}<span class="nav-num">{{ total_karrot }}</span>{% endif %}
+  </a>
   {% endif %}
 </nav>
 </div>
@@ -282,36 +318,62 @@
   </div>
   {% endif %}
 
-  {# ===== 3D 코버플로우 쇼케이스 (마감 임박) ===== #}
+  {# ===== 마감 임박 가로 스크롤 스트립 (리디자인) ===== #}
   {% if contest_showcase and page == 1 %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-  <section class="contest-showcase">
-    <div class="cs-head"><span class="cs-fire">🔥</span> 마감 임박 공모전</div>
-    <div class="swiper contest-swiper">
-      <div class="swiper-wrapper">
-        {% for t in contest_showcase %}
-        <div class="swiper-slide cs-slide">
-          <a class="cs-card" href="/contest/{{ t.id }}">
-            <div class="cs-img" style="background-image: {% if t.image_url %}url('{{ t.image_url }}'), {% endif %}linear-gradient(135deg, {{ t.fallback_c1 }}, {{ t.fallback_c2 }});">
-              {% if not t.image_url %}<span class="cs-fallback">{{ t.fallback_icon }}</span>{% endif %}
-              <span class="cs-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
-            </div>
-            <div class="cs-meta">
-              <div class="cs-title">{{ t.title }}</div>
-              <div class="cs-host">{{ t.host or t.source }} · ~{{ t.deadline_str }}</div>
-            </div>
-          </a>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    <div class="swiper-pagination cs-pag"></div>
-  </section>
+  <div class="section-eyebrow"><span class="dot"></span> 마감 임박</div>
+  <div class="urgent-row" id="urgent-row">
+    {% for t in contest_showcase %}
+    {% if t.dday is not none %}
+      {% if t.dday <= 1 %}{% set dcol = "var(--d-red)" %}
+      {% elif t.dday <= 3 %}{% set dcol = "var(--d-org)" %}
+      {% elif t.dday <= 7 %}{% set dcol = "var(--d-amb)" %}
+      {% else %}{% set dcol = "var(--d-calm)" %}
+      {% endif %}
+    {% else %}{% set dcol = "var(--d-calm)" %}{% endif %}
+    <a class="urgent-card" href="/contest/{{ t.id }}" style="--dcol: {{ dcol }}">
+      <div class="dday">{{ t.dday_label }}</div>
+      <div class="u-title">{{ t.title }}</div>
+      <div class="u-org">{{ t.host or t.source }}</div>
+    </a>
+    {% endfor %}
+  </div>
   {% endif %}
 
+  {# ===== 오늘의 싱크 요약 벤토 (sync-strip) ===== #}
+  {% if page == 1 and contest_showcase is defined %}
+  {% set ns = namespace(today=0, week=0) %}
+  {% for t in contest_showcase %}
+    {% if t.dday is not none %}
+      {% if t.dday <= 0 %}{% set ns.today = ns.today + 1 %}{% endif %}
+      {% if t.dday <= 7 %}{% set ns.week = ns.week + 1 %}{% endif %}
+    {% endif %}
+  {% endfor %}
+  <div class="sync-strip">
+    {% if ns.today > 0 %}
+    <div class="sync-cell">
+      <div class="sync-label">오늘 마감</div>
+      <div class="sync-num">{{ ns.today }}</div>
+    </div>
+    {% endif %}
+    {% if ns.week > 0 %}
+    <div class="sync-cell">
+      <div class="sync-label">이번 주</div>
+      <div class="sync-num">{{ ns.week }}</div>
+    </div>
+    {% endif %}
+    {% if total_contests is defined and total_contests > 0 %}
+    <div class="sync-cell">
+      <div class="sync-label">전체 공모전</div>
+      <div class="sync-num">{{ total_contests }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ===== 커맨드팔레트 힌트 (첫 방문 시) ===== #}
+
   {% if contest_tiles %}
-  <div class="contest-help">마감 임박순 · AI 관련 공모전·경진대회만 모았어요. 타일을 누르면 상세로 이동합니다.</div>
-  <div class="contest-grid">
+  <div class="contest-grid" id="contest-grid">
     {% for t in contest_tiles %}
       {{ render_contest_tile(t, show_hidden, is_bookmarked=(t.id in user_bm_contest_ids)) }}
     {% endfor %}
@@ -354,9 +416,16 @@
   <div class="pager-info">{{ (page - 1) * 12 + 1 }}–{{ [(page * 12), total_contests]|min }} of {{ total_contests }}</div>
   {% endif %}
   {% else %}
-  <div class="empty">
-    현재 접수 중인 AI 공모전이 없습니다.<br>
-    <span style="font-size: 12px; opacity: 0.6;">admin → "🏆 공모전 수집" 을 돌려보세요.</span>
+  <div class="ds-empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+    <div class="ds-empty-msg">공모전이 아직 없어요</div>
+    <div class="ds-empty-hint">수집 잡을 돌리면 곧 채워집니다</div>
+    {% if is_admin %}
+    <button class="ds-empty-action" onclick="runRefresh()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      지금 수집하기
+    </button>
+    {% endif %}
   </div>
   {% endif %}
 {% endif %}
@@ -1259,7 +1328,7 @@ async function deleteKarrot(btn) {
   <aside class="gloss-sidebar" id="gloss-sidebar">
     <div class="gs-head">
       <div class="gs-title-row">
-        <div class="gs-title">📖 GLOSSARY <span class="count" id="gs-count">· 0</span></div>
+        <div class="gs-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>GLOSSARY <span class="count" id="gs-count">· 0</span></div>
         <button class="gs-close" onclick="closeGloss()" aria-label="닫기">×</button>
       </div>
       <input type="text" class="gs-search" id="gs-search" placeholder="용어 검색...">
@@ -1286,7 +1355,7 @@ async function deleteKarrot(btn) {
 <div class="gloss-overlay" id="gloss-overlay" onclick="closeGloss()"></div>
 
 {# 모바일 floating 버튼 (사이드바 닫혀 있을 때, 공모전 탭 제외) #}
-{% if tab not in ('contests', 'parties', 'karrot') %}<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전">📖</button>{% endif %}
+{% if tab not in ('contests', 'parties', 'karrot') %}<button class="gloss-fab" id="gloss-fab" onclick="openGloss()" title="용어 사전"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></button>{% endif %}
 
 {# 호버 툴팁 #}
 <div class="gloss-tooltip" id="gloss-tooltip"></div>
@@ -2038,27 +2107,5 @@ function resetRefresh() {
   }
 })();
 </script>
-
-{# ===== 3D 코버플로우 쇼케이스 init ===== #}
-{% if contest_showcase and page == 1 %}
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-<script>
-(function () {
-  if (typeof Swiper === 'undefined') return;
-  new Swiper('.contest-swiper', {
-    effect: 'coverflow',
-    grabCursor: true,
-    centeredSlides: true,
-    slidesPerView: 'auto',
-    loop: true,
-    speed: 700,
-    autoplay: { delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true },
-    coverflowEffect: { rotate: 34, stretch: 0, depth: 220, modifier: 1, slideShadows: true },
-    pagination: { el: '.cs-pag', clickable: true },
-    keyboard: { enabled: true },
-  });
-})();
-</script>
-{% endif %}
 
 {% endblock %}

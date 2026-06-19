@@ -1,40 +1,59 @@
 {#
-  공모전 정사각형 타일 매크로.
-  위 ⅔ = 포스터 이미지(없으면 카테고리 그라데이션+아이콘), 아래 ⅓ = 제목.
-  타일 클릭 → /contest/<id> 상세. admin 은 우상단 저장/숨김 버튼.
+  공모전 카드 매크로 (리디자인 v2026).
+  D-day 배지 + 북마크 / 제목 / 태그 / 주최·마감일 / 풋
+  기존 JS 훅 (toggleBookmark / saveItem / hideItem) 유지.
 #}
 {% macro render_contest_tile(t, show_hidden=false, is_bookmarked=false) %}
-<div class="contest-tile {% if t.urgent %}urgent{% endif %}" data-contest-id="{{ t.id }}">
+{# D-day 색 계산 #}
+{% if t.dday is not none %}
+  {% if t.dday <= 1 %}{% set dcol = "var(--d-red)" %}
+  {% elif t.dday <= 3 %}{% set dcol = "var(--d-org)" %}
+  {% elif t.dday <= 7 %}{% set dcol = "var(--d-amb)" %}
+  {% else %}{% set dcol = "var(--d-calm)" %}
+  {% endif %}
+{% else %}{% set dcol = "var(--d-calm)" %}{% endif %}
+
+<div class="contest-tile" data-contest-id="{{ t.id }}" style="--dcol: {{ dcol }}">
   <a class="ct-link" href="/contest/{{ t.id }}">
-    <div class="ct-image">
-      {% if t.image_url %}
-        <img src="{{ t.image_url }}" alt="{{ t.title }}" loading="lazy"
-             style="object-position: {{ t.image_pos_x }}% {{ t.image_pos_y }}%; transform: scale({{ t.image_scale }});"
-             onerror="this.classList.add('img-failed');">
+
+    {# 헤드: D-day 배지 + 북마크 #}
+    <div class="ct-card-head">
+      <span class="badge-dday">{{ t.dday_label }}</span>
+      {% if g.user_authenticated %}
+      <button class="bookmark {% if is_bookmarked %}saved{% endif %}"
+              title="{% if is_bookmarked %}보관함에서 제거{% else %}보관함에 저장{% endif %}"
+              onclick="event.preventDefault(); event.stopPropagation(); toggleBookmark('contest', {{ t.id }}, this)"
+              aria-label="{% if is_bookmarked %}저장 해제{% else %}저장{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </button>
       {% endif %}
-      <div class="ct-fallback" style="background: linear-gradient(135deg, {{ t.fallback_c1 }}, {{ t.fallback_c2 }});">
-        <span class="ct-fallback-icon">{{ t.fallback_icon }}</span>
-      </div>
-      <span class="ct-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
-      <span class="ct-cat">{{ t.category }}</span>
     </div>
-    <div class="ct-body">
-      <div class="ct-title">{{ t.title }}</div>
-      <div class="ct-meta">
-        <span class="ct-host">{{ t.host or t.source }}</span>
-        <span class="ct-deadline">~{{ t.deadline_str }}</span>
-      </div>
+
+    {# 제목 #}
+    <h3 class="ct-card-title">{{ t.title }}</h3>
+
+    {# 태그 (category 단일값, join/prize 는 데이터 없어 숨김) #}
+    <div class="ct-tags">
+      <span class="ct-tag">{{ t.category }}</span>
     </div>
+
+    {# 주최·마감일 #}
+    <div class="ct-card-meta">
+      <span class="ct-org">{{ t.host or t.source }}</span>
+      <span class="ct-sep">·</span>
+      <span class="ct-date">~{{ t.deadline_str }}</span>
+    </div>
+
+    {# 풋: 종류 레이블 #}
+    <div class="ct-card-foot">
+      <span class="ct-kind">{{ t.category }}</span>
+    </div>
+
   </a>
 
-  {% if g.user_authenticated %}
+  {# 어드민 전용 저장·숨김 버튼 (호버 시 표시) #}
+  {% if g.is_admin %}
   <div class="ct-actions">
-    <button class="ct-action-btn bm-btn {% if is_bookmarked %}bookmarked{% endif %}"
-            title="{% if is_bookmarked %}보관함에서 제거{% else %}보관함에 저장{% endif %}"
-            onclick="event.preventDefault(); event.stopPropagation(); toggleBookmark('contest', {{ t.id }}, this)">
-      보관
-    </button>
-    {% if g.is_admin %}
     <button class="ct-action-btn save-btn {% if t.saved %}saved{% endif %}"
             title="{% if t.saved %}저장 해제{% else %}저장{% endif %}"
             onclick="event.preventDefault(); event.stopPropagation(); {% if t.saved %}unsaveItem('contest', {{ t.id }}){% else %}saveItem('contest', {{ t.id }}){% endif %}">
@@ -45,7 +64,6 @@
             onclick="event.preventDefault(); event.stopPropagation(); {% if show_hidden %}showItem('contest', {{ t.id }}){% else %}hideItem('contest', {{ t.id }}){% endif %}">
       {% if show_hidden %}↻{% else %}×{% endif %}
     </button>
-    {% endif %}
   </div>
   {% endif %}
 </div>
