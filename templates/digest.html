@@ -1514,12 +1514,6 @@ function initCarouselsIn(parent) {
       if (target.closest('.slide-dots')) return;
       if (target.closest('a')) return;
       if (target.closest('.gloss-term')) return;
-      // 2열 모드에서는 상세 페이지로 이동
-      if (carousel.closest('.carousel-grid')?.classList.contains('grid-2col')) {
-        const link = carousel.querySelector('.topic-link');
-        if (link) window.location.href = link.href;
-        return;
-      }
       openCardModal(carousel);
     });
   });
@@ -1617,6 +1611,10 @@ function openCardModal(carousel) {
   const overlay = document.getElementById('card-modal-overlay');
   const body = document.getElementById('card-modal-body');
   const label = document.getElementById('card-modal-label');
+  // 열리는 소스가 2열 모드인지 감지 → 모달 높이 CSS 분기
+  const from2col = !!carousel.closest('.carousel-grid')?.classList.contains('grid-2col');
+  overlay.classList.toggle('modal-from-2col', from2col);
+  overlay.classList.toggle('modal-from-1col', !from2col);
   const topicEl = document.getElementById('card-modal-topic');
   const metaEl = document.getElementById('card-modal-meta');
 

@@ -1385,6 +1385,25 @@ footer a { color: var(--text-dim); }
   transform: scale(1);
 }
 
+/* 1열 출처: 세로 줄임 (overlay 패딩 늘려서 카드 높이 축소) */
+.card-modal-overlay.modal-from-1col {
+  padding: 64px 20px;
+}
+.card-modal-overlay.modal-from-1col .card-modal {
+  max-height: calc(100vh - 128px);
+}
+
+/* 2열 출처: 세로 최대화 (패딩 최소화) */
+.card-modal-overlay.modal-from-2col {
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.card-modal-overlay.modal-from-2col .card-modal {
+  max-height: calc(100vh - 20px - env(safe-area-inset-bottom, 0px));
+}
+.card-modal-overlay.modal-from-2col .card-modal-body .carousel-stage {
+  aspect-ratio: 3 / 5;
+}
+
 .card-modal-head {
   display: flex;
   align-items: center;
