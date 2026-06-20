@@ -1381,6 +1381,8 @@ footer a { color: var(--text-dim); }
   transform: scale(0.96);
   transition: transform 0.2s ease;
 }
+/* 모달 열릴 때 하단 탭바 숨김 */
+body.modal-open .bottom-nav { display: none !important; }
 .card-modal-overlay.visible .card-modal {
   transform: scale(1);
 }
@@ -1444,8 +1446,13 @@ footer a { color: var(--text-dim); }
   height: auto;
   aspect-ratio: 4 / 5;
   max-height: 100%;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0;
   cursor: default !important;
+}
+/* 모달 내 논문 커버: 자체 border-radius/border 제거 (외곽 모달이 클리핑 담당) */
+.card-modal-body .slide.paper-cover {
+  border-radius: 0 !important;
+  border: none !important;
 }
 .card-modal-body .carousel:hover .carousel-stage {
   transform: none;
@@ -1534,16 +1541,41 @@ footer a { color: var(--text-dim); }
 }
 
 .card-modal-caption {
-  padding: 12px 20px;
+  padding: 10px 14px 10px 20px;
   border-top: 1px solid var(--border-soft);
   font-size: 13.5px;
   color: var(--text-muted);
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   flex-shrink: 0;
 }
+/* 모달 우측 하단 닫기 버튼 */
+.card-modal-close-fab {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  letter-spacing: 0.02em;
+}
+.card-modal-close-fab:hover,
+.card-modal-close-fab:active { background: rgba(255,255,255,0.15); color: var(--text); }
+[data-theme="light"] .card-modal-close-fab {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.1);
+  color: var(--text-dim);
+}
+[data-theme="light"] .card-modal-close-fab:hover { background: rgba(0,0,0,0.1); }
 .card-modal-caption .topic {
   flex: 1;
   min-width: 0;
