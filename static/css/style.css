@@ -4414,7 +4414,7 @@ body::after {
   .theme-toggle-btn { width: 30px !important; height: 30px !important; }
   .theme-toggle-btn svg { width: 14px !important; height: 14px !important; }
   .site-actions { gap: 4px !important; }
-  .sync-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 20px; }
+  .sync-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 5px 0; }
   .sync-cell { padding: 9px 10px !important; }
   .sync-label { font-size: 9px !important; }
   .sync-num { font-size: 18px !important; }
