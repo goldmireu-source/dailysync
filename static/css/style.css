@@ -3326,7 +3326,7 @@ body.modal-open {
 .hidden-bar { display: flex; gap: 8px; margin: 0 0 12px; }
 
 /* 인라인 검색 — 모던 */
-.inline-search { margin: 0 0 18px; }
+.inline-search { margin: 0 0 8px; }
 .inline-search #inline-search-input {
   width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 15px; font-family: inherit;
   border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text);
