@@ -3754,6 +3754,15 @@ footer a { color: var(--text-dim); }
   font-weight: 500 !important;
 }
 
+@property --nav-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes navBorderSpin {
+  to { --nav-border-angle: 360deg; }
+}
+
 /* ---- 메인 탭 내비 (리디자인) ---- */
 .main-nav {
   background: var(--bg-card) !important;
@@ -3776,7 +3785,9 @@ footer a { color: var(--text-dim); }
 .nav-pill.active { color: var(--text) !important; background: var(--bg-soft) !important; }
 .nav-pill.active::after {
   content: ""; position: absolute; inset: -2px; border-radius: 12px; padding: 2px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent)));
+  --nav-border-angle: 0deg;
+  background: conic-gradient(from var(--nav-border-angle), var(--accent) 0deg, var(--accent-2, #818cf8) 90deg, transparent 200deg, var(--accent) 360deg);
+  animation: navBorderSpin 3s linear infinite;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: destination-out;
