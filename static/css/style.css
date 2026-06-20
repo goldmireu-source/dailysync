@@ -3455,6 +3455,21 @@ body {
 .carousel-caption .topic-link { color: var(--text); }
 .carousel-caption .topic-link:hover { color: var(--accent); }
 
+/* ===== 라이트 테마: carousel-stage 카테고리 테두리 ===== */
+[data-theme="light"] .carousel-stage {
+  border: 2px solid var(--accent-dim);
+}
+[data-theme="light"] .carousel-stage[data-cat="policy"]   { border-color: #c2681a; }
+[data-theme="light"] .carousel-stage[data-cat="industry"] { border-color: #1a7a40; }
+[data-theme="light"] .carousel-stage[data-cat="research"] { border-color: #7e22ce; }
+[data-theme="light"] .carousel-stage[data-cat="ethics"]   { border-color: #c2410c; }
+
+/* ===== 공모전 타일 보라색 테두리 (다크·라이트 공통) ===== */
+.contest-tile { border-color: rgba(157,140,255,0.38) !important; }
+.contest-tile:hover { border-color: rgba(157,140,255,0.70) !important; }
+[data-theme="light"] .contest-tile { border-color: rgba(126,34,206,0.28) !important; }
+[data-theme="light"] .contest-tile:hover { border-color: rgba(126,34,206,0.55) !important; }
+
 /* ===== 라이트 테마: 필터 칩 active 오버라이드 ===== */
 [data-theme="light"] .cat-chip.active { background: #20242e; color: #f5f6f9; border-color: #20242e; }
 [data-theme="light"] .cat-chip.active .num { color: rgba(245,246,249,0.6); }
@@ -3466,9 +3481,9 @@ body {
     radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
     radial-gradient(ellipse 70% 45% at 90% 100%, rgba(32,36,46,0.05), transparent 60%),
     linear-gradient(160deg, #f4f6fb 0%, #e8ecf5 100%);
-  border: 2px solid var(--accent-dim);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(32,36,46,0.10), 0 1px 4px rgba(32,36,46,0.06);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 [data-theme="light"] .slide.cover.policy {
   background:
@@ -3530,9 +3545,9 @@ body {
 [data-theme="light"] .slide.cover .cover-foot .cross-pill { background: rgba(14,126,150,0.10); color: #0E7E96; }
 [data-theme="light"] .slide.body {
   background: linear-gradient(160deg, #ffffff 0%, #f2f4f9 100%);
-  box-shadow: 0 2px 16px rgba(32,36,46,0.09), 0 1px 3px rgba(32,36,46,0.05);
-  border: 2px solid var(--accent-dim);
-  border-radius: 16px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 [data-theme="light"] .slide.body .head-row { border-bottom-color: rgba(32,36,46,0.09); }
 [data-theme="light"] .slide .fact-row {
