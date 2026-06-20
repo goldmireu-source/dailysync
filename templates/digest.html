@@ -1445,10 +1445,16 @@ function initCarousel(carousel) {
   if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); show(current + 1); });
   dots.forEach((d, i) => d.addEventListener('click', (e) => { e.stopPropagation(); show(i); }));
 
+  // 2열 모드 여부 확인 헬퍼
+  function is2col() {
+    return carousel.closest('.carousel-grid')?.classList.contains('grid-2col');
+  }
+
   // 터치 스와이프 (모바일)
   let touchStartX = 0;
   stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
   stage.addEventListener('touchend', (e) => {
+    if (is2col()) return;  // 2열 모드에서는 스와이프 비활성
     const dx = e.changedTouches[0].clientX - touchStartX;
     if (Math.abs(dx) > 40) {
       if (dx < 0) show(current + 1);
@@ -1462,6 +1468,7 @@ function initCarousel(carousel) {
   stage._dragHappened = false;  // mouseup→click 사이 drag 여부 전달용
   stage.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
+    if (is2col()) return;  // 2열 모드에서는 드래그 비활성
     mouseStartX = e.clientX;
     isDragging = true;
     stage._dragHappened = false;
@@ -1507,6 +1514,12 @@ function initCarouselsIn(parent) {
       if (target.closest('.slide-dots')) return;
       if (target.closest('a')) return;
       if (target.closest('.gloss-term')) return;
+      // 2열 모드에서는 상세 페이지로 이동
+      if (carousel.closest('.carousel-grid')?.classList.contains('grid-2col')) {
+        const link = carousel.querySelector('.topic-link');
+        if (link) window.location.href = link.href;
+        return;
+      }
       openCardModal(carousel);
     });
   });

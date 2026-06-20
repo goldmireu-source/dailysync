@@ -3869,6 +3869,7 @@ footer a { color: var(--text-dim); }
   }
   .cat-chips { display: none; }
   .cat-sel-mobile {
+    display: block;  /* 전역 display:none 오버라이드 */
     flex: 1; min-width: 0;
     padding: 5px 8px;
     background: var(--bg-card);
@@ -4731,6 +4732,31 @@ body::after {
   .carousel-grid.grid-2col .slide.paper-cover .authors { font-size: 10px; }
   .carousel-grid.grid-2col .carousel-caption { font-size: 11px; }
   .carousel-grid.grid-2col .watermark { font-size: 80px !important; }
+
+  /* 2열: 교차검증 pill, 슬라이드 컨트롤 숨김 */
+  .carousel-grid.grid-2col .cross-pill { display: none; }
+  .carousel-grid.grid-2col .slide-nav { display: none !important; }
+  .carousel-grid.grid-2col .slide-dots { display: none !important; }
+  .carousel-grid.grid-2col .swipe-hint { display: none !important; }
+
+  /* 2열: "크게보기" 힌트 */
+  .carousel-grid.grid-2col .carousel-stage {
+    cursor: pointer;
+  }
+  .carousel-grid.grid-2col .carousel-stage::after {
+    content: '탭하여 크게보기';
+    position: absolute;
+    bottom: 7px; left: 0; right: 0;
+    text-align: center;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.3);
+    pointer-events: none;
+  }
+  [data-theme="light"] .carousel-grid.grid-2col .carousel-stage::after {
+    color: rgba(0,0,0,0.22);
+  }
 
   /* 모바일: 상단 서브탭 숨김 — 하단 서브메뉴로 대체 */
   .subtabs { display: none !important; }
