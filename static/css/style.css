@@ -3455,44 +3455,74 @@ body {
 .carousel-caption .topic-link:hover { color: var(--accent); }
 
 /* ===== 라이트 테마: 슬라이드 카드 오버라이드 ===== */
+/* 베이스: 모든 커버 카드를 통일된 흰색 계열 그라디언트로, 카테고리는 spotlight 틴트+테두리만으로 구분 */
 [data-theme="light"] .slide.cover {
   background:
-    radial-gradient(120% 75% at 50% -8%, rgba(14,126,150,0.07), transparent 52%),
-    linear-gradient(168deg, #f1f3f8 0%, #e8ecf3 100%);
+    radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%),
+    linear-gradient(160deg, #f7f8fc 0%, #edf0f7 100%);
   border-top: 2px solid var(--accent-dim);
+  box-shadow: 0 2px 16px rgba(32,36,46,0.09), 0 1px 3px rgba(32,36,46,0.05);
+  border-left: 1px solid rgba(32,36,46,0.07);
+  border-right: 1px solid rgba(32,36,46,0.07);
+  border-bottom: 1px solid rgba(32,36,46,0.07);
 }
-[data-theme="light"] .slide.cover.policy   { background: radial-gradient(120% 75% at 50% -8%, rgba(244,176,131,0.18), transparent 52%), linear-gradient(168deg, #fff4ed 0%, #fde8d5 100%); border-top-color: #b45309; }
-[data-theme="light"] .slide.cover.industry { background: radial-gradient(120% 75% at 50% -8%, rgba(166,213,133,0.20), transparent 52%), linear-gradient(168deg, #f0fdf4 0%, #dcf5e2 100%); border-top-color: #166534; }
-[data-theme="light"] .slide.cover.research { background: radial-gradient(120% 75% at 50% -8%, rgba(195,166,236,0.20), transparent 52%), linear-gradient(168deg, #faf5ff 0%, #ede9fe 100%); border-top-color: #7e22ce; }
-[data-theme="light"] .slide.cover.ethics   { background: radial-gradient(120% 75% at 50% -8%, rgba(240,166,132,0.18), transparent 52%), linear-gradient(168deg, #fff7ed 0%, #fde5cc 100%); border-top-color: #c2410c; }
-[data-theme="light"] .slide.cover.default  { background: radial-gradient(120% 75% at 50% -8%, rgba(14,126,150,0.07), transparent 52%), linear-gradient(168deg, #f8fafc 0%, #edf1f7 100%); border-top-color: var(--accent-dim); }
-[data-theme="light"] .slide.cover .cover-top { border-bottom-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .slide.cover.policy   {
+  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(180,83,9,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f2ede8 100%);
+  border-top-color: #c2681a;
+}
+[data-theme="light"] .slide.cover.industry {
+  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(22,101,52,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #eaf2ec 100%);
+  border-top-color: #1a7a40;
+}
+[data-theme="light"] .slide.cover.research {
+  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(126,34,206,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f0ecf8 100%);
+  border-top-color: #7e22ce;
+}
+[data-theme="light"] .slide.cover.ethics   {
+  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(194,65,12,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f3ede8 100%);
+  border-top-color: #c2410c;
+}
+[data-theme="light"] .slide.cover.default  {
+  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(14,126,150,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #eaeff6 100%);
+  border-top-color: var(--accent-dim);
+}
+[data-theme="light"] .slide.cover .cover-top { border-bottom-color: rgba(32,36,46,0.09); }
 [data-theme="light"] .slide.cover.policy   .cover-top .cat-label,
-[data-theme="light"] .slide.cover.policy   .cover-stars-row .stars { color: #b45309; }
+[data-theme="light"] .slide.cover.policy   .cover-stars-row .stars { color: #c2681a; }
 [data-theme="light"] .slide.cover.industry .cover-top .cat-label,
-[data-theme="light"] .slide.cover.industry .cover-stars-row .stars { color: #166534; }
+[data-theme="light"] .slide.cover.industry .cover-stars-row .stars { color: #1a7a40; }
 [data-theme="light"] .slide.cover.research .cover-top .cat-label,
 [data-theme="light"] .slide.cover.research .cover-stars-row .stars { color: #7e22ce; }
 [data-theme="light"] .slide.cover.ethics   .cover-top .cat-label,
 [data-theme="light"] .slide.cover.ethics   .cover-stars-row .stars { color: #c2410c; }
 [data-theme="light"] .slide.cover.default  .cover-top .cat-label,
-[data-theme="light"] .slide.cover.default  .cover-stars-row .stars { color: #475569; }
-[data-theme="light"] .slide.cover h1 { color: var(--text); }
-[data-theme="light"] .slide.cover .cover-lead { color: var(--text-dim); }
-[data-theme="light"] .slide.cover .watermark { color: rgba(0,0,0,0.04); }
-[data-theme="light"] .slide.cover .cover-foot { border-top-color: rgba(0,0,0,0.08); }
-[data-theme="light"] .slide.cover .cover-foot .source-name { color: var(--text); }
-[data-theme="light"] .slide.cover .cover-foot .date { color: var(--text-dim); }
-[data-theme="light"] .slide.cover .cover-foot .cross-pill { background: rgba(14,126,150,0.12); color: var(--accent); }
-[data-theme="light"] .slide.body { background: linear-gradient(168deg, #f4f6fb 0%, #eceef5 100%); }
-[data-theme="light"] .slide.body .head-row { border-bottom-color: rgba(0,0,0,0.08); }
-[data-theme="light"] .slide .fact-row { background: linear-gradient(90deg, rgba(14,126,150,0.08) 0%, rgba(14,126,150,0.01) 100%); }
-[data-theme="light"] .slide .quote-large { background: linear-gradient(135deg, rgba(14,126,150,0.08) 0%, rgba(14,126,150,0.02) 100%); border-color: rgba(14,126,150,0.15); }
-[data-theme="light"] .slide .src-card-mini { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
-[data-theme="light"] .slide .links-mini { background: var(--bg-soft); color: var(--text); }
-[data-theme="light"] .slide .links-mini a { color: var(--text-body); }
+[data-theme="light"] .slide.cover.default  .cover-stars-row .stars { color: #0E7E96; }
+[data-theme="light"] .slide.cover h1 { color: #1a1d26; }
+[data-theme="light"] .slide.cover .cover-lead { color: #545b6b; }
+[data-theme="light"] .slide.cover .watermark { color: rgba(32,36,46,0.04); }
+[data-theme="light"] .slide.cover .cover-foot { border-top-color: rgba(32,36,46,0.09); }
+[data-theme="light"] .slide.cover .cover-foot .source-name { color: #1a1d26; }
+[data-theme="light"] .slide.cover .cover-foot .date { color: #7a8291; }
+[data-theme="light"] .slide.cover .cover-foot .cross-pill { background: rgba(14,126,150,0.10); color: #0E7E96; }
+[data-theme="light"] .slide.body {
+  background: linear-gradient(160deg, #ffffff 0%, #f2f4f9 100%);
+  box-shadow: 0 2px 16px rgba(32,36,46,0.09), 0 1px 3px rgba(32,36,46,0.05);
+  border: 1px solid rgba(32,36,46,0.07);
+}
+[data-theme="light"] .slide.body .head-row { border-bottom-color: rgba(32,36,46,0.09); }
+[data-theme="light"] .slide .fact-row {
+  background: linear-gradient(90deg, rgba(14,126,150,0.07) 0%, transparent 100%);
+  border-left-color: var(--accent);
+}
+[data-theme="light"] .slide .quote-large {
+  background: linear-gradient(135deg, rgba(14,126,150,0.06) 0%, transparent 100%);
+  border-color: rgba(14,126,150,0.18);
+}
+[data-theme="light"] .slide .src-card-mini { background: rgba(32,36,46,0.03); border-color: rgba(32,36,46,0.08); }
+[data-theme="light"] .slide .links-mini { background: rgba(32,36,46,0.04); color: var(--text); }
+[data-theme="light"] .slide .links-mini a { color: #20242e; }
 [data-theme="light"] .slide .links-mini a:hover { color: var(--accent); }
-[data-theme="light"] .slide.paper-cover .cover-top .upvotes-pill { background: rgba(14,126,150,0.12); color: var(--accent); }
+[data-theme="light"] .slide.paper-cover .cover-top .upvotes-pill { background: rgba(14,126,150,0.10); color: #0E7E96; }
 
 /* ===== 공모전 타일 — 다크 ===== */
 .contest-tile {
