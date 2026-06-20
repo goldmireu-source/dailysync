@@ -3763,7 +3763,7 @@ footer a { color: var(--text-dim); }
   gap: 4px !important;
 }
 .nav-pill {
-  border-radius: 10px 10px 0 0 !important;
+  border-radius: 10px !important;
   padding: 9px 15px !important;
   font-size: 14px !important;
   font-weight: 600 !important;
