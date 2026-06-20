@@ -71,7 +71,7 @@ def init_scheduler(app) -> BackgroundScheduler | None:
     )
     from jobs.cleanup import cleanup_completed_karrot
 
-    def _job_karrot_cleanup():
+    def _job_karrot_cleanup(triggered_by: str = "scheduler"):
         cleanup_completed_karrot(hours=24)
 
     sched = BackgroundScheduler(timezone=KST)
