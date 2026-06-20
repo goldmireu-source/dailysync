@@ -3454,36 +3454,56 @@ body {
 .carousel-caption .topic-link { color: var(--text); }
 .carousel-caption .topic-link:hover { color: var(--accent); }
 
+/* ===== 라이트 테마: 필터 칩 active 오버라이드 ===== */
+[data-theme="light"] .cat-chip.active { background: #20242e; color: #f5f6f9; border-color: #20242e; }
+[data-theme="light"] .cat-chip.active .num { color: rgba(245,246,249,0.6); }
+
 /* ===== 라이트 테마: 슬라이드 카드 오버라이드 ===== */
-/* 베이스: 모든 커버 카드를 통일된 흰색 계열 그라디언트로, 카테고리는 spotlight 틴트+테두리만으로 구분 */
+/* 다크 테마와 동일한 3-레이어 구조 — spotlight + 코너 글로우 + 베이스 그라디언트 */
 [data-theme="light"] .slide.cover {
   background:
-    radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%),
-    linear-gradient(160deg, #f7f8fc 0%, #edf0f7 100%);
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 90% 100%, rgba(32,36,46,0.05), transparent 60%),
+    linear-gradient(160deg, #f4f6fb 0%, #e8ecf5 100%);
   border-top: 2px solid var(--accent-dim);
-  box-shadow: 0 2px 16px rgba(32,36,46,0.09), 0 1px 3px rgba(32,36,46,0.05);
+  box-shadow: 0 4px 20px rgba(32,36,46,0.10), 0 1px 4px rgba(32,36,46,0.06);
   border-left: 1px solid rgba(32,36,46,0.07);
   border-right: 1px solid rgba(32,36,46,0.07);
   border-bottom: 1px solid rgba(32,36,46,0.07);
 }
-[data-theme="light"] .slide.cover.policy   {
-  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(180,83,9,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f2ede8 100%);
+[data-theme="light"] .slide.cover.policy {
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(194,104,26,0.13), transparent 60%),
+    linear-gradient(160deg, #faf6f2 0%, #ede4d8 100%);
   border-top-color: #c2681a;
 }
 [data-theme="light"] .slide.cover.industry {
-  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(22,101,52,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #eaf2ec 100%);
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(26,122,64,0.12), transparent 60%),
+    linear-gradient(160deg, #f3faf5 0%, #d8eddf 100%);
   border-top-color: #1a7a40;
 }
 [data-theme="light"] .slide.cover.research {
-  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(126,34,206,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f0ecf8 100%);
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(126,34,206,0.11), transparent 60%),
+    linear-gradient(160deg, #f7f3fc 0%, #e8deF5 100%);
   border-top-color: #7e22ce;
 }
-[data-theme="light"] .slide.cover.ethics   {
-  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(194,65,12,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #f3ede8 100%);
+[data-theme="light"] .slide.cover.ethics {
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(194,65,12,0.12), transparent 60%),
+    linear-gradient(160deg, #faf4f0 0%, #ecddd4 100%);
   border-top-color: #c2410c;
 }
-[data-theme="light"] .slide.cover.default  {
-  background: radial-gradient(ellipse 110% 55% at 50% -5%, rgba(255,255,255,0.85), transparent 58%), radial-gradient(ellipse 80% 40% at 80% 80%, rgba(14,126,150,0.06), transparent 60%), linear-gradient(160deg, #fafafa 0%, #eaeff6 100%);
+[data-theme="light"] .slide.cover.default {
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(14,126,150,0.10), transparent 60%),
+    linear-gradient(160deg, #f2f7fa 0%, #d8eaf0 100%);
   border-top-color: var(--accent-dim);
 }
 [data-theme="light"] .slide.cover .cover-top { border-bottom-color: rgba(32,36,46,0.09); }
@@ -3499,7 +3519,12 @@ body {
 [data-theme="light"] .slide.cover.default  .cover-stars-row .stars { color: #0E7E96; }
 [data-theme="light"] .slide.cover h1 { color: #1a1d26; }
 [data-theme="light"] .slide.cover .cover-lead { color: #545b6b; }
-[data-theme="light"] .slide.cover .watermark { color: rgba(32,36,46,0.04); }
+/* 워터마크: 불투명 색상으로 설정 — opacity는 재설계 구간의 0.07 그대로 상속 */
+[data-theme="light"] .slide.cover .watermark { color: #20242e; }
+[data-theme="light"] .slide.cover.policy   .watermark { color: #7a3010; }
+[data-theme="light"] .slide.cover.industry .watermark { color: #144d2a; }
+[data-theme="light"] .slide.cover.research .watermark { color: #4a1a80; }
+[data-theme="light"] .slide.cover.ethics   .watermark { color: #8a2010; }
 [data-theme="light"] .slide.cover .cover-foot { border-top-color: rgba(32,36,46,0.09); }
 [data-theme="light"] .slide.cover .cover-foot .source-name { color: #1a1d26; }
 [data-theme="light"] .slide.cover .cover-foot .date { color: #7a8291; }
