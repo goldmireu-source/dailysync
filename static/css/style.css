@@ -3913,6 +3913,7 @@ footer a { color: var(--text-dim); }
     flex-direction: row; flex-wrap: nowrap; overflow-x: visible;
     gap: 6px; align-items: center;
     justify-content: flex-end;
+    margin-bottom: 0;
   }
   .cat-chips { display: none; }
   .cat-sel-mobile {
