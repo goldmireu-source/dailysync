@@ -3903,7 +3903,7 @@ footer a { color: var(--text-dim); }
   .date-range-sep { flex-shrink: 0; }
 
   /* 인라인 검색: 입력창 컴팩트 */
-  .inline-search { margin: 0; }
+  .inline-search { margin: 0 0 2px; }
   .inline-search #inline-search-input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
   #inline-search-status { min-height: 0; margin-top: 0; }
   #inline-search-presets { display: none; }
@@ -3913,7 +3913,7 @@ footer a { color: var(--text-dim); }
     flex-direction: row; flex-wrap: nowrap; overflow-x: visible;
     gap: 6px; align-items: center;
     justify-content: flex-end;
-    margin-bottom: 0;
+    margin-bottom: 2px;
   }
   .cat-chips { display: none; }
   .cat-sel-mobile {
