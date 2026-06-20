@@ -413,6 +413,18 @@
       try { localStorage.setItem('ds-theme', next); } catch(e) {}
     };
 
+    // 스크롤 시 헤더 배경 표시
+    (function() {
+      var hdr = document.querySelector('.site-header');
+      if (!hdr) return;
+      function onScroll() {
+        if (window.scrollY > 10) hdr.classList.add('scrolled');
+        else hdr.classList.remove('scrolled');
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+
     // ===== 회원정보 수정 모달 =====
     {% if current_user.is_authenticated %}
     (function() {

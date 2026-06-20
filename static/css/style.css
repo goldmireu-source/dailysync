@@ -2891,12 +2891,13 @@ body.modal-open {
 
 .contest-tile {
   position: relative;
-  aspect-ratio: 4 / 7;
   border-radius: 14px;
   overflow: hidden;
   background: var(--bg-card);
   box-shadow: 0 2px 8px rgba(26, 18, 8, 0.06);
   transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
 }
 .contest-tile:hover {
   transform: translateY(-3px);
@@ -2914,12 +2915,13 @@ body.modal-open {
   flex: 1;
 }
 
-/* 위쪽 — 이미지 (포스터가 잘 보이도록 약 75%) */
+/* 위쪽 — 이미지: 3:4 세로형 포스터 비율, 텍스트 영역은 내용량에 따라 자동 */
 .ct-image {
   position: relative;
-  flex: 0 0 72%;
-  height: 72%;
+  aspect-ratio: 3 / 4;
+  flex: 0 0 auto;
   overflow: hidden;
+  width: 100%;
 }
 .ct-image img {
   position: absolute;
@@ -2966,15 +2968,13 @@ body.modal-open {
   border-radius: 6px;
 }
 
-/* 아래 ⅓ — 제목 + 메타 */
+/* 아래 — 제목 + 메타: 내용량에 따라 자동 높이 */
 .ct-body {
-  flex: 1 1 28%;
-  min-height: 0;
-  padding: 11px 13px 12px;
+  flex: 0 0 auto;
+  padding: 10px 13px 12px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
   box-sizing: border-box;
 }
 .ct-title {
@@ -2983,7 +2983,7 @@ body.modal-open {
   line-height: 1.4;
   color: var(--text);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -3531,6 +3531,8 @@ footer a { color: var(--text-dim); }
 /* 브랜드 — Sora */
 .ds-brand { font-family: 'Sora', 'Pretendard', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -0.03em; }
 .ds-brand .ds-accent { margin-left: 0.18em; }
+.ds-brand-daily { display: inline; } /* 기본: 인라인, 모바일에서 block으로 전환 */
+.ds-brand-text { display: inline; } /* 데스크탑: SYNC만 인라인 표시 */
 
 /* 모달(확대) — 내용에 맞춰 높이 축소해 공백 제거 */
 .card-modal { max-width: 600px; }
@@ -3568,7 +3570,7 @@ footer a { color: var(--text-dim); }
 }
 .cs-fire { filter: drop-shadow(0 0 6px rgba(255,120,80,0.6)); }
 
-.contest-swiper { padding: 26px 0 8px; overflow: visible !important; }
+.contest-swiper { padding: 26px 0 8px; overflow: visible !important; position: relative; }
 .contest-swiper .swiper-slide.cs-slide {
   width: 300px;
   transition: opacity .4s;
@@ -3612,8 +3614,17 @@ footer a { color: var(--text-dim); }
 }
 .contest-swiper .swiper-slide:not(.swiper-slide-active) { opacity: 0.62; }
 
-/* 페이지네이션 */
-.cs-pag { position: static; margin-top: 14px; text-align: center; }
+/* 페이지네이션 — swiper 외부, 정상 흐름 배치 */
+.cs-pag {
+  position: relative !important;
+  bottom: auto !important;
+  top: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  margin-top: 14px !important;
+  text-align: center !important;
+  width: 100% !important;
+}
 .cs-pag .swiper-pagination-bullet {
   width: 7px; height: 7px; background: var(--text-faint); opacity: 1; transition: all .2s;
 }
@@ -3721,13 +3732,20 @@ footer a { color: var(--text-dim); }
   -webkit-backdrop-filter: none !important;
   background: transparent !important;
   border-bottom: none !important;
+  transition: background-color .3s var(--ease, ease), backdrop-filter .3s var(--ease, ease), border-color .3s var(--ease, ease) !important;
   margin: 0 -1.5rem !important;
   padding: 0 1.5rem !important;
   width: calc(100% + 3rem) !important;
   box-sizing: border-box !important;
   height: 64px !important;
   gap: 16px !important;
-  transition: background-color .45s var(--ease), border-color .2s var(--ease) !important;
+  transition: background-color .3s var(--ease), backdrop-filter .3s var(--ease), border-color .2s var(--ease) !important;
+}
+.site-header.scrolled {
+  background: color-mix(in srgb, var(--bg) 82%, transparent) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 .site-tagline {
   font-size: 12px !important;
@@ -3822,6 +3840,15 @@ footer a { color: var(--text-dim); }
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
   gap: 14px !important;
+}
+@media (max-width: 680px) {
+  .contest-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .ct-title { font-size: 12px !important; -webkit-line-clamp: 2; }
+  .ct-meta { font-size: 10px !important; }
+  .ct-body { padding: 8px 10px 10px !important; }
 }
 
 .contest-tile {
@@ -4082,6 +4109,48 @@ body::after {
 /* ---- 반응형 조정 ---- */
 @media (max-width: 600px) {
   .site-header { margin: 0 -1rem !important; padding: 0 1rem !important; width: calc(100% + 2rem) !important; height: 56px !important; }
+  /* 모바일 브랜드 로고: 이미지 + 세로 스택 타이포 */
+  .ds-brand {
+    font-size: 0 !important;     /* raw text node "DAILY " 숨김 */
+    gap: 7px !important;
+    align-items: center !important;
+  }
+  .ds-logo { display: block !important; height: 28px !important; margin: 0 !important; }
+  .ds-brand-text {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0 !important;
+    font-size: 0 !important;     /* "DAILY " 텍스트 노드 숨김 */
+    line-height: 1 !important;
+  }
+  /* "DAILY" — 실제 span으로 직접 스타일링 */
+  .ds-brand-daily {
+    display: block !important;
+    font-size: 8px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.25em !important;
+    color: var(--text-2, #9BA1AE) !important;
+    background: none !important;
+    -webkit-text-fill-color: var(--text-2, #9BA1AE) !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+    line-height: 1.5 !important;
+    font-family: 'Sora', 'Pretendard', sans-serif !important;
+  }
+  /* "SYNC" — 굵은 그라디언트, 데스크탑 스타일 유지 */
+  .ds-brand .ds-accent {
+    display: block !important;
+    font-size: 17px !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.04em !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+  }
+  /* 테마 토글: 소형화 */
+  .theme-toggle-btn { width: 30px !important; height: 30px !important; }
+  .theme-toggle-btn svg { width: 14px !important; height: 14px !important; }
+  .site-actions { gap: 4px !important; }
   .sync-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .sync-num { font-size: 20px; }
   #ds-toast-root { bottom: 16px; right: 16px; }
