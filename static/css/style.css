@@ -1449,8 +1449,9 @@ body.modal-open .bottom-nav { display: none !important; }
   border-radius: 0;
   cursor: default !important;
 }
-/* 모달 내 논문 커버: 자체 border-radius/border 제거 (외곽 모달이 클리핑 담당) */
-.card-modal-body .slide.paper-cover {
+/* 모달 내 슬라이드: 자체 border-radius/border 제거 (외곽 모달이 클리핑 담당) */
+.card-modal-body .slide.paper-cover,
+.card-modal-body .slide.cover {
   border-radius: 0 !important;
   border: none !important;
 }
