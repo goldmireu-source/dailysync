@@ -137,12 +137,18 @@
 
   <div class="cover-top">
     <span class="paper-tag">논문</span>
-    {# 액션 버튼이 .card-actions 로 들어감 #}
   </div>
 
   <div class="cover-stars-row">
-    {% if card.upvotes and card.upvotes > 0 %}
-      <span class="upvotes-pill">⭐ {{ card.upvotes }}</span>
+    {% if (card.upvotes and card.upvotes > 0) or (card.citation_count and card.citation_count > 0) %}
+    <div class="paper-stats-row">
+      {% if card.upvotes and card.upvotes > 0 %}
+      <span class="paper-stat-chip">추천 {{ card.upvotes }}</span>
+      {% endif %}
+      {% if card.citation_count and card.citation_count > 0 %}
+      <span class="paper-stat-chip">인용 {{ card.citation_count }}</span>
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 

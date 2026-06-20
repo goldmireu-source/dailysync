@@ -476,6 +476,7 @@ def build_paper_cards(paper) -> list[dict]:
         "title_ko": paper.title_ko or "",
         "authors": authors_str,
         "upvotes": paper.hf_upvotes or 0,
+        "citation_count": paper.citation_count or 0,
         "hf_featured": paper.hf_featured,
         "categories": paper.categories or [],
         "summary": paper.summary_ko,

@@ -493,6 +493,13 @@ def index():
         .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
         .filter(Paper.fetched_at >= papers_cutoff)
     )
+    paper_sort = request.args.get("paper_sort", "upvotes")
+    if paper_sort == "latest":
+        paper_order = [Paper.published_at.desc()]
+    else:
+        paper_sort = "upvotes"
+        paper_order = [Paper.hf_featured.desc(), Paper.hf_upvotes.desc(), Paper.published_at.desc()]
+
     if show_hidden:
         papers_all = papers_q.filter(Paper.hidden_at.isnot(None)).order_by(
             Paper.hidden_at.desc()
@@ -500,9 +507,7 @@ def index():
     else:
         papers_all = papers_q.filter(
             Paper.hidden_at.is_(None), Paper.saved_at.is_(None)
-        ).order_by(
-            Paper.hf_featured.desc(), Paper.hf_upvotes.desc(), Paper.published_at.desc()
-        ).all()
+        ).order_by(*paper_order).all()
 
     hidden_papers_count = papers_q.filter(Paper.hidden_at.isnot(None)).count()
     total_papers_filtered = len(papers_all)
@@ -627,6 +632,7 @@ def index():
         page=page,
         total_pages=total_pages,
         sort_mode=sort_mode,
+        paper_sort=paper_sort,
         cat_filter=cat_filter,
         cat_counts=cat_counts,
         articles_flat=articles_flat,
