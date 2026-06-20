@@ -11,7 +11,7 @@
 {% set news_active = tab in ['news', 'papers'] %}
 {% set dt_param = ('&date_to=' ~ target_date_to.isoformat()) if target_date_to != target_date else '' %}
 <header class="site-header">
-  <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'"><span class="ds-brand-text"><span class="ds-brand-daily">DAILY</span><span class="ds-accent">SYNC</span></span></a>
+  <a href="/" class="ds-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo ds-logo--dark" alt="DAILY SYNC" onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/logo.svg') }}'"><img src="{{ url_for('static', filename='img/logo_light.png') }}" class="ds-logo ds-logo--light" alt="DAILY SYNC"><span class="ds-brand-text"><span class="ds-brand-daily">DAILY</span><span class="ds-accent">SYNC</span></span></a>
   <div class="site-actions">
     {% if is_admin and not show_hidden %}
     <a href="/saved" class="hd-chip" id="saved-link" {% if saved_total == 0 %}style="display:none;"{% endif %}>

@@ -3660,6 +3660,9 @@ footer a { color: var(--text-dim); }
   height: 38px; width: auto; margin-right: 13px; display: block;
   filter: drop-shadow(0 2px 8px rgba(124,77,255,0.45));
 }
+.ds-logo--light { display: none; }
+[data-theme="light"] .ds-logo--dark  { display: none; }
+[data-theme="light"] .ds-logo--light { display: block; filter: none; }
 
 /* 공모전 타일 — 텍스트칸에 맞춰 글자 키움 */
 .ct-body { padding: 13px 14px 14px; gap: 7px; }
@@ -4241,6 +4244,9 @@ body::after {
     align-items: center !important;
   }
   .ds-logo { display: block !important; height: 28px !important; margin: 0 !important; }
+  .ds-logo--light { display: none !important; }
+  [data-theme="light"] .ds-logo--dark  { display: none !important; }
+  [data-theme="light"] .ds-logo--light { display: block !important; }
   .ds-brand-text {
     display: flex !important;
     flex-direction: column !important;
