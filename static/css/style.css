@@ -4401,3 +4401,86 @@ body::after {
   /* 하단 탭바 높이만큼 콘텐츠 여백 추가 */
   .digest-wrap { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
+
+/* ============================================================
+   스켈레톤 로딩 UI
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton-grid {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 8px;
+}
+.skeleton-grid.visible { display: grid; }
+
+.skeleton-card {
+  border-radius: 16px;
+  overflow: hidden;
+  height: 420px;
+  background: var(--bg-card);
+  position: relative;
+}
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.06) 40%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.06) 60%,
+    transparent 100%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+[data-theme="light"] .skeleton-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(32,36,46,0.04) 40%,
+    rgba(32,36,46,0.08) 50%,
+    rgba(32,36,46,0.04) 60%,
+    transparent 100%
+  );
+  background-size: 600px 100%;
+}
+.skeleton-card .sk-top {
+  height: 36px; margin: 20px 20px 16px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+}
+.skeleton-card .sk-title {
+  height: 22px; margin: 0 20px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+}
+.skeleton-card .sk-title.short { width: 65%; }
+.skeleton-card .sk-lead {
+  height: 14px; margin: 0 20px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+}
+.skeleton-card .sk-lead.short { width: 50%; }
+[data-theme="light"] .skeleton-card .sk-top   { background: rgba(32,36,46,0.07); }
+[data-theme="light"] .skeleton-card .sk-title  { background: rgba(32,36,46,0.09); }
+[data-theme="light"] .skeleton-card .sk-lead   { background: rgba(32,36,46,0.05); }
+
+/* skeleton-grid 반응형: carousel-grid 와 동일 */
+.skeleton-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (max-width: 900px) {
+  .skeleton-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .skeleton-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .skeleton-card { height: 320px; }
+}

@@ -2143,6 +2143,50 @@ function resetRefresh() {
 </script>
 {% endif %}
 
+{# ===== 스켈레톤 로딩 UI ===== #}
+<script>
+(function () {
+  function makeSkeleton(count) {
+    const grid = document.createElement('div');
+    grid.className = 'skeleton-grid visible';
+    for (let i = 0; i < count; i++) {
+      grid.innerHTML += `
+        <div class="skeleton-card">
+          <div class="sk-top"></div>
+          <div class="sk-title"></div>
+          <div class="sk-title short"></div>
+          <div class="sk-lead" style="margin-top:18px;"></div>
+          <div class="sk-lead"></div>
+          <div class="sk-lead short"></div>
+          <div class="sk-lead" style="margin-top:10px;"></div>
+          <div class="sk-lead short"></div>
+        </div>`;
+    }
+    return grid;
+  }
+
+  function showSkeleton() {
+    const col = document.querySelector('.main-col');
+    if (!col) return;
+    col.innerHTML = '';
+    col.appendChild(makeSkeleton(6));
+  }
+
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('.nav-pill, .subtab, .bn-item');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#')) return;
+    // 현재 페이지와 같은 탭이면 스킵
+    const url = new URL(href, location.href);
+    const curTab = new URLSearchParams(location.search).get('tab') || 'news';
+    const nextTab = url.searchParams.get('tab') || 'news';
+    if (curTab === nextTab && url.pathname === location.pathname) return;
+    showSkeleton();
+  });
+})();
+</script>
+
 {# ===== 모바일 하단 탭바 ===== #}
 {% if not show_hidden %}
 <nav class="bottom-nav" id="bottom-nav">
