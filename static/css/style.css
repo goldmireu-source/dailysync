@@ -1385,23 +1385,14 @@ footer a { color: var(--text-dim); }
   transform: scale(1);
 }
 
-/* 1열 출처: 세로 줄임 (overlay 패딩 늘려서 카드 높이 축소) */
-.card-modal-overlay.modal-from-1col {
-  padding: 64px 20px;
-}
-.card-modal-overlay.modal-from-1col .card-modal {
-  max-height: calc(100vh - 128px);
-}
-
-/* 2열 출처: 세로 최대화 (패딩 최소화) */
+/* 1열·2열 공통: 잘리지 않는 최대 높이 */
+.card-modal-overlay.modal-from-1col,
 .card-modal-overlay.modal-from-2col {
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
 }
+.card-modal-overlay.modal-from-1col .card-modal,
 .card-modal-overlay.modal-from-2col .card-modal {
-  max-height: calc(100vh - 20px - env(safe-area-inset-bottom, 0px));
-}
-.card-modal-overlay.modal-from-2col .card-modal-body .carousel-stage {
-  aspect-ratio: 3 / 5;
+  max-height: min(88vh, calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)));
 }
 
 .card-modal-head {
@@ -3881,16 +3872,19 @@ footer a { color: var(--text-dim); }
   .inline-search { margin: 0 0 8px; }
   .inline-search #inline-search-input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
 
-  /* 필터 바: 모바일 — 한 줄 정렬, 오버플로 없음 */
+  /* 필터 바: 모바일 — 우측 정렬, 오버플로 없음 */
   .filter-bar {
     flex-direction: row; flex-wrap: nowrap; overflow-x: visible;
     gap: 6px; align-items: center;
+    justify-content: flex-end;
   }
   .cat-chips { display: none; }
   .cat-sel-mobile {
     display: block;  /* 전역 display:none 오버라이드 */
-    flex: 1; min-width: 0;
-    padding: 5px 8px;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 112px;
+    padding: 5px 6px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -3901,9 +3895,10 @@ footer a { color: var(--text-dim); }
     appearance: auto;
     -webkit-appearance: auto;
   }
-  .sort-select { flex-shrink: 0; justify-content: flex-start; }
+  .sort-select { flex: 0 0 auto; justify-content: flex-start; }
   .sort-select label { display: none; }
-  .sort-select select { font-size: 12px; padding: 5px 8px; }
+  .sort-select select { font-size: 12px; padding: 5px 6px; max-width: 112px; }
+  .paper-filter-bar { justify-content: flex-end; }
   .mobile-layout-toggle { flex-shrink: 0; }
 
   /* 카드 그리드 상단 여백 축소 */
