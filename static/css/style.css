@@ -1393,6 +1393,7 @@ footer a { color: var(--text-dim); }
 .card-modal-overlay.modal-from-1col .card-modal,
 .card-modal-overlay.modal-from-2col .card-modal {
   max-height: min(88vh, calc(100dvh - 28px - env(safe-area-inset-bottom, 0px)));
+  border-radius: 16px;
 }
 
 .card-modal-head {
