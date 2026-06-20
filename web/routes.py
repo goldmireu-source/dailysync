@@ -486,11 +486,12 @@ def index():
             if cat in cat_counts:
                 cat_counts[cat] += 1
 
-    # 논문 — fetched_at(수집일) 기준 필터. published_at은 arXiv 등록일이라 수집일과 다를 수 있음
+    # 논문 — 최근 7일 이내 수집된 것만 표시 (날짜 선택과 무관하게 최신 유지)
+    papers_cutoff = datetime.utcnow() - timedelta(days=7)
     papers_q = (
         Paper.query
         .filter(Paper.summary_ko.isnot(None), Paper.summary_ko != "")
-        .filter(Paper.fetched_at >= start_utc, Paper.fetched_at < end_utc)
+        .filter(Paper.fetched_at >= papers_cutoff)
     )
     if show_hidden:
         papers_all = papers_q.filter(Paper.hidden_at.isnot(None)).order_by(
