@@ -459,9 +459,16 @@
 .party-card {
   background:var(--bg-card); border:1px solid var(--border); border-radius:16px;
   padding:1.4rem; display:flex; flex-direction:column; gap:.85rem;
-  transition:border-color .2s, transform .15s;
+  transition:border-color .28s ease, transform .28s ease, box-shadow .28s ease;
+  will-change:transform;
 }
-.party-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+.party-card:hover {
+  border-color:var(--accent);
+  transform:translateY(-4px) scale(1.012);
+  box-shadow:0 20px 48px rgba(0,0,0,0.18);
+}
+[data-theme="dark"] .party-card:hover { box-shadow:0 20px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07); }
+[data-theme="light"] .party-card:hover { box-shadow:0 20px 48px rgba(26,18,8,0.14), 0 0 0 1px rgba(26,18,8,0.06); }
 .party-card--mine { border-color:color-mix(in srgb,var(--accent) 40%,var(--border)); }
 
 .pc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }

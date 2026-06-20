@@ -2103,7 +2103,8 @@ body.modal-open {
   overflow: hidden;
   background: var(--bg-card);
   box-shadow: 0 2px 8px rgba(26, 18, 8, 0.04);
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.28s ease, transform 0.28s ease, border-color 0.28s ease;
+  will-change: transform;
 }
 .carousel:hover .carousel-stage {
   box-shadow: 0 6px 16px rgba(26, 18, 8, 0.08);
@@ -3303,7 +3304,16 @@ body.modal-open {
    REDESIGN v2 — 카드뉴스 리파인 (공백 ↓ · 시인성 ↑)
    ============================================================ */
 .carousel-stage { border-radius: 16px; box-shadow: 0 4px 16px rgba(26,18,8,0.07); }
-.carousel:hover .carousel-stage { box-shadow: 0 12px 30px rgba(26,18,8,0.15); }
+.carousel:hover .carousel-stage {
+  transform: translateY(-4px) scale(1.012);
+  box-shadow: 0 20px 48px rgba(26,18,8,0.18);
+}
+[data-theme="dark"] .carousel:hover .carousel-stage {
+  box-shadow: 0 20px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07);
+}
+[data-theme="light"] .carousel:hover .carousel-stage {
+  box-shadow: 0 20px 48px rgba(26,18,8,0.14), 0 0 0 1px rgba(26,18,8,0.06);
+}
 .slide { padding: 22px 46px 36px; }
 @media (max-width: 600px) { .slide { padding: 22px 22px 36px; } }
 
@@ -3982,11 +3992,17 @@ footer a { color: var(--text-dim); }
 .contest-tile {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--r-md, 14px); cursor: pointer;
-  transition: all .25s var(--ease); position: relative;
-  display: flex; flex-direction: column;
-  box-shadow: none !important;
+  transition: border-color .28s ease, transform .28s ease, box-shadow .28s ease;
+  position: relative; display: flex; flex-direction: column;
+  will-change: transform; box-shadow: none !important;
 }
-.contest-tile:hover { transform: translateY(-3px); border-color: var(--border-hi, var(--accent-dim)); box-shadow: var(--shadow, 0 10px 30px -12px rgba(0,0,0,.7)) !important; }
+.contest-tile:hover {
+  transform: translateY(-4px) scale(1.012);
+  border-color: var(--accent-dim);
+  box-shadow: 0 20px 48px rgba(0,0,0,0.18) !important;
+}
+[data-theme="dark"] .contest-tile:hover { box-shadow: 0 20px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.07) !important; }
+[data-theme="light"] .contest-tile:hover { box-shadow: 0 20px 48px rgba(26,18,8,0.14), 0 0 0 1px rgba(26,18,8,0.06) !important; }
 
 .ct-link {
   display: flex; flex-direction: column; gap: 11px; padding: 18px;
@@ -4144,7 +4160,8 @@ footer a { color: var(--text-dim); }
 /* ---- 카드 진입 모션 ---- */
 /* JS가 .js-reveal 클래스를 grid에 붙인 뒤에만 숨김 적용 → JS 없어도 항상 보임 */
 .contest-grid.js-reveal .contest-tile:not(.revealed) { opacity: 0; transform: translateY(12px); }
-.contest-tile.revealed { opacity: 1; transform: none; transition: opacity .4s var(--ease), transform .4s var(--ease); }
+.contest-tile.revealed { opacity: 1; transform: none; transition: opacity .4s var(--ease), transform .28s ease, box-shadow .28s ease, border-color .28s ease; }
+.contest-tile.revealed:hover { transform: translateY(-4px) scale(1.012) !important; }
 @media (prefers-reduced-motion: reduce) {
   .contest-grid.js-reveal .contest-tile:not(.revealed) { opacity: 1 !important; transform: none !important; }
 }
