@@ -3411,10 +3411,8 @@ body {
   background:
     radial-gradient(120% 75% at 50% -8%, rgba(157,140,255,0.10), transparent 52%),
     linear-gradient(168deg, #191c25 0%, #101218 100%);
-  border-top: 2px solid var(--accent-dim);
-  border-left: 1px solid var(--accent-dim);
-  border-right: 1px solid var(--accent-dim);
-  border-bottom: 1px solid var(--accent-dim);
+  border: 2px solid var(--accent-dim);
+  border-radius: 16px;
 }
 .slide.cover.policy   { background: radial-gradient(120% 75% at 50% -8%, rgba(244,176,131,0.13), transparent 52%), linear-gradient(168deg,#1d1813 0%,#101013 100%); border-color: #b86a3c; }
 .slide.cover.industry { background: radial-gradient(120% 75% at 50% -8%, rgba(166,213,133,0.12), transparent 52%), linear-gradient(168deg,#151c13 0%,#0f1310 100%); border-color: #6b9a47; }
@@ -3437,7 +3435,7 @@ body {
 .slide.cover .cover-foot .cross-pill { background: linear-gradient(135deg,#6f64e0,#9d8cff); color: #fff; }
 
 /* ===== 본문 슬라이드 — 다크 ===== */
-.slide.body { background: linear-gradient(168deg, #16181f 0%, #111319 100%); border: 1px solid var(--accent-dim); }
+.slide.body { background: linear-gradient(168deg, #16181f 0%, #111319 100%); border: 2px solid var(--accent-dim); border-radius: 16px; }
 .slide.body .head-row { border-bottom-color: rgba(255,255,255,0.08); }
 .slide.body .head-row .label, .slide.body .head-row .pos { color: var(--accent); }
 .slide .fact-row {
@@ -3468,10 +3466,8 @@ body {
     radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
     radial-gradient(ellipse 70% 45% at 90% 100%, rgba(32,36,46,0.05), transparent 60%),
     linear-gradient(160deg, #f4f6fb 0%, #e8ecf5 100%);
-  border-top: 2px solid var(--accent-dim);
-  border-left: 1px solid var(--accent-dim);
-  border-right: 1px solid var(--accent-dim);
-  border-bottom: 1px solid var(--accent-dim);
+  border: 2px solid var(--accent-dim);
+  border-radius: 16px;
   box-shadow: 0 4px 20px rgba(32,36,46,0.10), 0 1px 4px rgba(32,36,46,0.06);
 }
 [data-theme="light"] .slide.cover.policy {
@@ -3535,7 +3531,8 @@ body {
 [data-theme="light"] .slide.body {
   background: linear-gradient(160deg, #ffffff 0%, #f2f4f9 100%);
   box-shadow: 0 2px 16px rgba(32,36,46,0.09), 0 1px 3px rgba(32,36,46,0.05);
-  border: 1px solid var(--accent-dim);
+  border: 2px solid var(--accent-dim);
+  border-radius: 16px;
 }
 [data-theme="light"] .slide.body .head-row { border-bottom-color: rgba(32,36,46,0.09); }
 [data-theme="light"] .slide .fact-row {
