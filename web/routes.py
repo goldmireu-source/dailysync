@@ -1641,6 +1641,138 @@ def glossary_page():
 
 
 # ============================================================
+# 디자인 미리보기 (샘플 데이터)
+# ============================================================
+
+@bp.route("/preview")
+def design_preview():
+    """샘플 카드 데이터로 디자인 확인용 미리보기 페이지."""
+    today_str = datetime.now(KST).strftime("%Y.%m.%d")
+
+    _SAMPLE_CLUSTERS = [
+        {
+            "cid": "preview-policy",
+            "cards": [
+                {"type": "cover", "category": "policy", "categories": ["정책/규제"],
+                 "title": "EU AI법 1단계 시행, 금지 AI 시스템 목록 확정", "lead": "감정 인식·사회 스코어링 등 10개 항목 전면 금지, 위반 시 매출 7% 과징금",
+                 "sources": ["로이터", "테크크런치"], "n_sources": 2, "n_members": 4, "importance": 4, "date_str": today_str},
+                {"type": "facts", "category": "policy", "title": "이것만 알면 돼요",
+                 "facts": ["EU AI법 1단계가 2025년 8월 2일부터 발효되어 금지 AI 시스템 목록이 확정됐다.",
+                           "직장·교육·공공서비스에서 감정 인식 AI 사용이 원칙적으로 금지된다.",
+                           "사회 스코어링, 얼굴 인식 데이터베이스 무단 수집 등도 금지 항목에 포함됐다.",
+                           "위반 기업에는 전 세계 매출의 최대 7%에 해당하는 과징금이 부과된다."]},
+                {"type": "detail", "category": "policy", "title": "자세히 보기",
+                 "summary": "EU의 인공지능 규제법인 'AI Act' 가운데 첫 번째 단계가 본격 시행됐다. 이번 규정은 인간의 존엄성과 기본권을 침해할 가능성이 높다고 판단되는 AI 시스템을 전면 금지하는 내용을 담고 있다. 특히 직장·학교·공공장소에서의 감정 인식 AI, 사회 신용 점수 산정 시스템, 무차별적 얼굴 인식 데이터베이스 구축이 금지 목록에 올랐다.",
+                 "quote": {"text": "이 법은 AI 규제의 글로벌 기준점이 될 것", "attr": "EU 집행위원장"}},
+                {"type": "links", "category": "policy", "title": "더 알아보기",
+                 "links": [{"name": "[로이터] EU AI Act enters into force", "url": "#"}]},
+            ]
+        },
+        {
+            "cid": "preview-industry",
+            "cards": [
+                {"type": "cover", "category": "industry", "categories": ["산업/기업"],
+                 "title": "애플, WWDC서 온디바이스 LLM '애플 인텔리전스 2.0' 공개", "lead": "아이폰16 이상에서 GPT-4o급 추론 모델 로컬 실행, 개인정보 클라우드 전송 없음",
+                 "sources": ["더버지", "맥루머스", "9to5Mac"], "n_sources": 3, "n_members": 7, "importance": 5, "date_str": today_str},
+                {"type": "facts", "category": "industry", "title": "이것만 알면 돼요",
+                 "facts": ["애플이 WWDC 2025 기조연설에서 '애플 인텔리전스 2.0'을 발표했다.",
+                           "아이폰 16 이상 기기에서 3B 파라미터 온디바이스 모델이 구동된다.",
+                           "복잡한 요청은 '프라이빗 클라우드 컴퓨트'를 통해 Apple Silicon 서버에서 처리된다.",
+                           "시리(Siri)가 앱 간 맥락을 이해하는 '개인화 인텔리전스' 기능을 탑재한다."]},
+                {"type": "detail", "category": "industry", "title": "자세히 보기",
+                 "summary": "애플은 WWDC 2025에서 자체 개발한 대형 언어 모델 기반의 '애플 인텔리전스 2.0'을 선보였다. 핵심은 아이폰 내부 칩(A18 이상)에서 직접 구동되는 온디바이스 추론으로, 사용자 데이터가 외부 서버로 전송되지 않는다. GPT-4o와의 비교 시연에서 일반 추론 작업에서 동등한 성능을 보였다고 애플은 주장했다.",
+                 "quote": None},
+                {"type": "links", "category": "industry", "title": "더 알아보기",
+                 "links": [{"name": "[더버지] Apple Intelligence 2.0 announced", "url": "#"}]},
+            ]
+        },
+        {
+            "cid": "preview-research",
+            "cards": [
+                {"type": "cover", "category": "research", "categories": ["연구/모델"],
+                 "title": "구글 딥마인드, 수학 올림피아드 금메달 수준 AI 'AlphaProof 2' 논문 공개", "lead": "국제수학올림피아드 6문제 중 5문제 완전 풀이, 형식 증명 자동 생성",
+                 "sources": ["네이처", "딥마인드 블로그"], "n_sources": 2, "n_members": 3, "importance": 5, "date_str": today_str},
+                {"type": "facts", "category": "research", "title": "이것만 알면 돼요",
+                 "facts": ["딥마인드의 AlphaProof 2가 2025 IMO 문제 6개 중 5개를 완전히 풀었다.",
+                           "Lean 4 형식 증명 언어로 검증 가능한 수학적 증명을 자동 생성했다.",
+                           "기존 AlphaProof 대비 추론 속도가 40배 향상됐으며 훈련 없이 새 문제도 해결한다.",
+                           "네이처에 동료 심사 논문으로 게재되며 재현 가능한 코드도 공개됐다."]},
+                {"type": "detail", "category": "research", "title": "자세히 보기",
+                 "summary": "구글 딥마인드가 수학 추론 AI의 새로운 이정표를 세웠다. AlphaProof 2는 국제수학올림피아드(IMO) 2025년 문제 6개 중 5개를 완전히 풀어냈으며, 이는 인간 금메달 수준에 해당한다. 특히 형식 증명 언어인 Lean 4를 활용해 AI가 생성한 증명의 수학적 정확성을 기계적으로 검증할 수 있다는 점에서 신뢰성을 높였다.",
+                 "quote": {"text": "수학 추론에서 인간 최고 전문가 수준을 넘어서는 시대가 왔다", "attr": "딥마인드 CEO"}},
+                {"type": "links", "category": "research", "title": "더 알아보기",
+                 "links": [{"name": "[네이처] AlphaProof 2 paper", "url": "#"}]},
+            ]
+        },
+        {
+            "cid": "preview-ethics",
+            "cards": [
+                {"type": "cover", "category": "ethics", "categories": ["윤리/사회"],
+                 "title": "딥페이크 피해 급증, 국내 10대 피해자 전년 대비 3배", "lead": "방통위, AI 생성 허위 영상 유포 시 최대 7년 징역 개정안 국회 제출",
+                 "sources": ["조선일보", "한국경제"], "n_sources": 2, "n_members": 5, "importance": 4, "date_str": today_str},
+                {"type": "facts", "category": "ethics", "title": "이것만 알면 돼요",
+                 "facts": ["2025년 상반기 딥페이크 피해 신고 건수가 전년 동기 대비 210% 증가했다.",
+                           "피해자 중 10대 비율이 47%로 가장 높으며 특히 여성 청소년이 집중 타겟이 됐다.",
+                           "방통위가 AI 생성 성적 허위 영상 유포를 최대 7년 징역으로 처벌하는 법 개정안을 제출했다.",
+                           "플랫폼 사업자에게 딥페이크 탐지 의무를 부과하는 조항도 포함됐다."]},
+                {"type": "detail", "category": "ethics", "title": "자세히 보기",
+                 "summary": "AI 기술을 악용한 딥페이크 범죄가 급격히 늘면서 사회적 우려가 커지고 있다. 방통위 통계에 따르면 올해 상반기에만 딥페이크 관련 신고가 4,200건을 넘었으며, 특히 학교 주변 10대 여학생을 대상으로 한 성적 허위 합성물 피해가 심각하다. 정부는 처벌 수위 강화와 함께 플랫폼의 자율 규제 의무화를 동시에 추진하겠다고 밝혔다.",
+                 "quote": None},
+                {"type": "links", "category": "ethics", "title": "더 알아보기",
+                 "links": [{"name": "[조선일보] 딥페이크 피해 급증 기사", "url": "#"}]},
+            ]
+        },
+    ]
+
+    _SAMPLE_PAPERS = [
+        {
+            "cid": "preview-paper-1",
+            "cards": [
+                {"type": "paper_cover", "title": "Scaling Laws for Neural Language Models",
+                 "title_ko": "신경 언어 모델의 스케일링 법칙",
+                 "authors": "Jared Kaplan, Sam McCandlish, Tom Henighan 외 5명",
+                 "upvotes": 312, "hf_featured": True,
+                 "categories": ["cs.LG", "cs.CL"], "summary": "모델 크기·데이터·연산량과 성능 간의 멱함수 관계를 실증적으로 규명"},
+                {"type": "paper_section", "label": "PROBLEM", "title": "어떤 문제를 풀고 있나",
+                 "body": "언어 모델 성능을 개선하려면 모델 크기, 데이터셋 규모, 연산 예산 중 어디에 집중해야 하는지 체계적인 가이드라인이 없었다. 이전 연구들은 개별 요소만 분석했으나 세 요소 간의 상호작용을 종합적으로 규명한 연구는 없었다."},
+                {"type": "paper_section", "label": "METHOD", "title": "어떻게 풀었나",
+                 "body": "파라미터 수 10³~10¹⁰ 범위의 모델을 체계적으로 훈련하며 손실과 각 스케일 인자 간의 관계를 측정했다. 고정된 연산 예산 하에서 모델 크기와 데이터 양의 최적 배분 비율을 도출했다.",
+                 "extra": "스케일링 법칙은 GPT-4, Claude 등 현대 대형 언어 모델 개발의 이론적 기반이 됐다."},
+                {"type": "paper_links", "title": "원문 보기",
+                 "html_url": "https://arxiv.org/abs/2001.08361",
+                 "pdf_url": "https://arxiv.org/pdf/2001.08361.pdf",
+                 "arxiv_id": "2001.08361", "source_type": "huggingface"},
+            ]
+        },
+        {
+            "cid": "preview-paper-2",
+            "cards": [
+                {"type": "paper_cover", "title": "Attention Is All You Need",
+                 "title_ko": "어텐션만으로 충분하다",
+                 "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar 외 5명",
+                 "upvotes": 891, "hf_featured": True,
+                 "categories": ["cs.CL", "cs.LG"], "summary": "RNN·CNN 없이 셀프 어텐션만으로 기계 번역 SOTA 달성한 트랜스포머 아키텍처 제안"},
+                {"type": "paper_section", "label": "PROBLEM", "title": "어떤 문제를 풀고 있나",
+                 "body": "기존 시퀀스 변환 모델은 순환 신경망(RNN) 또는 합성곱 신경망(CNN)에 의존하여 병렬 연산이 어렵고 긴 시퀀스에서 기울기 소실 문제가 있었다."},
+                {"type": "paper_section", "label": "RESULTS", "title": "결과와 의의",
+                 "body": "WMT 2014 영-독 번역에서 28.4 BLEU로 기존 최고 성능을 2 BLEU 이상 초과했다. 훈련 비용은 기존 모델의 1/10 수준이었다.",
+                 "extra": "현재 모든 대형 언어 모델(GPT, BERT, Claude 등)의 핵심 아키텍처로 자리잡았다."},
+                {"type": "paper_links", "title": "원문 보기",
+                 "html_url": "https://arxiv.org/abs/1706.03762",
+                 "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
+                 "arxiv_id": "1706.03762", "source_type": "arxiv"},
+            ]
+        },
+    ]
+
+    return render_template(
+        "preview.html",
+        sample_clusters=_SAMPLE_CLUSTERS,
+        sample_papers=_SAMPLE_PAPERS,
+    )
+
+
+# ============================================================
 # 파티 (팀 빌딩)
 # ============================================================
 

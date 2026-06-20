@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_slides.html" import render_carousel %}
+
+{% block title %}디자인 미리보기 · DAILY SYNC{% endblock %}
+
+{% block content %}
+<header class="site-header">
+  <a href="/" class="ds-brand">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" class="ds-logo ds-logo--dark" alt="DAILY SYNC">
+    <img src="{{ url_for('static', filename='img/logo_light.png') }}" class="ds-logo ds-logo--light" alt="DAILY SYNC">
+    <span class="ds-brand-text"><span class="ds-brand-daily">DAILY</span><span class="ds-accent">SYNC</span></span>
+  </a>
+  <div class="site-actions">
+    <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="테마 전환" title="테마 전환">
+      <span class="moon">🌙</span><span class="sun" style="display:none;">☀️</span>
+    </button>
+  </div>
+</header>
+
+<main class="digest-wrap" style="padding-top: 80px;">
+  <div style="padding: 0 1rem 1rem; color: var(--text-dim); font-size: 13px; border-bottom: 1px solid var(--border); margin-bottom: 24px;">
+    ⚡ 디자인 미리보기 — 샘플 데이터로 렌더링 중 (<a href="/" style="color:var(--accent);">실제 페이지 →</a>)
+  </div>
+
+  {# ===== 뉴스 카드뉴스 섹션 ===== #}
+  <section style="margin-bottom: 32px;">
+    <div class="section-header" style="margin-bottom: 16px;">
+      <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0;">뉴스 카드뉴스 샘플</h2>
+    </div>
+    <div class="card-grid">
+      {% for item in sample_clusters %}
+        {{ render_carousel(
+            item.cid, 'cluster', item.cards,
+            'cluster', 0,
+            false,
+            {'topic': item.cards[0].title, 'meta': '샘플'},
+            seq_num=loop.index,
+            is_saved=false
+        ) }}
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ===== 논문 카드뉴스 섹션 ===== #}
+  <section>
+    <div class="section-header" style="margin-bottom: 16px;">
+      <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0;">논문 카드뉴스 샘플</h2>
+    </div>
+    <div class="card-grid">
+      {% for item in sample_papers %}
+        {{ render_carousel(
+            item.cid, 'paper', item.cards,
+            'paper', 0,
+            false,
+            {'topic': item.cards[0].title_ko or item.cards[0].title, 'meta': '샘플 논문'},
+            seq_num=loop.index,
+            is_saved=false
+        ) }}
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
