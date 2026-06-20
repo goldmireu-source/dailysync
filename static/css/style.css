@@ -3775,9 +3775,13 @@ footer a { color: var(--text-dim); }
 .nav-pill:hover { color: var(--text-muted) !important; background: transparent !important; }
 .nav-pill.active { color: var(--text) !important; background: var(--bg-soft) !important; }
 .nav-pill.active::after {
-  content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)));
-  border-radius: 2px;
+  content: ""; position: absolute; inset: -2px; border-radius: 12px; padding: 2px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent)));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 .nav-num {
   font-family: var(--font-mono, monospace);
