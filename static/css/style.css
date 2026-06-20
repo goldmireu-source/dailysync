@@ -2909,6 +2909,9 @@ body.modal-open {
   height: 100%;
   text-decoration: none;
   color: inherit;
+  padding: 0;
+  gap: 0;
+  flex: 1;
 }
 
 /* 위쪽 — 이미지 (포스터가 잘 보이도록 약 75%) */
@@ -3984,10 +3987,11 @@ footer a { color: var(--text-dim); }
 }
 
 /* ---- 카드 진입 모션 ---- */
-.contest-tile { opacity: 0; transform: translateY(12px); }
+/* JS가 .js-reveal 클래스를 grid에 붙인 뒤에만 숨김 적용 → JS 없어도 항상 보임 */
+.contest-grid.js-reveal .contest-tile:not(.revealed) { opacity: 0; transform: translateY(12px); }
 .contest-tile.revealed { opacity: 1; transform: none; transition: opacity .4s var(--ease), transform .4s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
-  .contest-tile { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .contest-grid.js-reveal .contest-tile:not(.revealed) { opacity: 1 !important; transform: none !important; }
 }
 
 /* ---- 커맨드 팔레트 ---- */

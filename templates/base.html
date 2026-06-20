@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
   <style>
     /* 컨테이너 폭 인라인 강제 — 외부 CSS 충돌 방지 */
     html { overflow-y: scroll; }
@@ -765,6 +766,8 @@
 
   // 카드 진입 모션 (IntersectionObserver)
   (function() {
+    var grids = document.querySelectorAll('.contest-grid');
+    grids.forEach(function(g) { g.classList.add('js-reveal'); });
     if (!window.IntersectionObserver) {
       document.querySelectorAll('.contest-tile').forEach(function(el) { el.classList.add('revealed'); });
       return;

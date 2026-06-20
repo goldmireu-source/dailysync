@@ -318,25 +318,31 @@
   </div>
   {% endif %}
 
-  {# ===== 마감 임박 가로 스크롤 스트립 (리디자인) ===== #}
+  {# ===== 3D 코버플로우 쇼케이스 (마감 임박) ===== #}
   {% if contest_showcase and page == 1 %}
-  <div class="section-eyebrow"><span class="dot"></span> 마감 임박</div>
-  <div class="urgent-row" id="urgent-row">
-    {% for t in contest_showcase %}
-    {% if t.dday is not none %}
-      {% if t.dday <= 1 %}{% set dcol = "var(--d-red)" %}
-      {% elif t.dday <= 3 %}{% set dcol = "var(--d-org)" %}
-      {% elif t.dday <= 7 %}{% set dcol = "var(--d-amb)" %}
-      {% else %}{% set dcol = "var(--d-calm)" %}
-      {% endif %}
-    {% else %}{% set dcol = "var(--d-calm)" %}{% endif %}
-    <a class="urgent-card" href="/contest/{{ t.id }}" style="--dcol: {{ dcol }}">
-      <div class="dday">{{ t.dday_label }}</div>
-      <div class="u-title">{{ t.title }}</div>
-      <div class="u-org">{{ t.host or t.source }}</div>
-    </a>
-    {% endfor %}
-  </div>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+  <section class="contest-showcase">
+    <div class="cs-head"><span class="cs-fire">🔥</span> 마감 임박 공모전</div>
+    <div class="swiper contest-swiper">
+      <div class="swiper-wrapper">
+        {% for t in contest_showcase %}
+        <div class="swiper-slide cs-slide">
+          <a class="cs-card" href="/contest/{{ t.id }}">
+            <div class="cs-img" style="background-image: {% if t.image_url %}url('{{ t.image_url }}'), {% endif %}linear-gradient(135deg, {{ t.fallback_c1 }}, {{ t.fallback_c2 }});">
+              {% if not t.image_url %}<span class="cs-fallback">{{ t.fallback_icon }}</span>{% endif %}
+              <span class="cs-dday {% if t.urgent %}urgent{% endif %}">{{ t.dday_label }}</span>
+            </div>
+            <div class="cs-meta">
+              <div class="cs-title">{{ t.title }}</div>
+              <div class="cs-host">{{ t.host or t.source }} · ~{{ t.deadline_str }}</div>
+            </div>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="swiper-pagination cs-pag"></div>
+  </section>
   {% endif %}
 
   {# ===== 오늘의 싱크 요약 벤토 (sync-strip) ===== #}
@@ -2107,5 +2113,27 @@ function resetRefresh() {
   }
 })();
 </script>
+
+{# ===== 3D 코버플로우 쇼케이스 init ===== #}
+{% if contest_showcase and page == 1 %}
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+(function () {
+  if (typeof Swiper === 'undefined') return;
+  new Swiper('.contest-swiper', {
+    effect: 'coverflow',
+    grabCursor: true,
+    centeredSlides: true,
+    slidesPerView: 'auto',
+    loop: true,
+    speed: 700,
+    autoplay: { delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true },
+    coverflowEffect: { rotate: 34, stretch: 0, depth: 220, modifier: 1, slideShadows: true },
+    pagination: { el: '.cs-pag', clickable: true },
+    keyboard: { enabled: true },
+  });
+})();
+</script>
+{% endif %}
 
 {% endblock %}
