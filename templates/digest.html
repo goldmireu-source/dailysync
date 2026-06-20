@@ -151,6 +151,7 @@
 {% if not show_hidden and tab == 'news' and (total_clusters > 0 or cat_filter != 'all') %}
 {% set base_params = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=news' %}
 <div class="filter-bar">
+  {# 데스크탑: 칩 버튼 #}
   <div class="cat-chips">
     {% set cat_labels = {'all': '전체', '정책/규제': '정책/규제', '산업/기업': '산업/기업', '연구/모델': '연구/모델', '윤리/사회': '윤리/사회'} %}
     {% for cat_key, cat_label in cat_labels.items() %}
@@ -162,6 +163,15 @@
       {% endif %}
     {% endfor %}
   </div>
+  {# 모바일 전용: 카테고리 드롭박스 #}
+  <select class="cat-sel-mobile" onchange="window.location.href='{{ base_params }}&cat='+this.value+'&sort={{ sort_mode }}'">
+    {% set cat_labels = {'all': '전체', '정책/규제': '정책/규제', '산업/기업': '산업/기업', '연구/모델': '연구/모델', '윤리/사회': '윤리/사회'} %}
+    {% for cat_key, cat_label in cat_labels.items() %}
+      {% if cat_counts[cat_key] > 0 or cat_key == 'all' %}
+      <option value="{{ cat_key }}" {% if cat_filter == cat_key %}selected{% endif %}>{{ cat_label }}{% if cat_counts[cat_key] %} ({{ cat_counts[cat_key] }}){% endif %}</option>
+      {% endif %}
+    {% endfor %}
+  </select>
   <div class="sort-select">
     <label for="sort-sel">정렬</label>
     <select id="sort-sel" onchange="window.location.href='{{ base_params }}&cat={{ cat_filter }}&sort=' + this.value">
@@ -2192,20 +2202,24 @@ function resetRefresh() {
   function openMenu() {
     var menu = document.getElementById('news-submenu');
     var backdrop = document.getElementById('news-submenu-backdrop');
+    var btn = document.getElementById('bn-news-btn');
     if (!menu) return;
     menu.classList.add('open');
     menu.setAttribute('aria-hidden', 'false');
     if (backdrop) backdrop.classList.add('visible');
+    if (btn) btn.classList.add('menu-open');
     menuOpen = true;
   }
 
   function closeMenu() {
     var menu = document.getElementById('news-submenu');
     var backdrop = document.getElementById('news-submenu-backdrop');
+    var btn = document.getElementById('bn-news-btn');
     if (!menu) return;
     menu.classList.remove('open');
     menu.setAttribute('aria-hidden', 'true');
     if (backdrop) backdrop.classList.remove('visible');
+    if (btn) btn.classList.remove('menu-open');
     menuOpen = false;
   }
 
@@ -2270,17 +2284,18 @@ function resetRefresh() {
 
 {# 뉴스·논문 서브메뉴 (모바일 전용 팝업) #}
 <div class="news-submenu" id="news-submenu" aria-hidden="true">
-  <a href="?tab=news" class="nsm-item {% if tab == 'news' %}nsm-active{% endif %}">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
-    <span>뉴스</span>
-    {% if total_clusters %}<span class="nsm-count">{{ total_clusters }}</span>{% endif %}
-  </a>
-  <div class="nsm-divider"></div>
-  <a href="?tab=papers" class="nsm-item {% if tab == 'papers' %}nsm-active{% endif %}">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-    <span>논문</span>
-    {% if total_papers %}<span class="nsm-count">{{ total_papers }}</span>{% endif %}
-  </a>
+  <div class="nsm-pills">
+    <a href="?tab=news" class="nsm-pill {% if tab == 'news' %}nsm-active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
+      <span class="nsm-pill-label">뉴스</span>
+      {% if total_clusters %}<span class="nsm-pill-count">{{ total_clusters }}</span>{% endif %}
+    </a>
+    <a href="?tab=papers" class="nsm-pill {% if tab == 'papers' %}nsm-active{% endif %}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="nsm-pill-label">논문</span>
+      {% if total_papers %}<span class="nsm-pill-count">{{ total_papers }}</span>{% endif %}
+    </a>
+  </div>
 </div>
 <div class="news-submenu-backdrop" id="news-submenu-backdrop" onclick="closeNewsMenu()"></div>
 
@@ -2292,7 +2307,7 @@ function resetRefresh() {
   </a>
   <button class="bn-item {% if news_active %}active{% endif %}" id="bn-news-btn" onclick="toggleNewsMenu(event)">
     <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
-    <span class="bn-label">뉴스·논문</span>
+    <span class="bn-label">뉴스·논문<svg class="bn-chevron" width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 4.5L4 1.5L7 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     {% set news_total = total_clusters + total_papers %}
     {% if news_total %}<span class="bn-badge">{{ news_total }}</span>{% endif %}
   </button>
