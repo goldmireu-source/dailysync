@@ -3902,7 +3902,7 @@ footer a { color: var(--text-dim); }
   .date-range-sep { flex-shrink: 0; }
 
   /* 인라인 검색: 입력창 컴팩트 */
-  .inline-search { margin: 0 0 1px; }
+  .inline-search { margin: 0; }
   .inline-search #inline-search-input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
 
   /* 필터 바: 모바일 — 우측 정렬, 오버플로 없음 */
