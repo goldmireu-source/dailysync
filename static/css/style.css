@@ -4068,12 +4068,12 @@ footer a { color: var(--text-dim); }
 }
 .sync-cell {
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--r-md, 14px); padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 6px;
+  border-radius: var(--r-md, 14px); padding: 10px 14px;
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px;
 }
-.sync-label { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); }
+.sync-label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
 .sync-num {
-  font-family: var(--font-mono, monospace); font-size: 26px; font-weight: 700;
+  font-family: var(--font-mono, monospace); font-size: 22px; font-weight: 700;
   color: var(--text); line-height: 1;
 }
 .sync-cell:first-child .sync-num { color: var(--d-red, #FB7185); }
@@ -4108,7 +4108,7 @@ body::after {
 
 /* ---- 반응형 조정 ---- */
 @media (max-width: 600px) {
-  .site-header { margin: 0 -1rem !important; padding: 0 1rem !important; width: calc(100% + 2rem) !important; height: 56px !important; }
+  .site-header { margin: -1.25rem -1rem 0 !important; padding: 0 1rem !important; width: calc(100% + 2rem) !important; height: 56px !important; }
   /* 모바일 브랜드 로고: 이미지 + 세로 스택 타이포 */
   .ds-brand {
     font-size: 0 !important;     /* raw text node "DAILY " 숨김 */
@@ -4151,8 +4151,10 @@ body::after {
   .theme-toggle-btn { width: 30px !important; height: 30px !important; }
   .theme-toggle-btn svg { width: 14px !important; height: 14px !important; }
   .site-actions { gap: 4px !important; }
-  .sync-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .sync-num { font-size: 20px; }
+  .sync-strip { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 20px; }
+  .sync-cell { padding: 9px 10px !important; }
+  .sync-label { font-size: 9px !important; }
+  .sync-num { font-size: 18px !important; }
   #ds-toast-root { bottom: 16px; right: 16px; }
   .urgent-row { gap: 8px; }
   .urgent-card { flex: 0 0 180px; }
