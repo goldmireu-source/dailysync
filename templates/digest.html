@@ -2143,4 +2143,31 @@ function resetRefresh() {
 </script>
 {% endif %}
 
+{# ===== 모바일 하단 탭바 ===== #}
+{% if not show_hidden %}
+<nav class="bottom-nav" id="bottom-nav">
+  <a href="?tab=contests" class="bn-item {% if tab == 'contests' %}active{% endif %}">
+    <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+    <span class="bn-label">공모전</span>
+    {% if total_contests %}<span class="bn-badge">{{ total_contests }}</span>{% endif %}
+  </a>
+  <a href="?tab=news" class="bn-item {% if news_active %}active{% endif %}">
+    <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
+    <span class="bn-label">뉴스·논문</span>
+    {% set news_total = total_clusters + total_papers %}
+    {% if news_total %}<span class="bn-badge">{{ news_total }}</span>{% endif %}
+  </a>
+  <a href="?tab=parties" class="bn-item {% if tab == 'parties' %}active{% endif %}">
+    <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span class="bn-label">파티</span>
+    {% if total_parties %}<span class="bn-badge">{{ total_parties }}</span>{% endif %}
+  </a>
+  {% if karrot_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
+  <a href="?tab=karrot" class="bn-item {% if tab == 'karrot' %}active{% endif %}">
+    <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V22H10V9.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 9c-1.5.5-3 2-3 4"/></svg>
+    <span class="bn-label">당근</span>
+  </a>
+  {% endif %}
+</nav>
+{% endif %}
 {% endblock %}
