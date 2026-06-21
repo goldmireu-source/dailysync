@@ -27,7 +27,8 @@ def _card_image(a) -> str | None:
     """공모전 목록 카드 <a> 내부에서 cdn-dantats 썸네일 URL 추출."""
     img = a.find("img", src=re.compile(r"cdn-dantats\.stunning\.kr"))
     if img:
-        return img["src"].split("?")[0]
+        # 쿼리 파라미터 유지, 크기만 카드용으로 교체 (기본값 s=40x40 → s=800x600)
+        return re.sub(r"s=\d+x\d+", "s=800x600", img["src"])
     return None
 
 
