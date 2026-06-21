@@ -5261,15 +5261,18 @@ body::after {
   padding-bottom: 60px; /* cover-foot 공간 확보 */
 }
 
-/* 모바일(≤600px): 논문 탭 첫 카드 이미지 패널만 제거 — 높이는 유지 */
+/* 모바일(≤600px): 뉴스·논문 첫 카드 이미지 패널 제거 — 높이는 유지 */
 @media (max-width: 600px) {
+  .carousel-grid--bento > .carousel:first-child .slide.cover,
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover {
     padding-right: 22px;
     padding-bottom: 40px;
   }
+  .carousel-grid--bento > .carousel:first-child .slide.cover .cover-image,
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
     display: none;
   }
+  .carousel-grid--bento > .carousel:first-child .slide.cover::before,
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover::before {
     display: none;
   }
