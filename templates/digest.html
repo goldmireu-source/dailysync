@@ -1409,6 +1409,9 @@ async function deleteKarrot(btn) {
       <span class="label" id="card-modal-label">카드 상세</span>
       <button class="card-modal-close" onclick="closeCardModal()" title="닫기 (ESC)">×</button>
     </div>
+    <div class="modal-progress-wrap" id="modal-progress-wrap">
+      <div class="modal-progress-fill" id="modal-progress-fill"></div>
+    </div>
     <div class="card-modal-body" id="card-modal-body">
       <!-- 클릭한 카드의 carousel 복제본 삽입 -->
     </div>
@@ -1506,6 +1509,10 @@ function initCarousel(carousel) {
 }
 
 function initCarouselsIn(parent) {
+  parent.querySelectorAll('.carousel').forEach(function(carousel, i) {
+    carousel.style.animationDelay = Math.min(i * 55, 550) + 'ms';
+    carousel.classList.add('card-entering');
+  });
   parent.querySelectorAll('.carousel').forEach(initCarousel);
   parent.querySelectorAll('.carousel').forEach(function(carousel) {
     const stage = carousel.querySelector('.carousel-stage');
@@ -1658,6 +1665,34 @@ function openCardModal(carousel) {
 
   // 복제된 carousel 에 슬라이드 컨트롤 다시 등록
   initCarousel(wrapper);
+
+  // 슬라이드 프로그레스 바 설정
+  (function() {
+    const fill = document.getElementById('modal-progress-fill');
+    const pwrap = document.getElementById('modal-progress-wrap');
+    if (!fill) return;
+    const slides = wrapper.querySelectorAll('.slide');
+    if (slides.length <= 1) {
+      if (pwrap) pwrap.style.display = 'none';
+      return;
+    }
+    if (pwrap) pwrap.style.display = '';
+    function updateProgress() {
+      const idx = [...slides].findIndex(s => s.classList.contains('active'));
+      fill.style.width = ((Math.max(0, idx) + 1) / slides.length * 100) + '%';
+    }
+    updateProgress();
+    wrapper.querySelectorAll('.slide-nav').forEach(function(btn) {
+      btn.addEventListener('click', function() { setTimeout(updateProgress, 50); });
+    });
+    wrapper.querySelectorAll('.slide-dots .dot').forEach(function(dot) {
+      dot.addEventListener('click', function() { setTimeout(updateProgress, 50); });
+    });
+    const clonedStage = wrapper.querySelector('.carousel-stage');
+    if (clonedStage) {
+      clonedStage.addEventListener('touchend', function() { setTimeout(updateProgress, 80); });
+    }
+  })();
 
   // 스크롤 위치 저장 후 body 잠금
   document.body.dataset.scrollY = String(window.scrollY);

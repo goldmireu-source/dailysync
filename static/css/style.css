@@ -1407,6 +1407,18 @@ body.modal-open .bottom-nav { display: none !important; }
   background: var(--bg-card);
   flex-shrink: 0;
 }
+.modal-progress-wrap {
+  height: 3px;
+  background: var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.modal-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
 .card-modal-head .label {
   font-size: 11.5px;
   letter-spacing: 0.2em;
@@ -1441,19 +1453,18 @@ body.modal-open .bottom-nav { display: none !important; }
   min-height: 0;
 }
 
-/* 모달 안 carousel — 사이즈 확대 */
+/* 모달 안 carousel — 사이즈 확대 + 모서리 제거 (외곽 모달이 클리핑 담당) */
 .card-modal-body .carousel-stage {
   height: auto;
   aspect-ratio: 4 / 5;
   max-height: 100%;
-  border-radius: 0;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
   cursor: default !important;
 }
-/* 모달 내 슬라이드: 자체 border-radius/border 제거 (외곽 모달이 클리핑 담당) */
-.card-modal-body .slide.paper-cover,
-.card-modal-body .slide.cover {
+.card-modal-body .slide {
   border-radius: 0 !important;
-  border: none !important;
 }
 .card-modal-body .carousel:hover .carousel-stage {
   transform: none;
@@ -1639,8 +1650,16 @@ body.modal-open .bottom-nav { display: none !important; }
     min-height: 0;
     aspect-ratio: auto;
     flex: 1;
-    border-radius: 0;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     position: relative;
+  }
+  /* 모든 슬라이드 — 모서리 각지게 (외곽 모달만 둥글게) */
+  .card-modal-body .slide,
+  .card-modal-body .slide.cover,
+  .card-modal-body .slide.paper-cover,
+  .card-modal-body .slide.body {
+    border-radius: 0 !important;
   }
   /* 비활성 slide 는 가둬두기 (위치만), 활성 slide 는 자연 흐름 */
   .card-modal-body .slide {
@@ -2131,6 +2150,11 @@ body.modal-open {
   box-sizing: border-box;
 }
 
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .carousel {
   position: relative;
   background: transparent;
@@ -2138,6 +2162,9 @@ body.modal-open {
   overflow: visible;
   min-width: 0;
   width: 100%;
+}
+.carousel.card-entering {
+  animation: cardEnter 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .carousel-stage {
