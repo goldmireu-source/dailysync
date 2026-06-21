@@ -1,10 +1,12 @@
 """라우드(loud.kr) — AI 공모전 전용 탭(/ai/contest/list).
 
 라우드소싱 AI 공모전 플랫폼. 목록이 SPA 라 헤드리스 렌더(_render)로 긁는다.
-목록 카드 내부 img(cdn-dantats)를 공모전 썸네일로 사용.
+LOUD_EMAIL/LOUD_PASSWORD 설정 시 로그인 세션으로 목록 렌더 → 카드 CDN 썸네일 추출.
+미설정 시 비로그인 렌더(이미지 없음).
 AI 공모전 전용 탭이므로 ai_exempt=True.
 """
 import logging
+import os
 import re
 from datetime import date, timedelta
 
@@ -16,11 +18,64 @@ from jobs.contest_sources._render import render_html
 logger = logging.getLogger(__name__)
 
 BASE       = "https://www.loud.kr"
+LOGIN_URL  = "https://accounts.stunning.kr/v2/auth/login?from_url=Loud&redirect_url=https%3A%2F%2Fwww.loud.kr%2F"
 LIST_URL   = f"{BASE}/ai/contest/list"
 _ID_RE     = re.compile(r"/contest/view/(\d+)")
 _DDAY_RE   = re.compile(r"(\d+)\s*일\s*남음")
 _PERIOD_RE = re.compile(r"(\d{2})\.(\d{1,2})\.(\d{1,2})")
 _OPEN_RE   = re.compile(r"\d+\s*일\s*남음")
+
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+
+def _fetch_list_html_logged_in() -> str | None:
+    """로그인 세션으로 목록 페이지 HTML 반환. 미설정/실패 시 None."""
+    email = os.environ.get("LOUD_EMAIL", "").strip()
+    password = os.environ.get("LOUD_PASSWORD", "").strip()
+    if not email or not password:
+        logger.info("LOUD_EMAIL/LOUD_PASSWORD 미설정 — 비로그인 목록 렌더로 진행")
+        return None
+
+    try:
+        from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    except ImportError:
+        return None
+
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            ctx = browser.new_context(user_agent=UA)
+            page = ctx.new_page()
+
+            page.goto(LOGIN_URL, wait_until="networkidle", timeout=30000)
+            page.fill("input[name='email']", email)
+            page.fill("input[name='password']", password)
+            # 클릭과 동시에 네비게이션(리다이렉트) 대기
+            with page.expect_navigation(wait_until="networkidle", timeout=15000):
+                page.click("button:has-text('로그인')")
+            # 리다이렉트 후 URL 확인: mypage 또는 loud.kr이면 성공
+            if "login" in page.url:
+                logger.warning(f"loud.kr 로그인 실패 — 비로그인 목록으로 진행 (URL: {page.url})")
+                browser.close()
+                return None
+            logger.info(f"loud.kr 로그인 성공: {page.url}")
+
+            page.goto(LIST_URL, wait_until="domcontentloaded", timeout=30000)
+            try:
+                page.wait_for_selector("a[href*='/contest/view/']", timeout=15000)
+            except Exception:
+                pass
+            page.wait_for_timeout(2500)
+            for _ in range(3):
+                page.mouse.wheel(0, 5000)
+                page.wait_for_timeout(1000)
+            html = page.content()
+            browser.close()
+            return html
+    except Exception as e:
+        logger.warning(f"loud 로그인 목록 렌더 실패: {e}")
+        return None
 
 
 def _card_image(a) -> str | None:
@@ -56,7 +111,10 @@ def _period_end(a) -> date | None:
 
 @register("loud")
 def fetch() -> list[ContestDraft]:
-    html = render_html(LIST_URL, wait_for="a[href*='/contest/view/']", scrolls=3)
+    # 로그인 세션 우선(CDN 썸네일 가시), 실패/미설정 시 비로그인 렌더(이미지 없음)
+    html = _fetch_list_html_logged_in()
+    if not html:
+        html = render_html(LIST_URL, wait_for="a[href*='/contest/view/']", scrolls=3)
     if not html:
         return []
 
