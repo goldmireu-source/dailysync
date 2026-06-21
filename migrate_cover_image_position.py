@@ -1,7 +1,7 @@
 """clusters.cover_image_position 컬럼 추가 마이그레이션."""
 import sqlite3, pathlib
 
-DB = pathlib.Path("news.db")
+DB = pathlib.Path("data/app.db")
 conn = sqlite3.connect(DB)
 cols = {r[1] for r in conn.execute("PRAGMA table_info(clusters)")}
 if "cover_image_position" not in cols:
