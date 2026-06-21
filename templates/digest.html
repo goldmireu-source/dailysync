@@ -1674,10 +1674,9 @@ function openCardModal(carousel) {
     const numEl = document.getElementById('modal-slide-num');
     if (!fill) return;
     const slides = wrapper.querySelectorAll('.slide');
-    // 디버그: 슬라이드 수 강제 표시
-    if (numEl) numEl.textContent = '[' + slides.length + ']';
     if (slides.length <= 1) {
       if (pwrap) pwrap.style.display = 'none';
+      if (numEl) numEl.textContent = '';
       return;
     }
     if (pwrap) pwrap.style.display = '';

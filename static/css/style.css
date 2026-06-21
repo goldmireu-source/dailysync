@@ -3566,14 +3566,10 @@ body {
 .carousel-caption .topic-link { color: var(--text); }
 .carousel-caption .topic-link:hover { color: var(--accent); }
 
-/* ===== 라이트 테마: carousel-stage 카테고리 테두리 ===== */
+/* 라이트 테마: stage 자체 테두리 제거 (슬라이드 border가 담당) */
 [data-theme="light"] .carousel-stage {
   border: none;
 }
-[data-theme="light"] .carousel-stage[data-cat="policy"]   { border-color: #c2681a; }
-[data-theme="light"] .carousel-stage[data-cat="industry"] { border-color: #1a7a40; }
-[data-theme="light"] .carousel-stage[data-cat="research"] { border-color: #7e22ce; }
-[data-theme="light"] .carousel-stage[data-cat="ethics"]   { border-color: #c2410c; }
 
 /* ===== 공모전 타일 보라색 테두리 (다크·라이트 공통) ===== */
 .contest-tile { border-color: rgba(157,140,255,0.38) !important; }
@@ -3696,8 +3692,6 @@ body {
 [data-theme="light"] .slide.paper-cover .authors { color: #4a6070; }
 [data-theme="light"] .slide.paper-cover .watermark { color: #20242e; }
 [data-theme="light"] .slide.paper-cover .cover-foot { border-top-color: rgba(32,36,46,0.09); color: #5a6a7a; opacity: 1; }
-/* 라이트 테마: 논문 carousel-stage 테두리를 시안 색으로 */
-[data-theme="light"] .carousel-stage[data-cat=""] { border-color: #4aa3d8; }
 /* 라이트 테마: 본문 슬라이드 label/pos — 카테고리별 색 */
 [data-theme="light"] .carousel-stage[data-cat="policy"]   .slide.body .head-row .label,
 [data-theme="light"] .carousel-stage[data-cat="policy"]   .slide.body .head-row .pos { color: #c2681a; }
