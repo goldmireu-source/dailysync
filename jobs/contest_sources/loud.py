@@ -35,7 +35,7 @@ def _fetch_banner_image(cid: str) -> str | None:
     렌더 후 alt='배너 이미지' img 태그에서 실제 포스터 URL을 추출한다.
     """
     from jobs.contest_sources._render import render_html
-    html = render_html(f"{BASE}/contest/view/{cid}", wait_for="img[alt='배너 이미지']", scrolls=0)
+    html = render_html(f"{BASE}/contest/view/{cid}", wait_for="img[alt='배너 이미지']", scrolls=1)
     if not html:
         return None
     soup = BeautifulSoup(html, "lxml")
@@ -43,6 +43,8 @@ def _fetch_banner_image(cid: str) -> str | None:
     if img:
         src = img.get("src", "").strip()
         if src and src.startswith("http") and "cdn-dantats" in src:
+            # CDN 사이즈 파라미터 제거해서 원본 크기로
+            src = src.split("?")[0]
             return src
     return None
 
