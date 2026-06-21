@@ -21,7 +21,10 @@ NAV_TIMEOUT = 15_000   # ms
 PAGE_TIMEOUT = 12_000  # ms
 
 # 스크린샷 남기지 않는 도메인 (봇 차단 심한 곳)
-_BLOCKLIST = {"twitter.com", "x.com", "instagram.com", "facebook.com", "linkedin.com"}
+_BLOCKLIST = {
+    "twitter.com", "x.com", "instagram.com", "facebook.com", "linkedin.com",
+    "techcrunch.com",   # Playwright 봇 차단으로 반복 타임아웃
+}
 
 _HEADERS = {
     "User-Agent": (
@@ -72,6 +75,8 @@ def screenshot_articles(limit: int = 20) -> dict:
 
         for art in pending:
             if _domain(art.url) in _BLOCKLIST:
+                art.image_url = ""   # 재시도 방지
+                db.session.add(art)
                 stats["skipped"] += 1
                 stats["processed"] += 1
                 continue
@@ -104,6 +109,8 @@ def screenshot_articles(limit: int = 20) -> dict:
                 stats["success"] += 1
             except (PWTimeout, Exception) as e:
                 logger.warning(f"스크린샷 실패 {art.url}: {type(e).__name__}")
+                art.image_url = ""   # 재시도 방지
+                db.session.add(art)
                 stats["failed"] += 1
             finally:
                 page.close()
