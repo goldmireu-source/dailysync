@@ -79,11 +79,10 @@ def _fetch_list_html_logged_in() -> str | None:
 
 
 def _card_image(a) -> str | None:
-    """공모전 목록 카드 <a> 내부에서 cdn-dantats 썸네일 URL 추출."""
-    img = a.find("img", src=re.compile(r"cdn-dantats\.stunning\.kr"))
-    if img:
-        # 쿼리 파라미터 유지, 크기만 카드용으로 교체 (기본값 s=40x40 → s=800x600)
-        return re.sub(r"s=\d+x\d+", "s=800x600", img["src"])
+    """카드 내 alt='배너 이미지'인 공모전 포스터만 추출. 주최자 아바타(profile-image)는 제외."""
+    img = a.find("img", alt="배너 이미지")
+    if img and img.get("src") and "cdn-dantats" in img["src"]:
+        return img["src"].split("?")[0]
     return None
 
 
