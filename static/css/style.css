@@ -5277,3 +5277,36 @@ body::after {
     display: none;
   }
 }
+
+/* ===== 이미지 포지션 피커 (관리자 전용) ===== */
+.image-position-picker {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, 18px);
+  gap: 4px;
+  padding: 6px;
+  background: rgba(0,0,0,.55);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+.pos-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.5);
+  background: rgba(255,255,255,.2);
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, border-color .15s;
+}
+.pos-dot:hover {
+  background: rgba(255,255,255,.5);
+  border-color: #fff;
+}
+.pos-dot.active {
+  background: #fff;
+  border-color: #fff;
+}

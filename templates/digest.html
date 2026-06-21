@@ -199,7 +199,7 @@
       'topic': c.topic,
       'meta': (src_count|string + '매체') if src_count >= 2 else (members[0].source.name if members else '')
     } %}
-    {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), c.saved_at is not none, is_bookmarked=(c.id in user_bm_cluster_ids), is_pinned=(c.pinned_featured or false)) }}
+    {{ render_carousel('c' ~ c.id, 'cluster', item.cards, 'cluster', c.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), c.saved_at is not none, is_bookmarked=(c.id in user_bm_cluster_ids), is_pinned=(c.pinned_featured or false), image_position=(c.cover_image_position or "top center")) }}
   {% endfor %}
 </div>
 
@@ -1850,6 +1850,24 @@ async function unsaveItem(kind, id) {
     if (r.ok && el) {
       vanish(el);
       refreshCounts();
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function setImagePosition(clusterId, position, btn) {
+  try {
+    const r = await fetch(`/api/cluster/${clusterId}/image-position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position }),
+    });
+    const j = await r.json();
+    if (j.ok) {
+      const picker = btn.closest('.image-position-picker');
+      picker.querySelectorAll('.pos-dot').forEach(d => d.classList.remove('active'));
+      btn.classList.add('active');
+      const img = picker.previousElementSibling;
+      if (img && img.tagName === 'IMG') img.style.objectPosition = position;
     }
   } catch (e) { console.error(e); }
 }

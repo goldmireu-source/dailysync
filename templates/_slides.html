@@ -21,7 +21,19 @@
 {% if card.type == 'cover' %}
 <div class="slide cover {{ card.category }} {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
   {% if card.image_url %}
-  <img class="cover-image" src="{{ card.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+  <img class="cover-image" src="{{ card.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'"
+       style="object-position: {{ image_position }};"
+       data-cluster-id="{{ hide_id }}">
+  {% if g.is_admin and idx == 0 %}
+  <div class="image-position-picker" data-cluster-id="{{ hide_id }}" onclick="event.stopPropagation()">
+    {% for pos in ["top left","top center","top right","center left","center center","center right","bottom left","bottom center","bottom right"] %}
+    <button class="pos-dot {% if image_position == pos %}active{% endif %}"
+            data-pos="{{ pos }}"
+            onclick="setImagePosition({{ hide_id }}, '{{ pos }}', this)"
+            title="{{ pos }}"></button>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% endif %}
   <div class="watermark">{{ '%02d' % seq_num }}</div>
 
@@ -228,7 +240,7 @@
 {% endmacro %}
 
 
-{% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false, is_bookmarked=false, is_pinned=false) %}
+{% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false, is_bookmarked=false, is_pinned=false, image_position="top center") %}
 <div class="carousel" id="car-{{ cid }}" data-{{ hide_kind }}-id="{{ hide_id }}" data-cat="{% if cards and cards[0].type == 'cover' %}{{ cards[0].category }}{% elif cards and cards[0].type == 'paper_cover' %}research{% endif %}">
   <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover'] %}1{% else %}0{% endif %}" data-cat="{% if cards and cards[0].type == 'cover' %}{{ cards[0].category }}{% endif %}">
     {# Jinja 매크로는 호출 템플릿의 context 변수(is_admin)에 접근 불가.

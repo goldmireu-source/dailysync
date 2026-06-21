@@ -136,6 +136,7 @@ class Cluster(db.Model):
     primary_article_id = db.Column(db.Integer, nullable=True)  # 클러스터를 처음 생성한 기사 ID (원문 링크 기준)
     pinned_featured = db.Column(db.Boolean, default=False, nullable=False)  # 관리자 피처드 고정
     pinned_at = db.Column(db.DateTime, nullable=True)  # 고정 시각 (NULL = 고정 안 됨)
+    cover_image_position = db.Column(db.String(32), nullable=True)  # CSS object-position (NULL = "top center")
 
     articles = db.relationship("Article", backref="cluster", lazy="dynamic")
 

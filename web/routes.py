@@ -863,6 +863,23 @@ def toggle_cluster_feature(cluster_id: int):
     return jsonify({"ok": True, "pinned": cluster.pinned_featured})
 
 
+@bp.route("/api/cluster/<int:cluster_id>/image-position", methods=["POST"])
+@admin_required
+def set_cluster_image_position(cluster_id: int):
+    """첫 카드 커버 이미지 object-position 설정."""
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    position = request.json.get("position", "").strip()
+    # top/center/bottom × left/center/right 조합만 허용
+    valid = {"top left","top center","top right","center left","center center","center right","bottom left","bottom center","bottom right"}
+    if position not in valid:
+        return jsonify({"ok": False, "error": "invalid_position"}), 400
+    cluster.cover_image_position = position
+    db.session.commit()
+    return jsonify({"ok": True, "position": position})
+
+
 @bp.route("/api/paper/<int:paper_id>/feature", methods=["POST"])
 @admin_required
 def toggle_paper_feature(paper_id: int):
