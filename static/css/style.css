@@ -5261,12 +5261,8 @@ body::after {
   padding-bottom: 60px; /* cover-foot 공간 확보 */
 }
 
-/* 모바일(≤600px): 논문 탭 첫 카드 벤토 확장 해제 — 일반 카드로 표시 */
+/* 모바일(≤600px): 논문 탭 첫 카드 이미지 패널만 제거 — 높이는 유지 */
 @media (max-width: 600px) {
-  .carousel-grid--bento > .carousel:first-child:has(.slide.paper-cover) .carousel-stage {
-    height: 300px;
-    min-height: 300px;
-  }
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover {
     padding-right: 22px;
     padding-bottom: 40px;
@@ -5274,7 +5270,7 @@ body::after {
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
     display: none;
   }
-  .carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover::before {
     display: none;
   }
 }
