@@ -392,24 +392,6 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             logger.exception("collect_all_contests failed in refresh_now")
             stats["contests_new"] = 0
 
-        # 9. 논문 PDF 썸네일 (백그라운드 — 실패해도 진행)
-        _update_phase(run_id, "논문 썸네일 생성 중")
-        try:
-            from jobs.pdf_thumbnailer import thumb_papers
-            t_res = thumb_papers(limit=20)
-            stats["paper_thumbs"] = t_res.get("success", 0)
-        except Exception:
-            logger.exception("thumb_papers failed in refresh_now")
-
-        # 10. 기사 스크린샷 (백그라운드 — 실패해도 진행)
-        _update_phase(run_id, "기사 스크린샷 중")
-        try:
-            from jobs.article_screenshotter import screenshot_articles
-            sc_res = screenshot_articles(limit=15)
-            stats["article_screenshots"] = sc_res.get("success", 0)
-        except Exception:
-            logger.exception("screenshot_articles failed in refresh_now")
-
         _update_phase(run_id, "완료")
         stats["anything_new"] = (
             stats.get("news_new", 0) > 0

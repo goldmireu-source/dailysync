@@ -68,6 +68,8 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         job_refresh_now,
         job_cleanup_old_data,
         job_collect_contests,
+        job_thumb_papers,
+        job_screenshot_articles,
     )
     from jobs.cleanup import cleanup_completed_karrot
 
@@ -127,6 +129,24 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         CronTrigger(hour="7,19", minute=30, timezone=KST),
         id="collect_contests_daily",
         name="공모전 수집 (07:30, 19:30)",
+        **_JOB_DEFAULTS,
+    )
+
+    # 00:30, 06:30, 12:30, 18:30 — 논문 PDF 썸네일 (refresh_now 30분 뒤)
+    sched.add_job(
+        _wrap(app, job_thumb_papers, triggered_by="scheduler"),
+        CronTrigger(hour="0,6,12,18", minute=30, timezone=KST),
+        id="thumb_papers_6h",
+        name="논문 썸네일 (6시간마다 :30)",
+        **_JOB_DEFAULTS,
+    )
+
+    # 00:45, 06:45, 12:45, 18:45 — 기사 스크린샷 (refresh_now 45분 뒤)
+    sched.add_job(
+        _wrap(app, job_screenshot_articles, triggered_by="scheduler"),
+        CronTrigger(hour="0,6,12,18", minute=45, timezone=KST),
+        id="screenshot_articles_6h",
+        name="기사 스크린샷 (6시간마다 :45)",
         **_JOB_DEFAULTS,
     )
 
