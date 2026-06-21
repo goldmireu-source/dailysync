@@ -1408,8 +1408,8 @@ body.modal-open .bottom-nav { display: none !important; }
   flex-shrink: 0;
 }
 .modal-progress-wrap {
-  height: 4px;
-  background: var(--border);
+  height: 3px;
+  background: rgba(128, 128, 128, 0.18);
   flex-shrink: 0;
   overflow: hidden;
 }
