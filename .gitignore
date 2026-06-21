@@ -40,3 +40,14 @@ Thumbs.db
 
 # ===== 사용자 업로드 이미지 =====
 static/uploads/
+
+# ===== 생성된 썸네일 (로컬 생성 파일) =====
+static/thumbs/
+
+# ===== 임시 스크립트 =====
+regen_*.py
+reset_thumbs.py
+test_*.py
+debug_*.py
+fix_*.py
+dailysync_redesign.html
