@@ -5,16 +5,30 @@
   - `Paper.saved_at IS NOT NULL` (저장된 논문) → 영구 보존.
   - `Cluster.saved_at IS NOT NULL` (저장된 클러스터) → 클러스터와 그 안의 모든 기사 영구 보존.
   - 저장 안 된 클러스터에서 오래된 기사만 제거됨. 결과적으로 비어버린 unsaved 클러스터도 함께 정리.
+  - 삭제된 기사/논문의 static/thumbs/ 이미지 파일도 함께 삭제.
 
 호출:
   cleanup_old_data(retention_days=4)
 """
 import logging
+import pathlib
 from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select
 
 from models import db, Article, Cluster, Paper, Contest, KarrotPost
+
+_THUMBS = pathlib.Path("static/thumbs")
+
+
+def _delete_thumb(url: str | None) -> None:
+    """로컬 썸네일 파일 삭제 (없으면 무시)."""
+    if not url or not url.startswith("/static/thumbs/"):
+        return
+    try:
+        _THUMBS.joinpath(pathlib.Path(url).name).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +79,18 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
     saved_cluster_ids_sel = select(Cluster.id).where(Cluster.saved_at.isnot(None))
 
     # 2. 오래된 기사 삭제 — cluster_id NULL 이거나 saved 안 된 클러스터 소속
+    article_thumb_urls = [
+        row[0] for row in
+        db.session.execute(
+            select(Article.image_url)
+            .where(Article.published_at < cutoff)
+            .where(Article.image_url.isnot(None))
+            .where(or_(
+                Article.cluster_id.is_(None),
+                ~Article.cluster_id.in_(saved_cluster_ids_sel),
+            ))
+        ).all()
+    ]
     deleted_articles = (
         Article.query
         .filter(Article.published_at < cutoff)
@@ -74,6 +100,8 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
         ))
         .delete(synchronize_session=False)
     )
+    for url in article_thumb_urls:
+        _delete_thumb(url)
     stats["articles_deleted"] = deleted_articles
 
     # 3. 비어버린 unsaved 클러스터 삭제
@@ -91,12 +119,23 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
     stats["clusters_deleted"] = deleted_clusters
 
     # 4. 오래된 논문 삭제 — 저장 안 된 것만
+    paper_thumb_urls = [
+        row[0] for row in
+        db.session.execute(
+            select(Paper.figure_url)
+            .where(Paper.published_at < cutoff)
+            .where(Paper.saved_at.is_(None))
+            .where(Paper.figure_url.isnot(None))
+        ).all()
+    ]
     deleted_papers = (
         Paper.query
         .filter(Paper.published_at < cutoff)
         .filter(Paper.saved_at.is_(None))
         .delete(synchronize_session=False)
     )
+    for url in paper_thumb_urls:
+        _delete_thumb(url)
     stats["papers_deleted"] = deleted_papers
 
     # 5. 마감 지난 공모전 삭제 — deadline 이 (오늘 - grace) 이전, 저장 안 된 것만.
