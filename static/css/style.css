@@ -1424,6 +1424,14 @@ body.modal-open .bottom-nav { display: none !important; }
   letter-spacing: 0.2em;
   color: var(--text-dim);
   font-weight: 700;
+  flex: 1;
+}
+.modal-slide-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  margin-right: 10px;
 }
 .card-modal-close {
   background: transparent;

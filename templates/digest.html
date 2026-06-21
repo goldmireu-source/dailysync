@@ -1407,6 +1407,7 @@ async function deleteKarrot(btn) {
   <div class="card-modal" onclick="event.stopPropagation()">
     <div class="card-modal-head">
       <span class="label" id="card-modal-label">카드 상세</span>
+      <span class="modal-slide-num" id="modal-slide-num"></span>
       <button class="card-modal-close" onclick="closeCardModal()" title="닫기 (ESC)">×</button>
     </div>
     <div class="modal-progress-wrap" id="modal-progress-wrap">
@@ -1666,20 +1667,24 @@ function openCardModal(carousel) {
   // 복제된 carousel 에 슬라이드 컨트롤 다시 등록
   initCarousel(wrapper);
 
-  // 슬라이드 프로그레스 바 설정
+  // 슬라이드 프로그레스 바 + 카운터 설정
   (function() {
     const fill = document.getElementById('modal-progress-fill');
     const pwrap = document.getElementById('modal-progress-wrap');
+    const numEl = document.getElementById('modal-slide-num');
     if (!fill) return;
     const slides = wrapper.querySelectorAll('.slide');
     if (slides.length <= 1) {
       if (pwrap) pwrap.style.display = 'none';
+      if (numEl) numEl.textContent = '';
       return;
     }
     if (pwrap) pwrap.style.display = '';
     function updateProgress() {
       const idx = [...slides].findIndex(s => s.classList.contains('active'));
-      fill.style.width = ((Math.max(0, idx) + 1) / slides.length * 100) + '%';
+      const cur = Math.max(0, idx) + 1;
+      fill.style.width = (cur / slides.length * 100) + '%';
+      if (numEl) numEl.textContent = cur + ' / ' + slides.length;
     }
     updateProgress();
     wrapper.querySelectorAll('.slide-nav').forEach(function(btn) {
