@@ -134,6 +134,8 @@ class Cluster(db.Model):
     saved_at = db.Column(db.DateTime, nullable=True, index=True)   # NULL = 미저장, 값 = 저장됨
     first_shown_date = db.Column(db.Date, nullable=True, index=True)  # 처음 표시된 KST 날짜 (중복 노출 방지)
     primary_article_id = db.Column(db.Integer, nullable=True)  # 클러스터를 처음 생성한 기사 ID (원문 링크 기준)
+    pinned_featured = db.Column(db.Boolean, default=False, nullable=False)  # 관리자 피처드 고정
+    pinned_at = db.Column(db.DateTime, nullable=True)  # 고정 시각 (NULL = 고정 안 됨)
 
     articles = db.relationship("Article", backref="cluster", lazy="dynamic")
 
@@ -156,8 +158,9 @@ class Article(db.Model):
     published_at = db.Column(db.DateTime, index=True)
     fetched_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    # 본문 — 사적이용 분석용 (이메일 출력 절대 금지)
+    # 본문 + 이미지 — 사적이용 분석용 (이메일 출력 절대 금지)
     body = db.Column(db.Text)
+    image_url = db.Column(db.String(1000), nullable=True)   # OG 이미지 URL (썸네일 표시용)
     body_fetched_at = db.Column(db.DateTime)
     body_status = db.Column(db.String(20), default="pending", nullable=False)
     # pending | success | failed | blocked | skipped
@@ -206,6 +209,7 @@ class Paper(db.Model):
     summary_dirty = db.Column(db.Boolean, default=True, nullable=False)
     hidden_at = db.Column(db.DateTime, nullable=True, index=True)  # NULL = 표시, 값 = 숨김
     saved_at = db.Column(db.DateTime, nullable=True, index=True)   # NULL = 미저장, 값 = 저장됨
+    figure_url = db.Column(db.String(1000), nullable=True)  # 논문 대표 이미지 (HF 썸네일 등)
 
     sent_at = db.Column(db.DateTime)  # 다이제스트 발송 이력 (중복 발송 방지)
 

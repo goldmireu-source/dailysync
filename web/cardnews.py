@@ -292,6 +292,12 @@ def build_cluster_cards(cluster) -> list[dict]:
     if len(lead) > 115:
         lead = lead[:114].rstrip() + "…"
 
+    # 클러스터 내 기사 중 OG 이미지가 있는 첫 번째 것 사용
+    cover_image = next(
+        (getattr(a, "image_url", None) for a in members if getattr(a, "image_url", None)),
+        None,
+    )
+
     # ----- Card 1: Cover -----
     cards.append({
         "type": "cover",
@@ -299,6 +305,7 @@ def build_cluster_cards(cluster) -> list[dict]:
         "categories": cluster.categories or [],
         "title": cluster.topic or "(제목 없음)",
         "lead": lead,
+        "image_url": cover_image,
         "sources": sources,
         "n_sources": len(sources),
         "n_members": len(members),
@@ -387,6 +394,7 @@ def build_cluster_cards(cluster) -> list[dict]:
                 "type": "links",
                 "category": cat_key,
                 "title": "더 알아보기",
+                "image_url": cover_image,
                 "links": links_info,
             })
     else:
@@ -395,6 +403,7 @@ def build_cluster_cards(cluster) -> list[dict]:
             "type": "links",
             "category": cat_key,
             "title": "더 알아보기",
+            "image_url": cover_image,
             "links": _primary_link(cluster, members),
         })
 
@@ -470,6 +479,13 @@ def build_paper_cards(paper) -> list[dict]:
     if len(authors) > 3:
         authors_str += f" 외 {len(authors) - 3}명"
 
+    # 로컬 PDF 캡처 우선 → HF CDN 썸네일 → None
+    figure_url = None
+    if getattr(paper, "figure_url", None):
+        figure_url = paper.figure_url
+    elif paper.source_type == "huggingface" and paper.arxiv_id:
+        figure_url = f"https://cdn-thumbnails.huggingface.co/social-thumbnails/papers/{paper.arxiv_id}.png"
+
     cards.append({
         "type": "paper_cover",
         "title": paper.title,
@@ -480,6 +496,7 @@ def build_paper_cards(paper) -> list[dict]:
         "hf_featured": paper.hf_featured,
         "categories": paper.categories or [],
         "summary": paper.summary_ko,
+        "figure_url": figure_url,
     })
 
     # 본문 3장 (problem / method / results+significance)
@@ -514,6 +531,7 @@ def build_paper_cards(paper) -> list[dict]:
         "pdf_url": paper.pdf_url,
         "arxiv_id": paper.arxiv_id,
         "source_type": paper.source_type,
+        "figure_url": figure_url,
     })
 
     return cards

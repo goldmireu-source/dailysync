@@ -163,6 +163,8 @@ def trigger_job_now(job_id: str, app, run_id: int | None = None) -> bool:
         "backfill_papers": pipeline.job_backfill_papers,
         "cleanup_old_data": pipeline.job_cleanup_old_data,
         "collect_contests": pipeline.job_collect_contests,
+        "thumb_papers": pipeline.job_thumb_papers,
+        "screenshot_articles": pipeline.job_screenshot_articles,
     }
     fn = mapping.get(job_id)
     if not fn:

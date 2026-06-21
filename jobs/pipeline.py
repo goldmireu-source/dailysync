@@ -230,6 +230,25 @@ def job_cleanup_old_data(triggered_by: str = "scheduler", run_id: int | None = N
         return stats
 
 
+# ---------- 썸네일 생성 ----------
+def job_thumb_papers(triggered_by: str = "manual", run_id: int | None = None) -> dict:
+    """논문 PDF 첫 페이지 → 썸네일 (figure_url 없는 것만)."""
+    from jobs.pdf_thumbnailer import thumb_papers
+    with _track("thumb_papers", triggered_by, run_id=run_id) as stats:
+        s = thumb_papers(limit=30)
+        stats.update(s)
+        return stats
+
+
+def job_screenshot_articles(triggered_by: str = "manual", run_id: int | None = None) -> dict:
+    """기사 첫 화면 스크린샷 → 썸네일 (image_url 없는 것만)."""
+    from jobs.article_screenshotter import screenshot_articles
+    with _track("screenshot_articles", triggered_by, run_id=run_id) as stats:
+        s = screenshot_articles(limit=20)
+        stats.update(s)
+        return stats
+
+
 # ---------- 백필 (dirty 논문 일괄 처리) ----------
 def job_backfill_papers(triggered_by: str = "manual", run_id: int | None = None) -> dict:
     """summary_dirty=True 논문 전부 (또는 limit개) 일괄 요약.
@@ -372,6 +391,24 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
         except Exception:
             logger.exception("collect_all_contests failed in refresh_now")
             stats["contests_new"] = 0
+
+        # 9. 논문 PDF 썸네일 (백그라운드 — 실패해도 진행)
+        _update_phase(run_id, "논문 썸네일 생성 중")
+        try:
+            from jobs.pdf_thumbnailer import thumb_papers
+            t_res = thumb_papers(limit=20)
+            stats["paper_thumbs"] = t_res.get("success", 0)
+        except Exception:
+            logger.exception("thumb_papers failed in refresh_now")
+
+        # 10. 기사 스크린샷 (백그라운드 — 실패해도 진행)
+        _update_phase(run_id, "기사 스크린샷 중")
+        try:
+            from jobs.article_screenshotter import screenshot_articles
+            sc_res = screenshot_articles(limit=15)
+            stats["article_screenshots"] = sc_res.get("success", 0)
+        except Exception:
+            logger.exception("screenshot_articles failed in refresh_now")
 
         _update_phase(run_id, "완료")
         stats["anything_new"] = (

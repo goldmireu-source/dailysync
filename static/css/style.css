@@ -4965,3 +4965,298 @@ body::after {
   transform: rotate(180deg);
 }
 .bn-item.active .bn-chevron { opacity: 1; }
+
+/* =====================================================
+   BENTO GRID — 뉴스 탭 피처드 레이아웃
+   ===================================================== */
+
+/* Today at a Glance 요약 바 */
+.today-glance {
+  display: flex;
+  align-items: center;
+  background: var(--surface, var(--bg-card));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 0;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.tg-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+}
+.tg-num {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  font-family: var(--font-mono, 'Space Mono', monospace);
+  letter-spacing: -.03em;
+}
+.tg-label {
+  font-size: 10.5px;
+  color: var(--text-dim, var(--text-muted));
+  letter-spacing: .05em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.tg-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Bento 그리드 기본 정렬 — 2열 이하 카드는 자연 높이 */
+.carousel-grid--bento {
+  align-items: start;
+}
+
+/* ── 첫 번째 카드: 2열 스팬 ── */
+.carousel-grid--bento > .carousel:first-child {
+  grid-column: span 2;
+}
+
+/* ── 첫 행 두 카드(피처드 + 우측)를 같은 높이로 정렬 ──
+   align-self: stretch 로 행 높이에 맞추고,
+   내부를 flex column 으로 만들어 stage 가 flex:1 로 채우게 함 */
+.carousel-grid--bento > .carousel:first-child,
+.carousel-grid--bento > .carousel:nth-child(2) {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+.carousel-grid--bento > .carousel:first-child .carousel-caption,
+.carousel-grid--bento > .carousel:nth-child(2) .carousel-caption {
+  flex-shrink: 0;
+}
+.carousel-grid--bento > .carousel:first-child .carousel-stage,
+.carousel-grid--bento > .carousel:nth-child(2) .carousel-stage {
+  flex: 1;
+  height: 460px; /* auto 대신 명시적 값 — img(replaced element)의 height:100% 해소에 필요 */
+  min-height: 460px;
+}
+
+/* 피처드 커버 슬라이드 — 좌측 텍스트 + 우측 비주얼 패널 레이아웃 */
+/* 기사: 이미지 50% */
+.carousel-grid--bento > .carousel:first-child .slide.cover {
+  padding-right: calc(50% + 18px);
+}
+/* 논문: 이미지 50% (기사와 동일) */
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover {
+  padding-right: calc(50% + 18px);
+}
+
+/* 우측 기사/논문 이미지 패널 */
+.cover-image {
+  display: none; /* 기본: 숨김 — 피처드 카드에서만 표시 */
+}
+/* 공통 속성 */
+.carousel-grid--bento > .carousel:first-child .slide.cover .cover-image,
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
+  display: block;
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  height: 100%; /* img replaced element — bottom:0 단독으로 늘어나지 않음 */
+  object-fit: cover;
+  object-position: top center;
+  z-index: 1;
+  border-radius: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
+}
+/* 기사 이미지 너비 */
+.carousel-grid--bento > .carousel:first-child .slide.cover .cover-image {
+  width: 50%;
+}
+/* 논문 이미지 너비 */
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
+  width: 50%;
+}
+
+/* 이미지 없을 때 우측 패널: 카테고리 그라디언트 폴백 */
+.carousel-grid--bento > .carousel:first-child .slide.cover:not(:has(.cover-image))::before,
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  border-radius: 0 16px 16px 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.carousel-grid--bento > .carousel:first-child .slide.cover:not(:has(.cover-image))::before {
+  width: 50%;
+}
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
+  width: 50%;
+}
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="policy"]   .slide.cover:not(:has(.cover-image))::before,
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="policy"]   .slide.paper-cover:not(:has(.cover-image))::before {
+  background: linear-gradient(160deg, rgba(244,176,131,.05) 0%, rgba(244,176,131,.18) 100%);
+  border-left: 1px solid rgba(244,176,131,.22);
+}
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="industry"] .slide.cover:not(:has(.cover-image))::before,
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="industry"] .slide.paper-cover:not(:has(.cover-image))::before {
+  background: linear-gradient(160deg, rgba(166,213,133,.05) 0%, rgba(166,213,133,.18) 100%);
+  border-left: 1px solid rgba(166,213,133,.22);
+}
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="research"] .slide.cover:not(:has(.cover-image))::before,
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="research"] .slide.paper-cover:not(:has(.cover-image))::before {
+  background: linear-gradient(160deg, rgba(195,166,236,.05) 0%, rgba(195,166,236,.20) 100%);
+  border-left: 1px solid rgba(195,166,236,.24);
+}
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="ethics"]   .slide.cover:not(:has(.cover-image))::before,
+.carousel-grid--bento > .carousel:first-child .carousel-stage[data-cat="ethics"]   .slide.paper-cover:not(:has(.cover-image))::before {
+  background: linear-gradient(160deg, rgba(240,166,132,.05) 0%, rgba(240,166,132,.18) 100%);
+  border-left: 1px solid rgba(240,166,132,.22);
+}
+
+/* 타이포 강화 + 리드 텍스트 전체 표시 */
+.carousel-grid--bento > .carousel:first-child .slide.cover .cover-title h1 {
+  font-size: 1.5rem;
+  line-height: 1.28;
+}
+.carousel-grid--bento > .carousel:first-child .slide.cover .cover-title .cover-lead {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  font-size: 13.5px;
+  margin-top: 10px;
+  opacity: 0.82;
+  line-height: 1.65;
+}
+
+/* 카테고리별 Ambient Glow — carousel::after 로 stacking context 유지 */
+.carousel {
+  isolation: isolate;
+}
+.carousel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity .4s ease;
+}
+.carousel[data-cat="policy"]::after   { box-shadow: 0 20px 56px -12px rgba(244,176,131,.28); }
+.carousel[data-cat="industry"]::after { box-shadow: 0 20px 56px -12px rgba(166,213,133,.24); }
+.carousel[data-cat="research"]::after { box-shadow: 0 20px 56px -12px rgba(195,166,236,.30); }
+.carousel[data-cat="ethics"]::after   { box-shadow: 0 20px 56px -12px rgba(240,166,132,.26); }
+
+[data-theme="dark"] .carousel[data-cat="policy"]::after   { box-shadow: 0 24px 60px -12px rgba(244,176,131,.22), 0 0 0 1px rgba(244,176,131,.10); }
+[data-theme="dark"] .carousel[data-cat="industry"]::after { box-shadow: 0 24px 60px -12px rgba(166,213,133,.18), 0 0 0 1px rgba(166,213,133,.08); }
+[data-theme="dark"] .carousel[data-cat="research"]::after { box-shadow: 0 24px 60px -12px rgba(195,166,236,.24), 0 0 0 1px rgba(195,166,236,.11); }
+[data-theme="dark"] .carousel[data-cat="ethics"]::after   { box-shadow: 0 24px 60px -12px rgba(240,166,132,.20), 0 0 0 1px rgba(240,166,132,.09); }
+
+/* ===== 원문 링크 카드 — 이미지 영역 ===== */
+.links-slide {
+  padding-bottom: 18px; /* 기존 slide body보다 하단 여유 줄임 */
+}
+
+/* 이미지 or 폴백이 차지하는 유연한 중간 영역 */
+.links-image-area {
+  flex: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0 8px;
+  min-height: 60px;
+  position: relative;
+  background: var(--bg-soft);
+}
+
+.links-image-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  transition: opacity .3s ease;
+}
+
+/* 이미지 로드 실패 시 빈 공간 숨김 — 폴백 없이 깔끔하게 */
+.links-image-area--empty {
+  display: none;
+}
+
+/* 이미지 없을 때 폴백: 카테고리 그라디언트 + 미세 패턴 */
+.links-img-fallback {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+.links-img-fallback.policy   { background: linear-gradient(135deg, var(--cat-policy-soft, #221710)  0%, var(--cat-policy-bg, #3a281d)  100%); }
+.links-img-fallback.industry { background: linear-gradient(135deg, var(--cat-industry-soft, #131d0d) 0%, var(--cat-industry-bg, #233619) 100%); }
+.links-img-fallback.research { background: linear-gradient(135deg, var(--cat-research-soft, #1a1530) 0%, var(--cat-research-bg, #2b2342) 100%); }
+.links-img-fallback.ethics   { background: linear-gradient(135deg, var(--cat-ethics-soft, #22140e)  0%, var(--cat-ethics-bg, #3a241b)  100%); }
+.links-img-fallback.default  { background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-card) 100%); }
+
+/* 라이트 모드 폴백 */
+[data-theme="light"] .links-img-fallback.policy   { background: linear-gradient(135deg, #fef3c7 0%, #fff4ed 100%); }
+[data-theme="light"] .links-img-fallback.industry { background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%); }
+[data-theme="light"] .links-img-fallback.research { background: linear-gradient(135deg, #ede9fe 0%, #faf5ff 100%); }
+[data-theme="light"] .links-img-fallback.ethics   { background: linear-gradient(135deg, #ffedd5 0%, #fff7ed 100%); }
+
+/* 반응형: 900px 미만 — 피처드 카드 단독 전체 폭, 우측 카드 아래로 */
+@media (max-width: 900px) {
+  .carousel-grid--bento > .carousel:first-child {
+    grid-column: 1 / -1;   /* 전체 열 점유 — 우측 카드가 다음 행으로 내려감 */
+  }
+  /* stretch 해제: 900px 이하에선 피처드 혼자 있으므로 자연 높이로 */
+  .carousel-grid--bento > .carousel:first-child,
+  .carousel-grid--bento > .carousel:nth-child(2) {
+    align-self: start;
+  }
+  .carousel-grid--bento > .carousel:first-child .carousel-stage,
+  .carousel-grid--bento > .carousel:nth-child(2) .carousel-stage {
+    flex: none;
+    height: 460px;
+    min-height: 460px;
+  }
+  /* 모바일에서 피처드 이미지 영역 조정 — 기사/논문 별도 */
+  .carousel-grid--bento > .carousel:first-child .slide.cover {
+    padding-right: calc(38% + 14px);
+  }
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover {
+    padding-right: calc(38% + 14px);
+  }
+  .carousel-grid--bento > .carousel:first-child .slide.cover .cover-image,
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
+    right: 14px; top: 0; bottom: 0;
+    width: calc(38% - 14px);
+  }
+  .carousel-grid--bento > .carousel:first-child .slide.cover:not(:has(.cover-image))::before,
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
+    right: 14px; top: 0; bottom: 0;
+    width: calc(38% - 14px);
+  }
+}
+
+/* ===== 피처드 고정(핀) 버튼 ===== */
+.pin-btn {
+  opacity: 0.45;
+  filter: grayscale(1);
+  transition: opacity .2s, filter .2s;
+}
+.pin-btn:hover {
+  opacity: 0.8;
+  filter: none;
+}
+.pin-btn.pinned {
+  opacity: 1;
+  filter: none;
+}
+
+/* 논문 피처드 커버 — 타이포 강화 */
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover .paper-mid h1 {
+  font-size: 1.3rem;
+  line-height: 1.3;
+}
+.carousel-grid--bento > .carousel:first-child .slide.paper-cover {
+  padding-bottom: 60px; /* cover-foot 공간 확보 */
+}

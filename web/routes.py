@@ -451,6 +451,11 @@ def index():
             if c.categories and cat_filter in c.categories
         ]
 
+    # 핀 고정 클러스터를 1페이지 맨 앞으로
+    pinned_items = [(c, sc) for c, sc in scored if c.pinned_featured]
+    rest_items   = [(c, sc) for c, sc in scored if not c.pinned_featured]
+    scored = pinned_items + rest_items
+
     # 전체(필터 적용 후) 클러스터 수
     total_filtered = len(scored)
 
@@ -839,6 +844,19 @@ def unsave_cluster(cluster_id: int):
     cluster.saved_at = None
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@bp.route("/api/cluster/<int:cluster_id>/feature", methods=["POST"])
+@admin_required
+def toggle_cluster_feature(cluster_id: int):
+    """피처드 카드 고정/해제 토글."""
+    cluster = Cluster.query.get(cluster_id)
+    if not cluster:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    cluster.pinned_featured = not cluster.pinned_featured
+    cluster.pinned_at = datetime.utcnow() if cluster.pinned_featured else None
+    db.session.commit()
+    return jsonify({"ok": True, "pinned": cluster.pinned_featured})
 
 
 @bp.route("/api/paper/<int:paper_id>/hide", methods=["POST"])
@@ -1326,6 +1344,8 @@ JOB_LABELS = {
     "backfill_papers": "📚 논문 백필 (dirty 전부)",
     "cleanup_old_data": "🗑️ 4일 이상 데이터 삭제",
     "collect_contests": "🏆 공모전 수집 (위비티·데이콘 등)",
+    "thumb_papers": "🖼️ 논문 PDF 썸네일 생성 (30건)",
+    "screenshot_articles": "📸 기사 스크린샷 (20건)",
 }
 
 
