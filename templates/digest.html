@@ -1691,6 +1691,7 @@ function openCardModal(carousel) {
     const clonedStage = wrapper.querySelector('.carousel-stage');
     if (clonedStage) {
       clonedStage.addEventListener('touchend', function() { setTimeout(updateProgress, 80); });
+      clonedStage.addEventListener('mouseup', function() { setTimeout(updateProgress, 80); });
     }
   })();
 
