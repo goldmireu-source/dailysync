@@ -24,6 +24,7 @@ PAGE_TIMEOUT = 12_000  # ms
 _BLOCKLIST = {
     "twitter.com", "x.com", "instagram.com", "facebook.com", "linkedin.com",
     "techcrunch.com",   # Playwright 봇 차단으로 반복 타임아웃
+    "aitimes.com", "aitimes.kr", "etnews.com", "hani.co.kr",  # 국내 사이트 봇 차단
 }
 
 _HEADERS = {
