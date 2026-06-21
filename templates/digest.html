@@ -288,7 +288,7 @@
       'topic': p.title_ko or p.title,
       'meta': ('⭐ ' ~ p.hf_upvotes) if (p.hf_upvotes and p.hf_upvotes > 0) else 'arXiv'
     } %}
-    {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), p.saved_at is not none, is_bookmarked=(p.id in user_bm_paper_ids)) }}
+    {{ render_carousel('p' ~ p.id, 'paper', item.cards, 'paper', p.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), p.saved_at is not none, is_bookmarked=(p.id in user_bm_paper_ids), is_pinned=(p.pinned_featured or false)) }}
   {% endfor %}
 </div>
 
@@ -1857,6 +1857,17 @@ async function unsaveItem(kind, id) {
 async function togglePinFeatured(clusterId, btn) {
   try {
     const r = await fetch(`/api/cluster/${clusterId}/feature`, { method: 'POST' });
+    const j = await r.json();
+    if (j.ok) {
+      btn.classList.toggle('pinned', j.pinned);
+      btn.title = j.pinned ? '피처드 해제' : '피처드 고정';
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function togglePinPaper(paperId, btn) {
+  try {
+    const r = await fetch(`/api/paper/${paperId}/feature`, { method: 'POST' });
     const j = await r.json();
     if (j.ok) {
       btn.classList.toggle('pinned', j.pinned);

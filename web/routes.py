@@ -513,6 +513,10 @@ def index():
         papers_all = papers_q.filter(
             Paper.hidden_at.is_(None), Paper.saved_at.is_(None)
         ).order_by(*paper_order).all()
+        # 핀 고정 논문을 1페이지 맨 앞으로
+        pinned_p = [p for p in papers_all if p.pinned_featured]
+        rest_p   = [p for p in papers_all if not p.pinned_featured]
+        papers_all = pinned_p + rest_p
 
     hidden_papers_count = papers_q.filter(Paper.hidden_at.isnot(None)).count()
     total_papers_filtered = len(papers_all)
@@ -857,6 +861,19 @@ def toggle_cluster_feature(cluster_id: int):
     cluster.pinned_at = datetime.utcnow() if cluster.pinned_featured else None
     db.session.commit()
     return jsonify({"ok": True, "pinned": cluster.pinned_featured})
+
+
+@bp.route("/api/paper/<int:paper_id>/feature", methods=["POST"])
+@admin_required
+def toggle_paper_feature(paper_id: int):
+    """논문 피처드 고정/해제 토글."""
+    paper = Paper.query.get(paper_id)
+    if not paper:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    paper.pinned_featured = not paper.pinned_featured
+    paper.pinned_at = datetime.utcnow() if paper.pinned_featured else None
+    db.session.commit()
+    return jsonify({"ok": True, "pinned": paper.pinned_featured})
 
 
 @bp.route("/api/paper/<int:paper_id>/hide", methods=["POST"])

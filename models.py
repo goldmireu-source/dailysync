@@ -210,6 +210,8 @@ class Paper(db.Model):
     hidden_at = db.Column(db.DateTime, nullable=True, index=True)  # NULL = 표시, 값 = 숨김
     saved_at = db.Column(db.DateTime, nullable=True, index=True)   # NULL = 미저장, 값 = 저장됨
     figure_url = db.Column(db.String(1000), nullable=True)  # 논문 대표 이미지 (HF 썸네일 등)
+    pinned_featured = db.Column(db.Boolean, default=False, nullable=False)  # 관리자 피처드 고정
+    pinned_at = db.Column(db.DateTime, nullable=True)  # 고정 시각
 
     sent_at = db.Column(db.DateTime)  # 다이제스트 발송 이력 (중복 발송 방지)
 

@@ -255,10 +255,14 @@
         보관
       </button>
       {% endif %}
-      {# 피처드 고정 버튼 — 관리자 전용, 클러스터만 #}
+      {# 피처드 고정 버튼 — 관리자 전용, 클러스터 + 논문 #}
       {% if hide_kind == 'cluster' and g.is_admin %}
       <button class="card-action-btn pin-btn {% if is_pinned %}pinned{% endif %}"
               onclick="event.stopPropagation(); togglePinFeatured({{ hide_id }}, this)"
+              title="{% if is_pinned %}피처드 해제{% else %}피처드 고정{% endif %}">📌</button>
+      {% elif hide_kind == 'paper' and g.is_admin %}
+      <button class="card-action-btn pin-btn {% if is_pinned %}pinned{% endif %}"
+              onclick="event.stopPropagation(); togglePinPaper({{ hide_id }}, this)"
               title="{% if is_pinned %}피처드 해제{% else %}피처드 고정{% endif %}">📌</button>
       {% endif %}
       {# 카드뉴스 생성 버튼 — 관리자 전용 #}
