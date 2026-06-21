@@ -1866,8 +1866,10 @@ async function setImagePosition(clusterId, position, btn) {
       const picker = btn.closest('.image-position-picker');
       picker.querySelectorAll('.pos-dot').forEach(d => d.classList.remove('active'));
       btn.classList.add('active');
-      const img = picker.previousElementSibling;
-      if (img && img.tagName === 'IMG') img.style.objectPosition = position;
+      // 같은 carousel-stage 안의 첫 슬라이드 커버 이미지
+      const stage = picker.closest('.carousel-stage');
+      const img = stage && stage.querySelector('.slide.cover.active .cover-image');
+      if (img) img.style.objectPosition = position;
     }
   } catch (e) { console.error(e); }
 }

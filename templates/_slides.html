@@ -15,25 +15,14 @@
 {% endmacro %}
 
 
-{% macro render_slide(card, idx, total, seq_num=0) %}
+{% macro render_slide(card, idx, total, seq_num=0, image_position="top center") %}
 {% set is_active = idx == 0 %}
 
 {% if card.type == 'cover' %}
 <div class="slide cover {{ card.category }} {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
   {% if card.image_url %}
   <img class="cover-image" src="{{ card.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'"
-       style="object-position: {{ image_position }};"
-       data-cluster-id="{{ hide_id }}">
-  {% if g.is_admin and idx == 0 %}
-  <div class="image-position-picker" data-cluster-id="{{ hide_id }}" onclick="event.stopPropagation()">
-    {% for pos in ["top left","top center","top right","center left","center center","center right","bottom left","bottom center","bottom right"] %}
-    <button class="pos-dot {% if image_position == pos %}active{% endif %}"
-            data-pos="{{ pos }}"
-            onclick="setImagePosition({{ hide_id }}, '{{ pos }}', this)"
-            title="{{ pos }}"></button>
-    {% endfor %}
-  </div>
-  {% endif %}
+       style="object-position: {{ image_position }};">
   {% endif %}
   <div class="watermark">{{ '%02d' % seq_num }}</div>
 
@@ -286,8 +275,20 @@
       {% endif %}
     </div>
 
+    {# 이미지 포지션 피커 — 관리자 전용, 클러스터 커버 이미지 있을 때만 #}
+    {% if hide_kind == 'cluster' and g.is_admin and cards and cards[0].type == 'cover' and cards[0].image_url %}
+    <div class="image-position-picker" onclick="event.stopPropagation()">
+      {% for pos in ["top left","top center","top right","center left","center center","center right","bottom left","bottom center","bottom right"] %}
+      <button class="pos-dot {% if image_position == pos %}active{% endif %}"
+              data-pos="{{ pos }}"
+              onclick="setImagePosition({{ hide_id }}, '{{ pos }}', this)"
+              title="{{ pos }}"></button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% for card in cards %}
-      {{ render_slide(card, loop.index0, cards|length, seq_num) }}
+      {{ render_slide(card, loop.index0, cards|length, seq_num, image_position) }}
     {% endfor %}
 
     {% if cards|length > 1 %}
