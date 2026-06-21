@@ -25,21 +25,25 @@ _DDAY_RE = re.compile(r"(\d+)\s*일\s*남음")
 _PERIOD_RE = re.compile(r"(\d{2})\.(\d{1,2})\.(\d{1,2})")
 # 상태 배지: '5일 남음'(접수중) | '심사중' | '종료' | '발표' | '접수예정' ...
 _OPEN_RE = re.compile(r"\d+\s*일\s*남음")
-DETAIL_SLEEP = 0.5
+DETAIL_SLEEP = 1.5
 
 
-def _fetch_og_image(cid: str) -> str | None:
-    """상세페이지 og:image 추출 (SSR 메타태그 — 로그인 불필요)."""
-    try:
-        resp = http_get(f"{BASE}/contest/view/{cid}", encoding="utf-8")
-        soup = BeautifulSoup(resp.text, "lxml")
-        og = soup.find("meta", property="og:image")
-        if og and og.get("content"):
-            src = og["content"].strip()
-            if src and src.startswith("http"):
-                return src
-    except Exception:
-        pass
+def _fetch_banner_image(cid: str) -> str | None:
+    """상세페이지를 Playwright로 렌더해 배너 이미지 URL 추출.
+
+    loud.kr 상세페이지는 SPA라 SSR og:image가 사이트 공통 썸네일만 반환함.
+    렌더 후 alt='배너 이미지' img 태그에서 실제 포스터 URL을 추출한다.
+    """
+    from jobs.contest_sources._render import render_html
+    html = render_html(f"{BASE}/contest/view/{cid}", wait_for="img[alt='배너 이미지']", scrolls=0)
+    if not html:
+        return None
+    soup = BeautifulSoup(html, "lxml")
+    img = soup.find("img", alt="배너 이미지")
+    if img:
+        src = img.get("src", "").strip()
+        if src and src.startswith("http") and "cdn-dantats" in src:
+            return src
     return None
 
 
@@ -110,17 +114,10 @@ def fetch() -> list[ContestDraft]:
             if dm:
                 deadline = base_day + timedelta(days=int(dm.group(1)))
 
-        # 이미지: 렌더된 카드 HTML 에서 우선 추출, 없으면 상세페이지 og:image 시도
-        image_url = None
-        card_img = a.find("img", src=True)
-        if card_img:
-            src = card_img.get("src", "")
-            if src and not src.startswith("data:") and "placeholder" not in src.lower():
-                image_url = src if src.startswith("http") else f"{BASE}{src}"
-        if not image_url:
-            image_url = _fetch_og_image(cid)
-            if image_url:
-                time.sleep(DETAIL_SLEEP)
+        # 이미지: 상세페이지 Playwright 렌더로 배너 이미지 추출
+        # (목록 카드에는 포스터가 없고 아바타만 있음)
+        image_url = _fetch_banner_image(cid)
+        time.sleep(DETAIL_SLEEP)
 
         out.append(ContestDraft(
             source="loud",
