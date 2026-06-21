@@ -1409,9 +1409,12 @@ body.modal-open .bottom-nav { display: none !important; }
 }
 .modal-progress-wrap {
   height: 3px;
-  background: rgba(128, 128, 128, 0.18);
+  background: rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
   overflow: hidden;
+}
+[data-theme="dark"] .modal-progress-wrap {
+  background: rgba(255, 255, 255, 0.1);
 }
 .modal-progress-fill {
   height: 100%;
@@ -1453,12 +1456,13 @@ body.modal-open .bottom-nav { display: none !important; }
   min-height: 0;
 }
 
-/* 모달 안 carousel — 사이즈 확대 + 모서리 제거 (외곽 모달이 클리핑 담당) */
+/* 모달 안 carousel — 사이즈 확대 + 모서리/테두리 제거 (외곽 모달이 클리핑 담당) */
 .card-modal-body .carousel-stage {
   height: auto;
   aspect-ratio: 4 / 5;
   max-height: 100%;
   border-radius: 0 !important;
+  border: none !important;
   box-shadow: none !important;
   transform: none !important;
   cursor: default !important;
@@ -1651,6 +1655,7 @@ body.modal-open .bottom-nav { display: none !important; }
     aspect-ratio: auto;
     flex: 1;
     border-radius: 0 !important;
+    border: none !important;
     box-shadow: none !important;
     position: relative;
   }
