@@ -37,6 +37,7 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+.claude/
 
 # ===== 사용자 업로드 이미지 =====
 static/uploads/

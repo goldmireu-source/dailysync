@@ -25,26 +25,96 @@ _DDAY_RE   = re.compile(r"(\d+)\s*일\s*남음")
 _PERIOD_RE = re.compile(r"(\d{2})\.(\d{1,2})\.(\d{1,2})")
 _OPEN_RE   = re.compile(r"\d+\s*일\s*남음")
 
+# 추출된 참가대상 텍스트의 신뢰도 판정 — 이 중 하나라도 있어야 실제 참가대상 문구로 인정.
+# 없으면 잘못된 텍스트를 뽑은 것이므로 None 반환(보수적 통과).
+_TARGET_CONFIDENCE_TOKENS = (
+    "누구나", "일반인", "일반 성인", "대학생", "대학원생", "재학생", "졸업생",
+    "초등", "중학", "고등", "초·중", "중·고", "청소년", "학생", "학부생",
+    "직장인", "성인", "시민", "국민", "내국인", "외국인", "전공자",
+    "기업", "법인", "개인", "팀", "제한없음", "제한 없음", "나이 무관",
+)
+
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
 
-def _fetch_loud_data() -> tuple[str | None, dict[str, str | None]]:
-    """로그인 세션 하나에서 목록 HTML + 상세 페이지 포스터 {cid: url} 반환.
+def _extract_target(page) -> str | None:
+    """상세 페이지 메인 프레임에서 참가대상 텍스트를 추출한다.
+
+    DOM 구조(dt→dd, th→td, 인접 형제) 우선, 폴백으로 렌더드 텍스트에서
+    레이블 직후 줄을 읽는다. 신뢰도 토큰이 없으면 None 반환(보수적 통과).
+    """
+    _LABELS = ["참가대상", "참가 대상", "지원자격", "지원 자격",
+               "참여대상", "참여 대상", "참가자격"]
+    try:
+        result = page.evaluate("""
+            (labels) => {
+                // 1. dt→dd / th→td 구조
+                for (const label of labels) {
+                    for (const el of document.querySelectorAll('dt, th')) {
+                        if (el.textContent.trim() === label) {
+                            const val = el.nextElementSibling;
+                            if (val) return val.textContent.trim().slice(0, 300);
+                        }
+                    }
+                }
+                // 2. 리프 span/div/p가 레이블 역할인 경우 → 다음 형제
+                for (const label of labels) {
+                    for (const el of document.querySelectorAll('span, div, p')) {
+                        if (el.childElementCount === 0 && el.textContent.trim() === label) {
+                            const next = el.nextElementSibling;
+                            if (next && next.textContent.trim().length > 1) {
+                                return next.textContent.trim().slice(0, 300);
+                            }
+                        }
+                    }
+                }
+                // 3. innerText 폴백 — 레이블 직후 첫 줄
+                const body = document.body.innerText || '';
+                for (const label of labels) {
+                    const idx = body.indexOf(label);
+                    if (idx === -1) continue;
+                    const after = body.slice(idx + label.length).replace(/^[\\s:*]+/, '').trim();
+                    const line = after.split(/\\n/)[0].trim();
+                    // 너무 짧거나 다음 레이블로 이어지면 무시
+                    if (line.length > 2 && line.length < 150 &&
+                            !labels.some(l => line.startsWith(l))) {
+                        return line;
+                    }
+                }
+                return null;
+            }
+        """, _LABELS)
+        extracted = (result or "").strip() or None
+    except Exception:
+        return None
+
+    if not extracted:
+        return None
+    # 신뢰도 검사 — 참가대상 관련 단어가 하나라도 없으면 잘못 추출된 것으로 간주
+    if not any(tok in extracted for tok in _TARGET_CONFIDENCE_TOKENS):
+        logger.debug(f"loud target 신뢰도 미달 → 무시: {extracted!r}")
+        return None
+    return extracted
+
+
+def _fetch_loud_data() -> tuple[str | None, dict[str, str | None], dict[str, str | None]]:
+    """로그인 세션 하나에서 목록 HTML + 상세 페이지 포스터/참가대상 반환.
 
     포스터는 상세 페이지의 iframe[2] 내 img.src에서 추출 (주최자 기관 외부 도메인 호스팅).
-    미설정/실패 시 (None, {}) 반환.
+    참가대상(target)은 메인 프레임에서 추출 — 신뢰도 미달 시 None(보수적 통과).
+    미설정/실패 시 (None, {}, {}) 반환.
     """
     email    = os.environ.get("LOUD_EMAIL", "").strip()
     password = os.environ.get("LOUD_PASSWORD", "").strip()
     if not email or not password:
         logger.info("LOUD_EMAIL/LOUD_PASSWORD 미설정 — 이미지 없이 수집")
-        return None, {}
+        return None, {}, {}
 
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return None, {}
+        return None, {}, {}
 
     try:
         with sync_playwright() as pw:
@@ -61,7 +131,7 @@ def _fetch_loud_data() -> tuple[str | None, dict[str, str | None]]:
             if "login" in page.url:
                 logger.warning(f"loud.kr 로그인 실패 (URL: {page.url})")
                 browser.close()
-                return None, {}
+                return None, {}, {}
             logger.info(f"loud.kr 로그인 성공: {page.url}")
 
             # 목록 페이지 렌더
@@ -93,8 +163,9 @@ def _fetch_loud_data() -> tuple[str | None, dict[str, str | None]]:
                 seen_pre.add(cid)
                 open_cids.append(cid)
 
-            # 상세 페이지별 포스터 추출 (iframe[2] 내 img)
+            # 상세 페이지별 포스터 + 참가대상 추출
             posters: dict[str, str | None] = {}
+            targets: dict[str, str | None] = {}
             for cid in open_cids:
                 try:
                     page.goto(f"{BASE}/contest/view/{cid}",
@@ -124,19 +195,26 @@ def _fetch_loud_data() -> tuple[str | None, dict[str, str | None]]:
                         except Exception:
                             pass
 
+                    # 메인 프레임에서 참가대상 추출 (신뢰도 미달 시 None)
+                    target_text = _extract_target(page)
+
                     posters[cid] = poster_url
+                    targets[cid] = target_text
                     if poster_url:
                         logger.debug(f"loud {cid} 포스터: {poster_url[:80]}")
+                    if target_text:
+                        logger.debug(f"loud {cid} 참가대상: {target_text[:60]}")
                 except Exception as e:
                     logger.debug(f"loud 상세 {cid} 렌더 실패: {e}")
                     posters[cid] = None
+                    targets[cid] = None
 
             browser.close()
-            return list_html, posters
+            return list_html, posters, targets
 
     except Exception as e:
         logger.warning(f"loud 수집 오류: {e}")
-        return None, {}
+        return None, {}, {}
 
 
 def _is_open(a) -> bool:
@@ -163,8 +241,8 @@ def _period_end(a) -> date | None:
 
 @register("loud")
 def fetch() -> list[ContestDraft]:
-    list_html, posters = _fetch_loud_data()
-    # 로그인 실패/미설정 시 비로그인 렌더로 폴백(이미지 없음)
+    list_html, posters, targets = _fetch_loud_data()
+    # 로그인 실패/미설정 시 비로그인 렌더로 폴백(이미지·참가대상 없음)
     if not list_html:
         list_html = render_html(LIST_URL, wait_for="a[href*='/contest/view/']", scrolls=3)
     if not list_html:
@@ -205,13 +283,15 @@ def fetch() -> list[ContestDraft]:
             "title": title,
             "deadline": deadline,
             "image_url": posters.get(cid) if posters else None,
+            "target": targets.get(cid) if targets else None,
         })
 
     if not drafts:
         return []
 
     with_img = sum(1 for d in drafts if d["image_url"])
-    logger.info(f"loud: {len(drafts)}건 수집, 이미지 {with_img}건")
+    with_target = sum(1 for d in drafts if d["target"])
+    logger.info(f"loud: {len(drafts)}건 수집, 이미지 {with_img}건, 참가대상 {with_target}건")
 
     return [
         ContestDraft(
@@ -220,6 +300,7 @@ def fetch() -> list[ContestDraft]:
             url=f"{BASE}/contest/view/{d['cid']}",
             title=d["title"][:500],
             image_url=d["image_url"],
+            target=d["target"],
             category="공모전",
             field_tags=["AI"],
             deadline=d["deadline"],
