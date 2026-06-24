@@ -1,0 +1,125 @@
+# AI News Digest — Source Seed
+#
+# tier 1: 핵심 매체 (가중치 높음)
+# tier 2: 1차 출처 (모델 공급사 공식 블로그)
+# needs_ai_filter: true → 종합 매체에서 AI 키워드로 사전 필터링 필요
+
+- name: "AI타임스"
+  url: "https://www.aitimes.com/rss/allArticle.xml"
+  lang: ko
+  tier: 1
+  needs_ai_filter: false
+
+- name: "인공지능신문"
+  url: "https://www.aitimes.kr/rss/allArticle.xml"
+  lang: ko
+  tier: 1
+  needs_ai_filter: false
+
+- name: "MIT Technology Review (AI)"
+  url: "https://www.technologyreview.com/topic/artificial-intelligence/feed"
+  lang: en
+  tier: 1
+  needs_ai_filter: false
+
+- name: "TechCrunch AI"
+  url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+  lang: en
+  tier: 1
+  needs_ai_filter: false
+
+- name: "The Verge AI"
+  url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+  lang: en
+  tier: 1
+  needs_ai_filter: false
+
+# ZDNet Korea — feeds.zdnet.com SSL 오류(2026-05) → FeedBurner 대체 URL로 교체(2026-06). AI 전문 커버리지 우수.
+- name: "ZDNet Korea"
+  url: "https://feeds.feedburner.com/zdkorea"
+  lang: ko
+  tier: 1
+  needs_ai_filter: false
+
+- name: "전자신문 (SW/AI)"
+  url: "https://rss.etnews.com/Section902.xml"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+
+# ===== 추가 국내 신문사 (2026-05-14 추가) =====
+- name: "한국경제 IT"
+  url: "https://www.hankyung.com/feed/it"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+
+- name: "매일경제 IT/과학"
+  url: "https://www.mk.co.kr/rss/30100041/"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+
+# 블로터 RSS 폐기됨 (2026-05 확인, 404). 사이트는 살아있으나 피드 경로 없음.
+- name: "블로터"
+  url: "https://www.bloter.net/feed"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+  active: false
+
+# IT조선 RSS 폐기됨 (2026-05 확인, 404).
+- name: "IT조선"
+  url: "https://it.chosun.com/rss.xml"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+  active: false
+
+- name: "한겨레 (전체)"
+  url: "https://www.hani.co.kr/rss/"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+
+# 연합뉴스 IT/과학 카테고리 폐기됨 (2026-06 확인). 현재 제공 카테고리: news/economy/industry/politics 등.
+# industry.xml(산업)이 가장 유사하나 AI 관련성 낮음 — needs_ai_filter: true 로 추가 가능하나 보류.
+- name: "연합뉴스 산업"
+  url: "https://www.yna.co.kr/rss/industry.xml"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+  active: false
+
+# ===== 1차 출처 (모델 공급사 공식) =====
+- name: "OpenAI"
+  url: "https://openai.com/news/rss.xml"
+  lang: en
+  tier: 2
+  needs_ai_filter: false
+
+# Anthropic 공식 RSS 폐기 (2026-05 확인, 404). 뉴스룸 페이지에 feed link 없음.
+# Tier-2 1순위 소스라 아쉬움 — 추후 대체 채널(예: Anthropic 블로그 별도 피드) 확인 필요.
+- name: "Anthropic"
+  url: "https://www.anthropic.com/news/rss.xml"
+  lang: en
+  tier: 2
+  needs_ai_filter: false
+  active: false
+
+- name: "Google DeepMind"
+  url: "https://deepmind.google/blog/rss.xml"
+  lang: en
+  tier: 2
+  needs_ai_filter: false
+
+# ===== 추가 국내 신문사 (2026-06-24 추가) =====
+- name: "디지털타임스"
+  url: "https://www.dt.co.kr/rss/google/latest"
+  lang: ko
+  tier: 1
+  needs_ai_filter: true
+
+# hellodd.com — RSS/피드 없음(2026-06 확인). Google News 사이트맵만 존재.
+# platum.kr — RSS 403 차단(2026-06 확인).
+# digitaltoday.co.kr — RSS 없음/차단(2026-06 확인).

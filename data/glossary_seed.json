@@ -1,0 +1,429 @@
+[
+  {
+    "term": "Transformer",
+    "term_ko": "트랜스포머",
+    "aliases": [],
+    "category": "architecture",
+    "explain_ko": "어텐션 메커니즘을 핵심으로 하는 신경망 구조. 2017년 구글이 제안했으며 현대 LLM의 기반이 되었다."
+  },
+  {
+    "term": "Attention",
+    "term_ko": "어텐션",
+    "aliases": ["self-attention", "Self-Attention"],
+    "category": "architecture",
+    "explain_ko": "입력 시퀀스 내 토큰들 간 가중치를 학습해 중요한 부분에 집중하는 메커니즘."
+  },
+  {
+    "term": "Embedding",
+    "term_ko": "임베딩",
+    "aliases": ["embeddings"],
+    "category": "general",
+    "explain_ko": "단어·문장·이미지를 고차원 벡터로 변환한 표현. 의미적 유사도를 거리로 계산할 수 있다."
+  },
+  {
+    "term": "Fine-tuning",
+    "term_ko": "파인튜닝",
+    "aliases": ["finetuning", "fine tuning"],
+    "category": "training",
+    "explain_ko": "사전 학습된 모델을 특정 작업이나 도메인에 맞게 추가 학습하는 과정."
+  },
+  {
+    "term": "Pretraining",
+    "term_ko": "사전학습",
+    "aliases": ["pre-training", "pre training"],
+    "category": "training",
+    "explain_ko": "대규모 일반 데이터로 모델을 처음 학습시키는 단계. 이후 파인튜닝의 기반이 된다."
+  },
+  {
+    "term": "Prompt",
+    "term_ko": "프롬프트",
+    "aliases": ["prompting"],
+    "category": "general",
+    "explain_ko": "LLM에 입력하는 지시문이나 질문. 프롬프트 설계로 모델 행동을 유도한다."
+  },
+  {
+    "term": "Agent",
+    "term_ko": "에이전트",
+    "aliases": ["AI agent", "agentic"],
+    "category": "general",
+    "explain_ko": "도구를 사용하고 다단계 작업을 자율적으로 수행하는 AI 시스템."
+  },
+  {
+    "term": "Inference",
+    "term_ko": "추론",
+    "aliases": [],
+    "category": "general",
+    "explain_ko": "학습된 모델로 새로운 입력에 대한 결과를 생성하는 단계."
+  },
+  {
+    "term": "Benchmark",
+    "term_ko": "벤치마크",
+    "aliases": [],
+    "category": "metric",
+    "explain_ko": "모델 성능을 표준화된 데이터셋과 지표로 측정하는 평가 도구."
+  },
+  {
+    "term": "Reasoning",
+    "term_ko": "추론 (리즈닝)",
+    "aliases": [],
+    "category": "general",
+    "explain_ko": "단계적 사고를 통해 결론에 도달하는 모델의 능력. 최근 o1·DeepSeek-R1 등이 이를 강화."
+  },
+  {
+    "term": "Zero-shot",
+    "term_ko": "제로샷",
+    "aliases": ["zero shot"],
+    "category": "training",
+    "explain_ko": "특정 작업에 대한 별도 학습 없이 모델이 곧바로 수행하는 방식."
+  },
+  {
+    "term": "Few-shot",
+    "term_ko": "퓨샷",
+    "aliases": ["few shot"],
+    "category": "training",
+    "explain_ko": "소수의 예시만 프롬프트에 제공해 모델이 작업을 학습·수행하게 하는 방식."
+  },
+  {
+    "term": "LLM",
+    "term_ko": "LLM",
+    "aliases": ["large language model"],
+    "category": "model",
+    "explain_ko": "대규모 언어 모델 (Large Language Model). 수십억~수조 파라미터로 학습된 텍스트 생성 모델."
+  },
+  {
+    "term": "RAG",
+    "term_ko": "RAG",
+    "aliases": ["Retrieval-Augmented Generation"],
+    "category": "architecture",
+    "explain_ko": "검색 기반 생성. 외부 지식 베이스에서 관련 문서를 찾아 LLM에 함께 입력해 정확도를 높인다."
+  },
+  {
+    "term": "RLHF",
+    "term_ko": "RLHF",
+    "aliases": ["Reinforcement Learning from Human Feedback"],
+    "category": "rl",
+    "explain_ko": "사람 피드백 기반 강화학습. ChatGPT의 핵심 학습 기법."
+  },
+  {
+    "term": "DPO",
+    "term_ko": "DPO",
+    "aliases": ["Direct Preference Optimization"],
+    "category": "rl",
+    "explain_ko": "직접 선호 최적화. RLHF의 보상 모델 없이 선호 데이터로 직접 학습하는 단순화 기법."
+  },
+  {
+    "term": "GRPO",
+    "term_ko": "GRPO",
+    "aliases": ["Group Relative Policy Optimization"],
+    "category": "rl",
+    "explain_ko": "그룹 상대 정책 최적화. DeepSeek이 R1에 사용한 효율적인 RL 알고리즘."
+  },
+  {
+    "term": "PPO",
+    "term_ko": "PPO",
+    "aliases": ["Proximal Policy Optimization"],
+    "category": "rl",
+    "explain_ko": "근접 정책 최적화. 강화학습의 대표적 알고리즘으로 RLHF에 많이 사용."
+  },
+  {
+    "term": "MoE",
+    "term_ko": "MoE",
+    "aliases": ["Mixture of Experts"],
+    "category": "architecture",
+    "explain_ko": "전문가 혼합 모델. 입력별로 일부 파라미터(전문가)만 활성화해 효율을 높인다."
+  },
+  {
+    "term": "Diffusion Model",
+    "term_ko": "디퓨전 모델",
+    "aliases": ["diffusion"],
+    "category": "model",
+    "explain_ko": "노이즈를 점진적으로 제거해 이미지·동영상을 생성하는 모델. Stable Diffusion, DALL-E 등이 사용."
+  },
+  {
+    "term": "Multimodal",
+    "term_ko": "멀티모달",
+    "aliases": ["multi-modal"],
+    "category": "general",
+    "explain_ko": "텍스트·이미지·오디오 등 여러 형식의 데이터를 동시에 처리하는 모델."
+  },
+  {
+    "term": "VLM",
+    "term_ko": "VLM",
+    "aliases": ["Vision-Language Model"],
+    "category": "model",
+    "explain_ko": "비전-언어 모델. 이미지와 텍스트를 함께 이해·생성하는 멀티모달 모델."
+  },
+  {
+    "term": "Embodied AI",
+    "term_ko": "체화 AI (임바디드 AI)",
+    "aliases": ["embodied"],
+    "category": "general",
+    "explain_ko": "물리적 환경과 상호작용하며 학습·행동하는 AI. 로봇·자율주행에 적용."
+  },
+  {
+    "term": "World Model",
+    "term_ko": "월드 모델",
+    "aliases": ["world models"],
+    "category": "architecture",
+    "explain_ko": "환경의 동작을 내부 시뮬레이션으로 학습해 미래를 예측하는 모델."
+  },
+  {
+    "term": "Hallucination",
+    "term_ko": "할루시네이션 (환각)",
+    "aliases": ["hallucinations"],
+    "category": "general",
+    "explain_ko": "LLM이 사실과 다른 정보를 그럴듯하게 생성하는 현상."
+  },
+  {
+    "term": "Token",
+    "term_ko": "토큰",
+    "aliases": ["tokens", "tokenization"],
+    "category": "general",
+    "explain_ko": "텍스트를 모델이 처리하는 최소 단위. 단어 일부, 문자, 서브워드 등이 될 수 있다."
+  },
+  {
+    "term": "Context Window",
+    "term_ko": "컨텍스트 윈도우",
+    "aliases": ["context length"],
+    "category": "general",
+    "explain_ko": "모델이 한 번에 처리할 수 있는 입력 토큰의 최대 길이."
+  },
+  {
+    "term": "CoT",
+    "term_ko": "CoT (생각 사슬)",
+    "aliases": ["Chain of Thought", "Chain-of-Thought"],
+    "category": "training",
+    "explain_ko": "사고 사슬. 모델이 단계별로 추론 과정을 출력하도록 유도하는 프롬프트 기법."
+  },
+  {
+    "term": "Distillation",
+    "term_ko": "디스틸레이션 (증류)",
+    "aliases": ["knowledge distillation"],
+    "category": "training",
+    "explain_ko": "큰 모델(teacher)의 지식을 작은 모델(student)에 전수해 효율을 높이는 기법."
+  },
+  {
+    "term": "LoRA",
+    "term_ko": "LoRA",
+    "aliases": ["Low-Rank Adaptation"],
+    "category": "training",
+    "explain_ko": "저차원 행렬만 학습해 큰 모델을 효율적으로 파인튜닝하는 기법."
+  },
+  {
+    "term": "Quantization",
+    "term_ko": "양자화",
+    "aliases": [],
+    "category": "general",
+    "explain_ko": "모델 파라미터의 정밀도를 낮춰(예: FP16→INT8) 메모리·속도를 개선하는 기법."
+  },
+  {
+    "term": "MLP",
+    "term_ko": "MLP",
+    "aliases": ["multi-layer perceptron"],
+    "category": "architecture",
+    "explain_ko": "다층 퍼셉트론. 가장 기본적인 신경망 구조의 하나로 트랜스포머에도 포함된다."
+  },
+  {
+    "term": "Encoder",
+    "term_ko": "인코더",
+    "aliases": [],
+    "category": "architecture",
+    "explain_ko": "입력을 잠재 표현으로 변환하는 신경망 구성요소. BERT 등이 인코더 기반."
+  },
+  {
+    "term": "Decoder",
+    "term_ko": "디코더",
+    "aliases": [],
+    "category": "architecture",
+    "explain_ko": "잠재 표현에서 출력을 생성하는 신경망 구성요소. GPT 계열이 디코더 기반."
+  },
+  {
+    "term": "Backbone",
+    "term_ko": "백본",
+    "aliases": [],
+    "category": "architecture",
+    "explain_ko": "신경망의 핵심 특징 추출 부분. ResNet, ViT 등이 이미지 백본으로 자주 쓰인다."
+  },
+  {
+    "term": "Latent Space",
+    "term_ko": "잠재 공간",
+    "aliases": ["latent"],
+    "category": "general",
+    "explain_ko": "신경망이 데이터를 압축·표현하는 추상적 고차원 공간."
+  },
+  {
+    "term": "Reward Model",
+    "term_ko": "리워드 모델",
+    "aliases": [],
+    "category": "rl",
+    "explain_ko": "응답의 좋고 나쁨을 점수로 매기는 모델. RLHF에서 핵심 역할."
+  },
+  {
+    "term": "SFT",
+    "term_ko": "SFT",
+    "aliases": ["Supervised Fine-Tuning"],
+    "category": "training",
+    "explain_ko": "지도 파인튜닝. 라벨링된 데이터로 모델을 학습시키는 기본적인 파인튜닝 방식."
+  },
+  {
+    "term": "Self-Supervised",
+    "term_ko": "자기지도학습",
+    "aliases": ["self-supervised learning"],
+    "category": "training",
+    "explain_ko": "라벨 없이 데이터 자체에서 학습 신호를 만들어 학습하는 방식."
+  },
+  {
+    "term": "Benchmark",
+    "term_ko": "벤치마크",
+    "aliases": [],
+    "category": "metric",
+    "explain_ko": "표준화된 평가 데이터셋과 지표로 모델 성능을 비교하는 도구."
+  },
+  {
+    "term": "FLOPs",
+    "term_ko": "FLOPs",
+    "aliases": ["FLOP"],
+    "category": "metric",
+    "explain_ko": "부동소수점 연산 횟수. 모델의 계산 비용을 표현하는 단위."
+  },
+  {
+    "term": "Perplexity",
+    "term_ko": "퍼플렉시티",
+    "aliases": [],
+    "category": "metric",
+    "explain_ko": "언어모델의 예측 불확실성 지표. 낮을수록 더 좋은 모델."
+  },
+  {
+    "term": "Tool Use",
+    "term_ko": "툴 유스 (도구 사용)",
+    "aliases": ["function calling"],
+    "category": "general",
+    "explain_ko": "LLM이 외부 함수나 API를 호출해 작업을 수행하는 능력."
+  },
+  {
+    "term": "MCP",
+    "term_ko": "MCP",
+    "aliases": ["Model Context Protocol"],
+    "category": "general",
+    "explain_ko": "모델 컨텍스트 프로토콜. AI 모델이 외부 도구·데이터에 표준화된 방식으로 접근하는 프로토콜."
+  },
+  {
+    "term": "ViT",
+    "term_ko": "ViT",
+    "aliases": ["Vision Transformer"],
+    "category": "model",
+    "explain_ko": "비전 트랜스포머. 이미지에 트랜스포머를 적용한 모델."
+  },
+  {
+    "term": "GAN",
+    "term_ko": "GAN",
+    "aliases": ["Generative Adversarial Network"],
+    "category": "model",
+    "explain_ko": "생성적 적대 신경망. 생성기와 판별기를 경쟁시켜 학습하는 생성 모델."
+  },
+  {
+    "term": "VAE",
+    "term_ko": "VAE",
+    "aliases": ["Variational Autoencoder"],
+    "category": "model",
+    "explain_ko": "변분 오토인코더. 확률적 잠재 변수로 데이터를 압축·생성하는 모델."
+  },
+  {
+    "term": "Gradient Descent",
+    "term_ko": "경사하강법",
+    "aliases": [],
+    "category": "training",
+    "explain_ko": "오차를 줄이는 방향으로 파라미터를 반복 갱신하는 최적화 알고리즘."
+  },
+  {
+    "term": "Backpropagation",
+    "term_ko": "역전파",
+    "aliases": ["backprop"],
+    "category": "training",
+    "explain_ko": "출력 오차를 입력 방향으로 전파하며 각 가중치의 기여도를 계산하는 학습 알고리즘."
+  },
+  {
+    "term": "Overfitting",
+    "term_ko": "과적합",
+    "aliases": [],
+    "category": "training",
+    "explain_ko": "학습 데이터에만 지나치게 맞아 새 데이터에선 성능이 떨어지는 현상."
+  },
+  {
+    "term": "Reinforcement Learning",
+    "term_ko": "강화학습",
+    "aliases": ["RL"],
+    "category": "rl",
+    "explain_ko": "보상을 최대화하는 행동을 시행착오로 학습하는 학습 패러다임."
+  },
+  {
+    "term": "GPU",
+    "term_ko": "GPU",
+    "aliases": ["graphics processing unit"],
+    "category": "general",
+    "explain_ko": "그래픽 처리 장치. 병렬 연산에 강해 딥러닝 학습의 표준 하드웨어."
+  },
+  {
+    "term": "TPU",
+    "term_ko": "TPU",
+    "aliases": ["Tensor Processing Unit"],
+    "category": "general",
+    "explain_ko": "구글이 만든 텐서 연산 특화 칩. 대규모 학습에 활용."
+  },
+  {
+    "term": "Dataset",
+    "term_ko": "데이터셋",
+    "aliases": [],
+    "category": "general",
+    "explain_ko": "모델 학습·평가에 사용되는 정제된 데이터 묶음."
+  },
+  {
+    "term": "Open Weight",
+    "term_ko": "오픈 웨이트",
+    "aliases": ["open-weight", "open weights"],
+    "category": "general",
+    "explain_ko": "모델 가중치가 공개되어 누구나 다운로드·활용 가능한 모델."
+  },
+  {
+    "term": "Closed Source",
+    "term_ko": "클로즈드 소스",
+    "aliases": ["closed-source"],
+    "category": "general",
+    "explain_ko": "코드와 가중치가 비공개로, API로만 접근 가능한 모델."
+  },
+  {
+    "term": "Scaling Law",
+    "term_ko": "스케일링 법칙",
+    "aliases": ["scaling laws"],
+    "category": "training",
+    "explain_ko": "모델 크기·데이터·연산량과 성능의 관계를 정량적으로 나타낸 경험 법칙."
+  },
+  {
+    "term": "Inference Time",
+    "term_ko": "추론 시간",
+    "aliases": ["test-time", "test time"],
+    "category": "general",
+    "explain_ko": "학습 후 모델이 실제 입력에 응답하는 단계. 최근 추론 시점에 추가 연산으로 성능을 높이는 연구가 늘었다."
+  },
+  {
+    "term": "Sparse Attention",
+    "term_ko": "스파스 어텐션",
+    "aliases": ["sparse"],
+    "category": "architecture",
+    "explain_ko": "전체가 아닌 일부 토큰 쌍에만 어텐션을 계산해 효율을 높이는 기법."
+  },
+  {
+    "term": "KV Cache",
+    "term_ko": "KV 캐시",
+    "aliases": ["KV-cache", "key-value cache"],
+    "category": "general",
+    "explain_ko": "트랜스포머 추론 시 이전 토큰의 키·값 벡터를 캐싱해 속도를 높이는 기법."
+  },
+  {
+    "term": "Speculative Decoding",
+    "term_ko": "스펙큘레이티브 디코딩",
+    "aliases": [],
+    "category": "general",
+    "explain_ko": "작은 모델로 먼저 토큰을 예측하고 큰 모델이 검증하는 추론 가속 기법."
+  }
+]
