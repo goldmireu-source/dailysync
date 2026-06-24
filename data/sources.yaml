@@ -60,13 +60,13 @@
   tier: 1
   needs_ai_filter: true
 
-# 블로터 RSS 폐기됨 (2026-05 확인, 404). 사이트는 살아있으나 피드 경로 없음.
+# 블로터 RSS 차단 → Google News Sitemap으로 대체(2026-06). sitemap.xml에 최신 100건 수록.
 - name: "블로터"
-  url: "https://www.bloter.net/feed"
+  url: "https://www.bloter.net/sitemap.xml"
   lang: ko
   tier: 1
   needs_ai_filter: true
-  active: false
+  feed_type: sitemap
 
 # IT조선 RSS 폐기됨 (2026-05 확인, 404).
 - name: "IT조선"
@@ -82,14 +82,12 @@
   tier: 1
   needs_ai_filter: true
 
-# 연합뉴스 IT/과학 카테고리 폐기됨 (2026-06 확인). 현재 제공 카테고리: news/economy/industry/politics 등.
-# industry.xml(산업)이 가장 유사하나 AI 관련성 낮음 — needs_ai_filter: true 로 추가 가능하나 보류.
+# 연합뉴스 IT/과학 카테고리 폐기됨 (2026-06 확인) → industry.xml(산업)으로 대체. IT/과학 기사 포함 확인됨.
 - name: "연합뉴스 산업"
   url: "https://www.yna.co.kr/rss/industry.xml"
   lang: ko
   tier: 1
   needs_ai_filter: true
-  active: false
 
 # ===== 1차 출처 (모델 공급사 공식) =====
 - name: "OpenAI"

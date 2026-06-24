@@ -10,6 +10,8 @@
 import hashlib
 import logging
 import os
+import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 import feedparser
@@ -163,8 +165,65 @@ def _fetch_feed(rss_url: str):
     return feedparser.parse(resp.content)
 
 
+class _SitemapFeed:
+    """Google News Sitemap을 feedparser 결과처럼 감싸는 경량 래퍼."""
+
+    def __init__(self, entries):
+        self.entries = entries
+        self.bozo = False
+        self.bozo_exception = None
+
+
+def _parse_sitemap_date(date_str: str) -> datetime:
+    """ISO 8601 날짜 문자열을 naive UTC datetime으로 변환."""
+    # 예: 2026-06-24T08:30:00+09:00
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(date_str[:25], fmt[:len(fmt)])
+            if dt.tzinfo:
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+        except ValueError:
+            continue
+    return datetime.utcnow()
+
+
+def _fetch_sitemap(url: str) -> _SitemapFeed:
+    """Google News Sitemap XML을 가져와 _SitemapFeed 로 반환."""
+    headers = {"User-Agent": USER_AGENT}
+    resp = requests.get(url, headers=headers, timeout=FETCH_TIMEOUT)
+    resp.raise_for_status()
+
+    root = ET.fromstring(resp.content)
+    ns = {
+        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "news": "http://www.google.com/schemas/sitemap-news/0.9",
+    }
+
+    entries = []
+    for url_el in root.findall("sm:url", ns):
+        loc = (url_el.findtext("sm:loc", namespaces=ns) or "").strip()
+        if not loc:
+            continue
+        news_el = url_el.find("news:news", ns)
+        if news_el is None:
+            continue
+        title = (news_el.findtext("news:title", namespaces=ns) or "").strip()
+        pub_raw = (news_el.findtext("news:publication_date", namespaces=ns) or "").strip()
+        pub_dt = _parse_sitemap_date(pub_raw) if pub_raw else datetime.utcnow()
+        # feedparser의 published_parsed 형식(time.struct_time)으로 변환
+        entries.append({
+            "link": loc,
+            "title": title,
+            "summary": "",
+            "published_parsed": pub_dt.timetuple(),
+        })
+
+    return _SitemapFeed(entries)
+
+
 def collect_source(source: Source, cutoff: datetime, prefetched=None) -> dict:
-    """RSS 수집. prefetched 가 있으면 feed 페치 단계 스킵 (이미 받았음)."""
+    """RSS/Sitemap 수집. prefetched 가 있으면 feed 페치 단계 스킵 (이미 받았음)."""
     stats = {
         "source": source.name,
         "fetched": 0, "new": 0, "filtered": 0, "old_skipped": 0,
@@ -177,6 +236,8 @@ def collect_source(source: Source, cutoff: datetime, prefetched=None) -> dict:
             if isinstance(prefetched, Exception):
                 raise prefetched
             feed = prefetched
+        elif getattr(source, "feed_type", "rss") == "sitemap":
+            feed = _fetch_sitemap(source.rss_url)
         else:
             feed = _fetch_feed(source.rss_url)
 
@@ -242,10 +303,12 @@ def collect_all() -> list[dict]:
     if not sources:
         return []
 
-    # 1단계: RSS 페치 병렬 (IO bound, 스레드 안전 — DB 미접근)
+    # 1단계: RSS/Sitemap 페치 병렬 (IO bound, 스레드 안전 — DB 미접근)
     prefetched: dict[int, object] = {}
     def _fetch_one(src):
         try:
+            if getattr(src, "feed_type", "rss") == "sitemap":
+                return src.id, _fetch_sitemap(src.rss_url)
             return src.id, _fetch_feed(src.rss_url)
         except Exception as e:
             return src.id, e

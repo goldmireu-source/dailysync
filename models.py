@@ -104,6 +104,8 @@ class Source(db.Model):
     tier = db.Column(db.Integer, default=1, nullable=False)
     needs_ai_filter = db.Column(db.Boolean, default=False, nullable=False)
     active = db.Column(db.Boolean, default=True, nullable=False)
+    # 'rss' (기본) 또는 'sitemap' (Google News Sitemap XML)
+    feed_type = db.Column(db.String(20), default="rss", nullable=False)
 
     last_fetched_at = db.Column(db.DateTime)
     last_error = db.Column(db.Text)

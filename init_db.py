@@ -37,6 +37,7 @@ def seed_sources():
             existing.tier = item["tier"]
             existing.needs_ai_filter = item.get("needs_ai_filter", False)
             existing.active = active
+            existing.feed_type = item.get("feed_type", "rss")
             updated += 1
         else:
             db.session.add(Source(
@@ -46,6 +47,7 @@ def seed_sources():
                 tier=item["tier"],
                 needs_ai_filter=item.get("needs_ai_filter", False),
                 active=active,
+                feed_type=item.get("feed_type", "rss"),
             ))
             created += 1
     db.session.commit()
