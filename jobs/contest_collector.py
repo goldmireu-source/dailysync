@@ -132,6 +132,17 @@ def _is_open_to_public(target: str | None) -> bool:
     return False
 
 
+# ---------- 게이트 0b: 제목 기반 학교급/청소년 제한 감지 ----------
+# target 추출에 실패해 None 인 경우에도 제목만으로 명백히 판별 가능한 패턴 차단.
+# "(중고등부)", "청소년 경진대회" 같은 강한 신호만 매칭 — 오탐 최소화.
+_TITLE_RESTRICTED_RE = re.compile(
+    r"[(\[]\s*(?:초등|중등|중학|고등|중고등|초중고|초·중|중·고)\s*부\s*[)\]]"  # (중고등부), [고등부]
+    r"|청소년\s*(?:경진|공모|챌린지|대회)"                                      # 청소년 경진대회
+    r"|중고등학생|초등학생|중학생|고등학생"                                       # 학년 직접 명시
+    r"|(?:초등학교|중학교|고등학교|중고등학교)\s*(?:학생\s*)?(?:경진|공모|챌린지|대회|전용|한정|대상)"
+)
+
+
 # ---------- 게이트 3: 마감 안 지남 ----------
 def _deadline_ok(deadline) -> bool:
     """deadline 이 오늘(KST) 이후이거나 미상(None)이면 통과."""
@@ -145,6 +156,9 @@ def _passes_gates(draft) -> tuple[bool, str]:
     # 0. AI 사용 금지 명시 — 'AI 활용' 공모전 큐레이션 취지에 반함
     if draft.ai_prohibited:
         return False, "ai_prohibited"
+    # 0b. 제목에서 학교급/청소년 대상 명시 — target 미추출 시에도 사전 차단
+    if draft.title and _TITLE_RESTRICTED_RE.search(draft.title):
+        return False, "not_public"
     # 1. AI 관련 (AI 전용 카테고리/플랫폼은 면제)
     if not draft.ai_exempt:
         hay = " ".join(filter(None, [draft.title, " ".join(draft.field_tags or []), draft.host or ""]))
@@ -311,20 +325,22 @@ def dedup_contests() -> int:
 
 
 def purge_restricted_contests() -> int:
-    """참가대상이 '일반인 비개방'으로 채워진 unsaved 공모전을 제거. 삭제 수 반환.
+    """참가대상이 '일반인 비개방'으로 판정된 unsaved 공모전을 제거. 삭제 수 반환.
 
     게이트는 '수집 시점'에만 걸러서, 이미 적재된 행이나 정책 변경 전에 들어온 행은
     그대로 남는다(upsert 는 통과 draft 만 건드림). 그걸 소급 정리한다.
-    target 미상(None)은 보존(보수적), 저장(saved)된 것도 보존.
+    저장(saved)된 것은 보존. target 미상(None)이어도 제목 패턴으로 판정.
     """
-    rows = (
-        Contest.query
-        .filter(Contest.target.isnot(None), Contest.saved_at.is_(None))
-        .all()
-    )
+    rows = Contest.query.filter(Contest.saved_at.is_(None)).all()
     deleted = 0
     for c in rows:
-        if not _is_open_to_public(c.target):
+        # 제목에서 명백한 학교급/청소년 제한 감지 (target=None 행 포함)
+        if c.title and _TITLE_RESTRICTED_RE.search(c.title):
+            db.session.delete(c)
+            deleted += 1
+            continue
+        # target 기반 판정 (target 있을 때만)
+        if c.target and not _is_open_to_public(c.target):
             db.session.delete(c)
             deleted += 1
     if deleted:
