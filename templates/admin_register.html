@@ -141,7 +141,8 @@
       <div>
         <label class="auth-label">아이디</label>
         <input class="auth-input" type="text" name="username" id="username-input" maxlength="14" required autocomplete="username">
-        <div class="auth-hint"><span id="username-count">0</span>/14자 <span style="margin-left:6px;">· 영문·숫자·밑줄(_)만 사용 가능</span></div>
+        <div class="auth-hint"><span id="username-count">0</span>/14자 &nbsp;· 영문+숫자 조합 필수 &nbsp;· admin 포함 불가</div>
+        <div id="username-error" class="auth-hint" style="color:var(--danger);display:none;margin-top:2px;"></div>
       </div>
 
       <div>
@@ -193,12 +194,34 @@
   const confirmInput  = document.getElementById('password-confirm-input');
   const nameInput     = document.getElementById('name-input');
   const usernameCount = document.getElementById('username-count');
+  const usernameError = document.getElementById('username-error');
   const passwordCount = document.getElementById('password-count');
   const nameCount     = document.getElementById('name-count');
   const nameLimitEl   = document.getElementById('name-limit');
   const confirmStatus = document.getElementById('confirm-status');
   const submitBtn     = document.getElementById('submit-btn');
   const KOREAN_RE = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
+
+  let _usernameOk = false;
+  let _pwMatch = false;
+
+  function checkUsername() {
+    const v = usernameInput.value;
+    if (!v) { usernameError.style.display = 'none'; _usernameOk = false; return; }
+    if (/admin/i.test(v)) {
+      usernameError.textContent = '"admin" 포함 불가';
+      usernameError.style.display = '';
+      _usernameOk = false;
+    } else if (!/[a-zA-Z]/.test(v) || !/[0-9]/.test(v)) {
+      usernameError.textContent = '영문과 숫자를 모두 포함해야 합니다';
+      usernameError.style.display = '';
+      _usernameOk = false;
+    } else {
+      usernameError.style.display = 'none';
+      _usernameOk = true;
+    }
+    submitBtn.disabled = !(_usernameOk && _pwMatch);
+  }
 
   function checkConfirm() {
     const pw  = passwordInput.value;
@@ -207,6 +230,7 @@
       confirmStatus.textContent = '비밀번호를 다시 입력해주세요';
       confirmStatus.style.color = 'var(--text-faint)';
       confirmInput.style.borderColor = 'var(--border)';
+      _pwMatch = false;
       submitBtn.disabled = true;
       return;
     }
@@ -214,18 +238,20 @@
       confirmStatus.textContent = '✓ 일치';
       confirmStatus.style.color = 'var(--success)';
       confirmInput.style.borderColor = 'var(--success)';
-      submitBtn.disabled = false;
+      _pwMatch = true;
     } else {
       confirmStatus.textContent = '✗ 불일치';
       confirmStatus.style.color = 'var(--danger)';
       confirmInput.style.borderColor = 'var(--danger)';
-      submitBtn.disabled = true;
+      _pwMatch = false;
     }
+    submitBtn.disabled = !(_usernameOk && _pwMatch);
   }
 
   usernameInput.addEventListener('input', function() {
-    this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '');
+    this.value = this.value.replace(/[^a-zA-Z0-9]/g, '');
     usernameCount.textContent = this.value.length;
+    checkUsername();
   });
   passwordInput.addEventListener('input', function() {
     passwordCount.textContent = this.value.length;

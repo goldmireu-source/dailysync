@@ -127,8 +127,10 @@ def _log_activity(action: str, user_id=None, username: str = "", detail: str = "
     except Exception as exc:
         current_app.logger.error(f"[ACTIVITY_LOG_ERROR] {exc}")
 
-# 아이디 허용 문자: 영문·숫자·밑줄 (한글 불가)
-_USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]+$')
+# 아이디 허용 문자: 영문·숫자만 (밑줄·한글 불가). 영문+숫자 조합 필수.
+_USERNAME_RE = re.compile(r'^[a-zA-Z0-9]+$')
+# 잠금 면제 계정 — admin 운영 접근성 보장 목적
+_LOCKOUT_EXEMPT: frozenset = frozenset({"admin"})
 
 
 def is_admin() -> bool:
@@ -215,7 +217,8 @@ def admin_login():
             if _p.netloc or _p.scheme or next_url.startswith("//") or next_url.startswith("/\\"):
                 next_url = ""
 
-        remaining = _username_locked_remaining(username)
+        exempt = username in _LOCKOUT_EXEMPT
+        remaining = 0 if exempt else _username_locked_remaining(username)
         if remaining > 0:
             mins = int(remaining) // 60
             secs = int(remaining) % 60 + 1  # ceil
@@ -229,26 +232,28 @@ def admin_login():
         else:
             user = AdminUser.query.filter_by(username=username).first()
             if user and user.check_password(password):
-                _reset_fail(username)
+                if not exempt:
+                    _reset_fail(username)
                 login_user(user, remember=True)
                 _log_activity("login_ok", user_id=user.id, username=user.username)
                 dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
                 return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
-            _record_fail(username)
-            fail_count = _fail_counts.get(username, 0)
-            if _username_locked_remaining(username) > 0:
-                # 이번 실패로 잠금 발동
-                lock_sec = _lockout_sec(fail_count)
-                hint = f" (지금부터 {lock_sec // 60}분간 로그인이 차단됩니다)" if lock_sec >= 60 else f" (지금부터 {lock_sec}초간 로그인이 차단됩니다)"
-            else:
-                nxt = next((t for t, _ in _LOCKOUT_STEPS if fail_count < t), None)
-                if nxt and (nxt - fail_count) <= 2:
-                    hint = f" ({nxt - fail_count}회 더 실패하면 잠깁니다)"
+            if not exempt:
+                _record_fail(username)
+                fail_count = _fail_counts.get(username, 0)
+                if _username_locked_remaining(username) > 0:
+                    lock_sec = _lockout_sec(fail_count)
+                    hint = f" (지금부터 {lock_sec // 60}분간 로그인이 차단됩니다)" if lock_sec >= 60 else f" (지금부터 {lock_sec}초간 로그인이 차단됩니다)"
                 else:
-                    hint = ""
+                    nxt = next((t for t, _ in _LOCKOUT_STEPS if fail_count < t), None)
+                    hint = f" ({nxt - fail_count}회 더 실패하면 잠깁니다)" if nxt and (nxt - fail_count) <= 2 else ""
+                _log_activity("login_fail", username=username, detail=f"count={fail_count}")
+                _sec_warn("LOGIN_FAIL", f"username={username!r} fail_count={fail_count}")
+            else:
+                _log_activity("login_fail", username=username)
+                _sec_warn("LOGIN_FAIL", f"username={username!r} (exempt)")
+                hint = ""
             error = f"아이디 또는 비밀번호가 올바르지 않습니다.{hint}"
-            _log_activity("login_fail", username=username, detail=f"count={fail_count}")
-            _sec_warn("LOGIN_FAIL", f"username={username!r} fail_count={fail_count}")
         if ajax:
             return jsonify({"error": error}), 400
 
@@ -285,8 +290,13 @@ def admin_register():
         elif class_num is None or class_num not in range(1, 8):
             error = "반을 선택해주세요."
         elif not _USERNAME_RE.match(username):
-            error = "아이디는 영문·숫자·밑줄(_)만 사용할 수 있습니다."
+            error = "아이디는 영문·숫자만 사용할 수 있습니다."
             _sec_warn("REGISTER_BADNAME", f"username={username!r}")
+        elif not re.search(r'[a-zA-Z]', username) or not re.search(r'[0-9]', username):
+            error = "아이디는 영문과 숫자를 모두 포함해야 합니다."
+        elif "admin" in username.lower():
+            error = "사용할 수 없는 아이디입니다."
+            _sec_warn("REGISTER_BADNAME", f"username={username!r} (admin 포함)")
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
         elif len(username) > 14:
