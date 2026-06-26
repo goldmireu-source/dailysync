@@ -156,34 +156,14 @@ def _parse_list_page(html: str) -> list[ContestDraft]:
                 if md:
                     deadline = _mmdd_to_date(md.group(3), md.group(4))
 
-        # 이미지 썸네일: src 우선, lazy-load는 data-src
-        image_url = None
-        img_el = li.find("img")
-        if img_el:
-            src = img_el.get("src") or img_el.get("data-src") or ""
-            src = src.strip()
-            if src and not src.endswith(".svg") and "logo" not in src.lower():
-                image_url = src if src.startswith("http") else f"{BASE}{src}"
-        # CSS background-image fallback
-        if not image_url:
-            for el in li.find_all(style=True):
-                m = re.search(
-                    r"background(?:-image)?\s*:\s*url\(['\"]?([^'\")\s]+)['\"]?\)",
-                    el.get("style", ""),
-                )
-                if m:
-                    src = m.group(1).strip()
-                    if src and not src.endswith(".svg"):
-                        image_url = src if src.startswith("http") else f"{BASE}{src}"
-                    break
-
+        # 이미지는 목록 페이지에서 수집 불가 — li 내 <img>는 뱃지·공유배너이며
+        # 개별 포스터가 아님. 상세 페이지 og:image는 fetch()의 step 4 에서 일괄 처리.
         drafts.append(ContestDraft(
             source="contestkorea",
             external_id=f"contestkorea:{str_no}" if str_no else None,
             url=url,
             title=title,
             host=host,
-            image_url=image_url,
             category="공모전",
             target=target,
             deadline=deadline,
