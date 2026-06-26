@@ -45,9 +45,9 @@ def _is_ai_relevant(text: str) -> bool:
 
 # ---------- 게이트 2: 참여대상이 기업에 국한 ----------
 _COMPANY_TOKENS = (
-    "기업", "법인", "사업자", "중소기업", "중견기업", "소상공인", "벤처기업",
-    "스타트업", "창업기업", "기관", "단체", "운영사", "주관기관", "주관연구기관",
-    "연구기관", "연구소", "컨소시엄", "산학협력단", "협회", "재단",
+    "기업", "법인", "사업자", "중소기업", "중견기업", "소상공인", "자영업자",
+    "벤처기업", "스타트업", "창업기업", "기관", "단체", "운영사", "주관기관",
+    "주관연구기관", "연구기관", "연구소", "컨소시엄", "산학협력단", "협회", "재단",
 )
 _INDIVIDUAL_TOKENS = (
     "개인", "대학생", "대학원생", "일반", "누구나", "제한없음", "제한 없음",
@@ -143,6 +143,51 @@ _TITLE_RESTRICTED_RE = re.compile(
 )
 
 
+# ---------- 제목 기반 사업자 참가 주체 추론 ----------
+# target=None 인 공고에서도 소상공인·자영업자가 '참가자(주체)'임을 제목에서 추론.
+# 추론 결과를 _is_company_only() 에 그대로 넘겨 기존 필터와 동일하게 처리한다.
+#
+# 핵심 구분:
+#  - 참가자(주체): "소상공인 AI 활용지원사업 소상공인 모집"
+#                  "소상공인 AI 경진대회" (소상공인이 직접 참가)
+#    → 추론 결과 "소상공인" 반환 → company_only 로 탈락
+#  - 수혜자(대상):  "소상공인을 위한 AI 서비스 공모전" (개발자가 소상공인 위해 개발)
+#    → 수혜자 구문 감지 후 None 반환 → 통과
+#
+# 이 방식이 _TITLE_BUSINESS_EXCL_RE 같은 패턴 열거보다 근본적인 이유:
+#   소상공인이 참가자여야 하는 공모전이라면 이름/표현에 관계없이 제목에 '소상공인'이
+#   수혜자 구문 없이 나타남 → 제목 형태를 일일이 열거할 필요 없음.
+
+# 소상공인이 '서비스/솔루션을 제공받는 쪽'임을 나타내는 수혜자 구문
+_TITLE_BENEFICIARY_RE = re.compile(
+    r"소상공인.{0,6}(?:을|를)\s*(?:위한|위해|돕|지원)"   # 소상공인을 위한, 소상공인을 돕는
+    r"|(?:소상공인|자영업자).{0,6}(?:서비스|솔루션|도구|앱)\s*(?:개발|제공|공모)"
+    r"|을\s*위한\s*(?:소상공인|자영업자)"                 # ~을 위한 소상공인
+)
+
+# 제목에서 탐색할 사업자 토큰 — 소상공인·자영업자는 참가자 맥락이 뚜렷해 포함
+_COMPANY_AUDIENCE_TOKENS = ("소상공인", "자영업자")
+
+
+def _infer_company_target_from_title(title: str) -> str | None:
+    """target=None일 때 제목에서 사업자가 참가 주체임을 추론.
+
+    소상공인·자영업자가 수혜자 구문 없이 제목에 등장하면 해당 토큰 반환.
+    반환값을 _is_company_only() 에 넘기면 기존 company 게이트와 동일하게 처리된다.
+    수혜자 구문이 있거나 일반인 개방 신호가 있으면 None → 보수적 통과.
+    """
+    if not title:
+        return None
+    if _TITLE_BENEFICIARY_RE.search(title):
+        return None
+    if any(tok in title for tok in _PUBLIC_OPEN_TOKENS):
+        return None
+    for tok in _COMPANY_AUDIENCE_TOKENS:
+        if tok in title:
+            return tok
+    return None
+
+
 # ---------- 게이트 3: 마감 안 지남 ----------
 def _deadline_ok(deadline) -> bool:
     """deadline 이 오늘(KST) 이후이거나 미상(None)이면 통과."""
@@ -167,13 +212,14 @@ def _passes_gates(draft) -> tuple[bool, str]:
     # 2. 소스가 기관/기업 대상으로 명시 (국가R&D 과제 등)
     if draft.company_targeted:
         return False, "company_only"
-    # 3. 참가대상 판정 — '일반인 개방'이면 통과(학생/임직원 등 추가 대상이 끼어 있어도
-    #    무관). 일반인 개방 신호가 없으면 특정 대상층 한정으로 제외(사유 세분화).
-    #    참가대상 미상(None)이면 _is_open_to_public 이 True → 보수적 통과.
-    if draft.target and not _is_open_to_public(draft.target):
-        if _is_company_only(draft.target):
+    # 3. 참가대상 판정
+    #    target 있으면 그 값, 없으면 제목에서 사업자 참가 주체 추론(소상공인·자영업자).
+    #    추론값도 _is_company_only 등 기존 로직과 동일하게 처리 — 별도 gate 불필요.
+    effective_target = draft.target or _infer_company_target_from_title(draft.title)
+    if effective_target and not _is_open_to_public(effective_target):
+        if _is_company_only(effective_target):
             return False, "company_only"
-        if _is_members_only(draft.target):
+        if _is_members_only(effective_target):
             return False, "members_only"
         return False, "not_public"  # 학생·청소년 등 특정 대상층 한정
     # 4. 마감 안 지남
@@ -339,8 +385,9 @@ def purge_restricted_contests() -> int:
             db.session.delete(c)
             deleted += 1
             continue
-        # target 기반 판정 (target 있을 때만)
-        if c.target and not _is_open_to_public(c.target):
+        # target 기반 + 제목 추론 통합 판정
+        effective_target = c.target or _infer_company_target_from_title(c.title)
+        if effective_target and not _is_open_to_public(effective_target):
             db.session.delete(c)
             deleted += 1
     if deleted:
