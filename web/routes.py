@@ -292,8 +292,8 @@ def admin_register():
         elif not _USERNAME_RE.match(username):
             error = "아이디는 영문·숫자만 사용할 수 있습니다."
             _sec_warn("REGISTER_BADNAME", f"username={username!r}")
-        elif not re.search(r'[a-zA-Z]', username) or not re.search(r'[0-9]', username):
-            error = "아이디는 영문과 숫자를 모두 포함해야 합니다."
+        elif not re.search(r'[a-zA-Z]', username):
+            error = "아이디는 영문을 반드시 포함해야 합니다."
         elif "admin" in username.lower():
             error = "사용할 수 없는 아이디입니다."
             _sec_warn("REGISTER_BADNAME", f"username={username!r} (admin 포함)")

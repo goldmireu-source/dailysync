@@ -141,7 +141,7 @@
       <div>
         <label class="auth-label">아이디</label>
         <input class="auth-input" type="text" name="username" id="username-input" maxlength="14" required autocomplete="username">
-        <div class="auth-hint"><span id="username-count">0</span>/14자 &nbsp;· 영문+숫자 조합 필수 &nbsp;· admin 포함 불가</div>
+        <div class="auth-hint"><span id="username-count">0</span>/14자 &nbsp;· 영문 필수 (숫자 선택) &nbsp;· admin 포함 불가</div>
         <div id="username-error" class="auth-hint" style="color:var(--danger);display:none;margin-top:2px;"></div>
       </div>
 
@@ -212,8 +212,8 @@
       usernameError.textContent = '"admin" 포함 불가';
       usernameError.style.display = '';
       _usernameOk = false;
-    } else if (!/[a-zA-Z]/.test(v) || !/[0-9]/.test(v)) {
-      usernameError.textContent = '영문과 숫자를 모두 포함해야 합니다';
+    } else if (!/[a-zA-Z]/.test(v)) {
+      usernameError.textContent = '영문을 반드시 포함해야 합니다';
       usernameError.style.display = '';
       _usernameOk = false;
     } else {
