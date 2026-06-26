@@ -76,8 +76,8 @@ def _log_activity(action: str, user_id=None, username: str = "", detail: str = "
     except Exception as exc:
         current_app.logger.error(f"[ACTIVITY_LOG_ERROR] {exc}")
 
-# 아이디 허용 문자: 한글·영문·숫자·밑줄
-_USERNAME_RE = re.compile(r'^[a-zA-Z0-9가-힣_]+$')
+# 아이디 허용 문자: 영문·숫자·밑줄 (한글 불가)
+_USERNAME_RE = re.compile(r'^[a-zA-Z0-9_]+$')
 
 
 def is_admin() -> bool:
@@ -215,7 +215,7 @@ def admin_register():
         elif class_num is None or class_num not in range(1, 8):
             error = "반을 선택해주세요."
         elif not _USERNAME_RE.match(username):
-            error = "아이디는 한글·영문·숫자·밑줄(_)만 사용할 수 있습니다."
+            error = "아이디는 영문·숫자·밑줄(_)만 사용할 수 있습니다."
             _sec_warn("REGISTER_BADNAME", f"username={username!r}")
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
