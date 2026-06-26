@@ -56,8 +56,12 @@ _MMDD_RANGE_RE = re.compile(r"(\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{1,2})[.\-](\d{1,
 # 해커톤 AI 검증 — 제목에 'AI' 없는 해커톤은 상세 페이지 본문으로 재확인.
 # 이유: '해커톤' 단어 자체는 AI 신호가 아님(요리/디자인 해커톤 등 존재).
 _HACKATHON_RE = re.compile(r"해커톤|hackathon", re.IGNORECASE)
+# 페이지 전문에서 AI 신호를 찾는 정규식.
+# 'ai'는 gmail·email·available·trail 등 영어 단어 안에 포함될 수 있어
+# 라틴 문자에 둘러싸인 경우는 매칭 제외 — (?<![a-zA-Z])ai(?![a-zA-Z]).
+# 한국어 맥락의 'AI기반', 'AI를' 등은 라틴 문자가 아닌 한글이 인접하므로 정상 매칭.
 _QUICK_AI_RE = re.compile(
-    r"ai|인공지능|머신러닝|딥러닝|llm|gpt|빅데이터|챗봇|생성형|자연어|컴퓨터비전"
+    r"(?<![a-zA-Z])ai(?![a-zA-Z])|인공지능|머신러닝|딥러닝|llm|gpt|빅데이터|챗봇|생성형|자연어|컴퓨터비전"
     r"|데이터\s*분석|데이터\s*활용|데이터\s*사이언스|데이터\s*경진|데이터\s*해커톤",
     re.IGNORECASE,
 )
