@@ -39,6 +39,57 @@ def _rate_ok(key: str, limit: int, window_sec: int) -> bool:
         _rl_store[key].append(now)
         return True
 
+
+# ===== 아이디 기반 점진적 로그인 잠금 =====
+# IP 기반 차단은 학원 등 NAT 공유 환경에서 무고한 사용자를 함께 차단하므로 사용하지 않음.
+# 아이디별로 누적 실패 횟수를 추적하고, 임계값 도달 시 해당 아이디만 일시 차단.
+# 잠금은 로그인 성공 시에만 해제 — 타임아웃 만료 후 재시도해도 카운터는 유지.
+
+_fail_lock = threading.Lock()
+_fail_counts: dict[str, int] = {}        # username → 누적 실패 횟수
+_fail_locked_until: dict[str, float] = {}  # username → 잠금 해제 시각 (monotonic)
+
+# (누적 실패 횟수 이상일 때 적용할 잠금 시간(초)) — 오름차순 정의
+_LOCKOUT_STEPS: list[tuple[int, int]] = [
+    (5,  60),    # 5회  → 1분
+    (10, 300),   # 10회 → 5분
+    (20, 1800),  # 20회 → 30분
+]
+
+
+def _lockout_sec(fail_count: int) -> int:
+    """누적 실패 횟수에 해당하는 잠금 시간(초). 잠금 불필요하면 0."""
+    result = 0
+    for threshold, sec in _LOCKOUT_STEPS:
+        if fail_count >= threshold:
+            result = sec
+    return result
+
+
+def _username_locked_remaining(username: str) -> float:
+    """잠금 중이면 해제까지 남은 초(양수), 아니면 0."""
+    with _fail_lock:
+        until = _fail_locked_until.get(username, 0.0)
+        remaining = until - _time()
+        return remaining if remaining > 0 else 0.0
+
+
+def _record_fail(username: str) -> None:
+    """실패 1회 기록. 임계값 도달 시 잠금 시각 갱신."""
+    with _fail_lock:
+        count = _fail_counts.get(username, 0) + 1
+        _fail_counts[username] = count
+        sec = _lockout_sec(count)
+        if sec:
+            _fail_locked_until[username] = _time() + sec
+
+
+def _reset_fail(username: str) -> None:
+    """로그인 성공 시 카운터·잠금 초기화."""
+    with _fail_lock:
+        _fail_counts.pop(username, None)
+        _fail_locked_until.pop(username, None)
+
 def _client_ip() -> str:
     """요청 클라이언트 IP (리버스 프록시 고려)."""
     forwarded = request.headers.get("X-Forwarded-For")
@@ -156,29 +207,48 @@ def admin_login():
     error = None
     next_url = request.args.get("next") or ""
     if request.method == "POST":
-        ip = _client_ip()
-        if not _rate_ok(f"login:{ip}", 8, 300):
-            _sec_warn("LOGIN_RATE", "로그인 시도 초과")
-            error = "잠시 후 다시 시도해주세요. (5분간 8회 제한)"
+        username = (request.form.get("username") or "").strip()[:14]
+        password = (request.form.get("password") or "")[:72]
+        next_url = request.form.get("next") or ""
+        if next_url:
+            _p = urllib.parse.urlparse(next_url)
+            if _p.netloc or _p.scheme or next_url.startswith("//") or next_url.startswith("/\\"):
+                next_url = ""
+
+        remaining = _username_locked_remaining(username)
+        if remaining > 0:
+            mins = int(remaining) // 60
+            secs = int(remaining) % 60 + 1  # ceil
+            if mins:
+                error = f"로그인 시도가 너무 많습니다. {mins}분 {secs}초 후 다시 시도해주세요."
+            else:
+                error = f"로그인 시도가 너무 많습니다. {secs}초 후 다시 시도해주세요."
+            _sec_warn("LOGIN_LOCKED", f"username={username!r} remaining={remaining:.0f}s")
             if ajax:
                 return jsonify({"error": error}), 429
         else:
-            username = (request.form.get("username") or "").strip()[:14]
-            password = (request.form.get("password") or "")[:72]
-            next_url = request.form.get("next") or ""
-            if next_url:
-                _p = urllib.parse.urlparse(next_url)
-                if _p.netloc or _p.scheme or next_url.startswith("//") or next_url.startswith("/\\"):
-                    next_url = ""
             user = AdminUser.query.filter_by(username=username).first()
             if user and user.check_password(password):
+                _reset_fail(username)
                 login_user(user, remember=True)
                 _log_activity("login_ok", user_id=user.id, username=user.username)
                 dest = next_url or (url_for("web.admin") if is_admin() else url_for("web.index"))
                 return jsonify({"ok": True, "redirect": dest}) if ajax else redirect(dest)
-            error = "아이디 또는 비밀번호가 올바르지 않습니다."
-            _log_activity("login_fail", username=username)
-            _sec_warn("LOGIN_FAIL", f"username={username!r}")
+            _record_fail(username)
+            fail_count = _fail_counts.get(username, 0)
+            if _username_locked_remaining(username) > 0:
+                # 이번 실패로 잠금 발동
+                lock_sec = _lockout_sec(fail_count)
+                hint = f" (지금부터 {lock_sec // 60}분간 로그인이 차단됩니다)" if lock_sec >= 60 else f" (지금부터 {lock_sec}초간 로그인이 차단됩니다)"
+            else:
+                nxt = next((t for t, _ in _LOCKOUT_STEPS if fail_count < t), None)
+                if nxt and (nxt - fail_count) <= 2:
+                    hint = f" ({nxt - fail_count}회 더 실패하면 잠깁니다)"
+                else:
+                    hint = ""
+            error = f"아이디 또는 비밀번호가 올바르지 않습니다.{hint}"
+            _log_activity("login_fail", username=username, detail=f"count={fail_count}")
+            _sec_warn("LOGIN_FAIL", f"username={username!r} fail_count={fail_count}")
         if ajax:
             return jsonify({"error": error}), 400
 
