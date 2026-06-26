@@ -152,12 +152,34 @@ def _parse_list_page(html: str) -> list[ContestDraft]:
                 if md:
                     deadline = _mmdd_to_date(md.group(3), md.group(4))
 
+        # 이미지 썸네일: src 우선, lazy-load는 data-src
+        image_url = None
+        img_el = li.find("img")
+        if img_el:
+            src = img_el.get("src") or img_el.get("data-src") or ""
+            src = src.strip()
+            if src and not src.endswith(".svg") and "logo" not in src.lower():
+                image_url = src if src.startswith("http") else f"{BASE}{src}"
+        # CSS background-image fallback
+        if not image_url:
+            for el in li.find_all(style=True):
+                m = re.search(
+                    r"background(?:-image)?\s*:\s*url\(['\"]?([^'\")\s]+)['\"]?\)",
+                    el.get("style", ""),
+                )
+                if m:
+                    src = m.group(1).strip()
+                    if src and not src.endswith(".svg"):
+                        image_url = src if src.startswith("http") else f"{BASE}{src}"
+                    break
+
         drafts.append(ContestDraft(
             source="contestkorea",
             external_id=f"contestkorea:{str_no}" if str_no else None,
             url=url,
             title=title,
             host=host,
+            image_url=image_url,
             category="공모전",
             target=target,
             deadline=deadline,
@@ -170,21 +192,42 @@ def _has_quick_ai(text: str) -> bool:
     return bool(_QUICK_AI_RE.search(text or ""))
 
 
-def _verify_hackathon_ai(url: str) -> bool:
-    """해커톤 상세 페이지 본문에 AI 키워드가 있으면 True.
+def _extract_og_image(soup) -> str | None:
+    """BeautifulSoup 객체에서 OG 이미지 URL 추출."""
+    meta = soup.find("meta", property="og:image")
+    if meta:
+        content = meta.get("content", "").strip()
+        if content and not content.endswith(".svg"):
+            return content
+    return None
 
-    실패 시 False 반환 — 검증 불가 = 수집 안 함(보수적).
+
+def _fetch_detail_page(url: str) -> tuple[bool | None, str | None]:
+    """상세 페이지를 한 번 요청해 (AI여부, og:image URL) 반환.
+
+    AI 판정이 불필요한 경우엔 첫 번째 값을 None 으로 해석해도 무방.
+    네트워크 실패 시 (None, None) 반환.
     """
     try:
         resp = http_get(url, encoding="utf-8")
         soup = BeautifulSoup(resp.text, "lxml")
+        image_url = _extract_og_image(soup)
         for tag in soup(["script", "style", "nav", "header", "footer"]):
             tag.decompose()
         text = soup.get_text(" ", strip=True)
-        return _has_quick_ai(text)
+        return _has_quick_ai(text), image_url
     except Exception as e:
-        logger.debug(f"contestkorea detail AI 검증 실패: {url}: {e}")
-        return False
+        logger.debug(f"contestkorea detail 조회 실패: {url}: {e}")
+        return None, None
+
+
+def _verify_hackathon_ai(url: str) -> tuple[bool, str | None]:
+    """해커톤 상세 페이지 AI 검증. (is_ai, og_image_url) 반환.
+
+    실패 시 (False, None) — 검증 불가 = 수집 안 함(보수적).
+    """
+    is_ai, image_url = _fetch_detail_page(url)
+    return bool(is_ai), image_url
 
 
 def _fetch_pages(params_base: dict, label: str, by_url: dict) -> None:
@@ -221,6 +264,7 @@ def fetch() -> list[ContestDraft]:
 
     # 3) 해커톤 AI 검증: 제목/주최에 AI 신호가 없는 해커톤은 상세 페이지를 확인.
     #    AI 무관으로 판정되면 제외 — 요리·디자인 해커톤 등 오수집 방지.
+    #    상세 페이지 조회 시 og:image도 함께 수집.
     result: dict[str, ContestDraft] = {}
     for url, d in by_url.items():
         if _HACKATHON_RE.search(d.title or ""):
@@ -228,15 +272,26 @@ def fetch() -> list[ContestDraft]:
             if basic_signal:
                 result[url] = d
             else:
-                if _verify_hackathon_ai(url):
+                is_ai, og_img = _verify_hackathon_ai(url)
+                if is_ai:
                     # 상세 페이지에서 AI 확인 → field_tags 에 신호 추가해 gate 1 통과
                     d.field_tags = ["인공지능"]
+                    if og_img and not d.image_url:
+                        d.image_url = og_img
                     result[url] = d
                 else:
                     logger.info(f"contestkorea: 해커톤 AI 무관 제외 — {d.title!r}")
                 time.sleep(0.5)
         else:
             result[url] = d
+
+    # 4) 목록 페이지에서 이미지를 못 긁은 항목 → 상세 페이지 og:image 보완
+    for url, d in result.items():
+        if not d.image_url:
+            _, og_img = _fetch_detail_page(url)
+            if og_img:
+                d.image_url = og_img
+            time.sleep(0.3)
 
     logger.info(f"contestkorea: {len(result)}건 수집 (해커톤 미검증 제외 포함)")
     return list(result.values())

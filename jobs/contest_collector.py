@@ -299,6 +299,10 @@ def _norm_title(t: str) -> str:
 # 문자 유사도 임계값 — 측정상 같은 공모전은 0.98+, 다른 공모전(접미사 긴 '공공데이터
 # AI 경진대회' 계열 포함)은 ≤0.77 로 간극이 큼. 0.90 이면 안전하게 갈린다.
 _SIMILARITY_THRESHOLD = 0.90
+# 연도 제거 후 재비교 시 임계값. 소스마다 연도 위치가 달라 원본 비율이 낮아지는 경우
+# (예: 'AIUS 2026 MZ 페르소나 공모전' vs '2026 AI MZ 페르소나 공모전')를 보완.
+_SIMILARITY_THRESHOLD_NO_YEAR = 0.85
+_YEAR_DIGITS_RE = re.compile(r"\d{4}")
 
 
 def _same_contest(a: str, b: str) -> bool:
@@ -308,6 +312,10 @@ def _same_contest(a: str, b: str) -> bool:
     유사도 보강 이유: '공모' vs '공모전', '·' vs 공백처럼 글자 1~2개가 제목
     '중간'에서 달라지면 부분문자열 포함 판정이 깨져 같은 공모전이 안 합쳐진다.
     (짧은 제목의 우연한 유사 매칭을 막으려 둘 다 ≥12자일 때만 유사도 적용.)
+
+    연도 제거 후 재비교: 소스마다 연도 위치·표기가 달라 '2026 AI MZ 공모전' vs
+    'AIUS 2026 MZ 공모전'처럼 연도가 제목을 쪼개면 유사도가 인위적으로 낮아진다.
+    연도 4자리 제거 후 ≥10자일 때 0.85 임계로 재판정.
     """
     if a == b:
         return True
@@ -315,6 +323,11 @@ def _same_contest(a: str, b: str) -> bool:
     if len(short) >= 10 and short in long:
         return True
     if len(short) >= 12 and SequenceMatcher(None, a, b).ratio() >= _SIMILARITY_THRESHOLD:
+        return True
+    # 연도 제거 후 재비교 — 소스별 연도 위치 차이로 인한 유사도 저하 보완
+    a2, b2 = _YEAR_DIGITS_RE.sub("", a), _YEAR_DIGITS_RE.sub("", b)
+    s2 = a2 if len(a2) <= len(b2) else b2
+    if len(s2) >= 10 and SequenceMatcher(None, a2, b2).ratio() >= _SIMILARITY_THRESHOLD_NO_YEAR:
         return True
     return False
 
