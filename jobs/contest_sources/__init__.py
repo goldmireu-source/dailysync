@@ -14,3 +14,6 @@ from jobs.contest_sources import thinkcontest  # noqa: F401,E402
 from jobs.contest_sources import ntis         # noqa: F401,E402
 from jobs.contest_sources import loud         # noqa: F401,E402
 from jobs.contest_sources import kstartup     # noqa: F401,E402
+from jobs.contest_sources import contestkorea  # noqa: F401,E402
+from jobs.contest_sources import campuspick    # noqa: F401,E402
+from jobs.contest_sources import thinkyou      # noqa: F401,E402
