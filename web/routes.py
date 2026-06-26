@@ -299,6 +299,8 @@ def admin_register():
             _sec_warn("REGISTER_BADNAME", f"username={username!r} (admin 포함)")
         elif password != password_confirm:
             error = "비밀번호가 일치하지 않습니다."
+        elif len(username) < 4:
+            error = "아이디는 최소 4자 이상이어야 합니다."
         elif len(username) > 14:
             error = "아이디는 최대 14자입니다."
         elif len(password) > 72:

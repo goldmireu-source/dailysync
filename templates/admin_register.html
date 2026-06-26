@@ -141,7 +141,7 @@
       <div>
         <label class="auth-label">아이디</label>
         <input class="auth-input" type="text" name="username" id="username-input" maxlength="14" required autocomplete="username">
-        <div class="auth-hint"><span id="username-count">0</span>/14자 &nbsp;· 영문 필수 (숫자 선택) &nbsp;· admin 포함 불가</div>
+        <div class="auth-hint"><span id="username-count">0</span>/14자 &nbsp;· 4~14자 &nbsp;· 영문 필수 (숫자 선택) &nbsp;· admin 포함 불가</div>
         <div id="username-error" class="auth-hint" style="color:var(--danger);display:none;margin-top:2px;"></div>
       </div>
 
@@ -208,7 +208,11 @@
   function checkUsername() {
     const v = usernameInput.value;
     if (!v) { usernameError.style.display = 'none'; _usernameOk = false; return; }
-    if (/admin/i.test(v)) {
+    if (v.length < 4) {
+      usernameError.textContent = '4자 이상 입력해주세요';
+      usernameError.style.display = '';
+      _usernameOk = false;
+    } else if (/admin/i.test(v)) {
       usernameError.textContent = '"admin" 포함 불가';
       usernameError.style.display = '';
       _usernameOk = false;
