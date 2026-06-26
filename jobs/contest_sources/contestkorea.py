@@ -57,7 +57,8 @@ _MMDD_RANGE_RE = re.compile(r"(\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{1,2})[.\-](\d{1,
 # 이유: '해커톤' 단어 자체는 AI 신호가 아님(요리/디자인 해커톤 등 존재).
 _HACKATHON_RE = re.compile(r"해커톤|hackathon", re.IGNORECASE)
 _QUICK_AI_RE = re.compile(
-    r"ai|인공지능|머신러닝|딥러닝|llm|gpt|데이터|빅데이터|챗봇|생성형|자연어|컴퓨터비전",
+    r"ai|인공지능|머신러닝|딥러닝|llm|gpt|빅데이터|챗봇|생성형|자연어|컴퓨터비전"
+    r"|데이터\s*분석|데이터\s*활용|데이터\s*사이언스|데이터\s*경진|데이터\s*해커톤",
     re.IGNORECASE,
 )
 
