@@ -380,13 +380,21 @@ def purge_restricted_contests() -> int:
     rows = Contest.query.filter(Contest.saved_at.is_(None)).all()
     deleted = 0
     for c in rows:
-        # 제목에서 명백한 학교급/청소년 제한 감지 (target=None 행 포함)
+        # 1) 제목에서 학교급/청소년 제한 감지
         if c.title and _TITLE_RESTRICTED_RE.search(c.title):
             db.session.delete(c)
             deleted += 1
             continue
-        # target 기반 + 제목 추론 통합 판정
-        effective_target = c.target or _infer_company_target_from_title(c.title)
+        # 2) 제목에서 소상공인·자영업자 참가 주체 감지 — target 필드 우선 정책의 허점 보완.
+        #    contestkorea 등 일부 소스가 '일반인'을 target 에 기재해도 제목이 참가 주체를
+        #    명시하면 우선 삭제 (target 필드보다 제목이 더 직접적인 증거).
+        title_inferred = _infer_company_target_from_title(c.title)
+        if title_inferred and _is_company_only(title_inferred):
+            db.session.delete(c)
+            deleted += 1
+            continue
+        # 3) target 필드 기반 판정 (제목 추론은 target=None 일 때만 보조)
+        effective_target = c.target or title_inferred
         if effective_target and not _is_open_to_public(effective_target):
             db.session.delete(c)
             deleted += 1

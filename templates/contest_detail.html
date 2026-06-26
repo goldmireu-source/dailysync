@@ -50,6 +50,7 @@
         <label>확대 <input type="range" id="cd-scale" min="1" max="4" step="0.05" value="{{ tile.image_scale }}"></label>
       </div>
       <p class="cd-edit-hint">이미지를 첨부하면 타일에 보이는 모양을 위 슬라이더로 맞출 수 있어요. (자동 저장)</p>
+      <button class="cd-delete-btn" id="cd-delete">🗑 공모전 삭제</button>
     </div>
     {% endif %}
   </div>
@@ -174,11 +175,27 @@
       if (r.ok) window.location.reload();
     } catch (e) {}
   });
+
+  const deleteBtn = document.getElementById('cd-delete');
+  if (deleteBtn) deleteBtn.addEventListener('click', async () => {
+    if (!confirm('이 공모전을 영구 삭제할까요? 되돌릴 수 없습니다.')) return;
+    try {
+      const r = await fetch(`/api/contest/${cid}/delete`, { method: 'POST' });
+      if (r.ok) window.location.href = '/?tab=contests';
+    } catch (e) {}
+  });
 })();
 </script>
 {% endif %}
 
 <style>
+.cd-delete-btn {
+  margin-top: 10px; width: 100%; padding: 8px 0;
+  background: none; border: 1px solid var(--danger); border-radius: 8px;
+  color: var(--danger); font-size: 12px; font-family: inherit;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.cd-delete-btn:hover { background: var(--danger); color: #fff; }
 .cd-party-row { display:flex; gap:10px; margin:1rem 0; flex-wrap:wrap; }
 .cd-party-btn {
   display:inline-flex; align-items:center; gap:6px;

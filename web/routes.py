@@ -1149,6 +1149,20 @@ def _delete_uploaded_image(image_url: str | None):
         pass
 
 
+@bp.route("/api/contest/<int:contest_id>/delete", methods=["POST"])
+@admin_required
+def delete_contest(contest_id: int):
+    """공모전 영구 삭제 (관리자 전용)."""
+    contest = Contest.query.get(contest_id)
+    if not contest:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    _delete_uploaded_image(contest.image_url)
+    db.session.delete(contest)
+    db.session.commit()
+    _log_activity("contest_delete", detail=f"id={contest_id} title={contest.title!r}")
+    return jsonify({"ok": True})
+
+
 @bp.route("/api/contest/<int:contest_id>/image-remove", methods=["POST"])
 @admin_required
 def remove_contest_image(contest_id: int):
