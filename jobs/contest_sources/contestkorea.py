@@ -22,6 +22,12 @@ robots.txt: Allow: / (전체 허용)
     </div>
     <div class="d-day ..."><span class="day">D-38</span></div>
   </li>
+
+수집 전략(2026-06 확인):
+  - list.php?kind=con                    : 일반 공모전 목록 (디자인·글·사진 등)
+  - list.php?kind=con&Txt_bcode=030310001: 학문·과학·IT 카테고리
+    → 해커톤·IT·데이터 경진대회가 이 카테고리에만 존재하며 일반 목록에는 미노출.
+    두 경로를 모두 수집 후 URL 기준 중복 제거.
 """
 import logging
 import re
@@ -40,8 +46,20 @@ BASE = "https://www.contestkorea.com"
 LIST_URL = f"{BASE}/sub/list.php"
 PAGES_MAX = 5
 
+# 일반 목록(kind=con)에 포함되지 않는 IT·학문·과학 카테고리 코드.
+# 해커톤·데이터 경진대회 등이 여기에만 노출된다.
+_IT_BCODE = "030310001"
+
 _STR_NO_RE = re.compile(r"str_no=(\w+)")
 _MMDD_RANGE_RE = re.compile(r"(\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{1,2})[.\-](\d{1,2})")
+
+# 해커톤 AI 검증 — 제목에 'AI' 없는 해커톤은 상세 페이지 본문으로 재확인.
+# 이유: '해커톤' 단어 자체는 AI 신호가 아님(요리/디자인 해커톤 등 존재).
+_HACKATHON_RE = re.compile(r"해커톤|hackathon", re.IGNORECASE)
+_QUICK_AI_RE = re.compile(
+    r"ai|인공지능|머신러닝|딥러닝|llm|gpt|데이터|빅데이터|챗봇|생성형|자연어|컴퓨터비전",
+    re.IGNORECASE,
+)
 
 
 def _mmdd_to_date(month: str, day: str) -> date_t | None:
@@ -147,18 +165,37 @@ def _parse_list_page(html: str) -> list[ContestDraft]:
     return drafts
 
 
-@register("contestkorea")
-def fetch() -> list[ContestDraft]:
-    by_url: dict[str, ContestDraft] = {}
+def _has_quick_ai(text: str) -> bool:
+    return bool(_QUICK_AI_RE.search(text or ""))
 
+
+def _verify_hackathon_ai(url: str) -> bool:
+    """해커톤 상세 페이지 본문에 AI 키워드가 있으면 True.
+
+    실패 시 False 반환 — 검증 불가 = 수집 안 함(보수적).
+    """
+    try:
+        resp = http_get(url, encoding="utf-8")
+        soup = BeautifulSoup(resp.text, "lxml")
+        for tag in soup(["script", "style", "nav", "header", "footer"]):
+            tag.decompose()
+        text = soup.get_text(" ", strip=True)
+        return _has_quick_ai(text)
+    except Exception as e:
+        logger.debug(f"contestkorea detail AI 검증 실패: {url}: {e}")
+        return False
+
+
+def _fetch_pages(params_base: dict, label: str, by_url: dict) -> None:
+    """params_base 기준으로 PAGES_MAX 페이지까지 수집해 by_url 에 추가."""
     for page in range(1, PAGES_MAX + 1):
         try:
-            resp = http_get(LIST_URL, params={"kind": "con", "page": page}, encoding="utf-8")
+            resp = http_get(LIST_URL, params={**params_base, "page": page}, encoding="utf-8")
             drafts = _parse_list_page(resp.text)
             if not drafts:
                 if len(resp.text) > 2000:
                     logger.warning(
-                        f"contestkorea page={page}: 응답 {len(resp.text)}B인데 파싱 0건 "
+                        f"contestkorea {label} page={page}: 응답 {len(resp.text)}B인데 파싱 0건 "
                         "— 마크업 변경 확인 필요(str_no= / ul.host 셀렉터 점검)"
                     )
                 break
@@ -167,8 +204,38 @@ def fetch() -> list[ContestDraft]:
                 break  # 전부 중복 → 조기 종료
             time.sleep(1.0)
         except Exception as e:
-            logger.warning(f"contestkorea page={page} failed: {e}")
+            logger.warning(f"contestkorea {label} page={page} failed: {e}")
             break
 
-    logger.info(f"contestkorea: {len(by_url)}건 수집")
-    return list(by_url.values())
+
+@register("contestkorea")
+def fetch() -> list[ContestDraft]:
+    by_url: dict[str, ContestDraft] = {}
+
+    # 1) 일반 공모전 목록
+    _fetch_pages({"kind": "con"}, "general", by_url)
+
+    # 2) 학문·과학·IT 카테고리 — 해커톤·데이터 경진대회가 여기에만 노출
+    _fetch_pages({"kind": "con", "Txt_bcode": _IT_BCODE}, "IT", by_url)
+
+    # 3) 해커톤 AI 검증: 제목/주최에 AI 신호가 없는 해커톤은 상세 페이지를 확인.
+    #    AI 무관으로 판정되면 제외 — 요리·디자인 해커톤 등 오수집 방지.
+    result: dict[str, ContestDraft] = {}
+    for url, d in by_url.items():
+        if _HACKATHON_RE.search(d.title or ""):
+            basic_signal = _has_quick_ai(d.title or "") or _has_quick_ai(d.host or "")
+            if basic_signal:
+                result[url] = d
+            else:
+                if _verify_hackathon_ai(url):
+                    # 상세 페이지에서 AI 확인 → field_tags 에 신호 추가해 gate 1 통과
+                    d.field_tags = ["인공지능"]
+                    result[url] = d
+                else:
+                    logger.info(f"contestkorea: 해커톤 AI 무관 제외 — {d.title!r}")
+                time.sleep(0.5)
+        else:
+            result[url] = d
+
+    logger.info(f"contestkorea: {len(result)}건 수집 (해커톤 미검증 제외 포함)")
+    return list(result.values())
