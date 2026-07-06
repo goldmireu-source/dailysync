@@ -52,6 +52,11 @@ _IT_BCODE = "030310001"
 
 _STR_NO_RE = re.compile(r"str_no=(\w+)")
 _MMDD_RANGE_RE = re.compile(r"(\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{1,2})[.\-](\d{1,2})")
+# 상세페이지 '접수기간' 표는 연도가 명시돼 있어(YYYY.MM.DD ~ YYYY.MM.DD) 목록 페이지의
+# 연도 추정(MM.DD만) 보다 정확 — 목록에서 마감일 추출 실패 시 폴백으로 사용.
+_FULL_DATE_RANGE_RE = re.compile(
+    r"(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})"
+)
 
 # 해커톤 AI 검증 — 제목에 'AI' 없는 해커톤은 상세 페이지 본문으로 재확인.
 # 이유: '해커톤' 단어 자체는 AI 신호가 아님(요리/디자인 해커톤 등 존재).
@@ -68,13 +73,16 @@ _QUICK_AI_RE = re.compile(
 
 
 def _mmdd_to_date(month: str, day: str) -> date_t | None:
-    """MM, DD → 올해 또는 내년 date (과거면 내년으로 보정)."""
+    """MM, DD → 올해 date.
+
+    이 폴백은 d-day 위젯이 없을 때만 쓰이는데, 실제로는 '접수중/접수예정' 항목엔
+    거의 항상 d-day 위젯이 있어 여기 걸리는 건 대개 이미 접수가 종료된 항목이다.
+    과거 날짜라고 내년으로 미루면(예전 로직) 이미 끝난 공모전이 D-360 같은
+    가짜 미래 마감일을 갖게 되어 마감 정리(cleanup)가 영원히 안 걸린다.
+    그대로 반환해 실제 마감일로 남기고, 정리는 cleanup 잡이 처리하게 둔다."""
     today = today_kst()
     try:
-        d = date_t(today.year, int(month), int(day))
-        if d < today:
-            d = date_t(today.year + 1, int(month), int(day))
-        return d
+        return date_t(today.year, int(month), int(day))
     except ValueError:
         return None
 
@@ -186,23 +194,40 @@ def _extract_og_image(soup) -> str | None:
     return None
 
 
-def _fetch_detail_page(url: str) -> tuple[bool | None, str | None]:
-    """상세 페이지를 한 번 요청해 (AI여부, og:image URL) 반환.
+def _extract_deadline(soup) -> date_t | None:
+    """상세페이지 '접수기간' 표에서 마감일(종료일) 추출 — 연도 명시라 정확."""
+    for th in soup.find_all("th"):
+        if "접수기간" in th.get_text():
+            td = th.find_next_sibling("td")
+            if not td:
+                continue
+            m = _FULL_DATE_RANGE_RE.search(td.get_text())
+            if m:
+                try:
+                    return date_t(int(m.group(4)), int(m.group(5)), int(m.group(6)))
+                except ValueError:
+                    return None
+    return None
+
+
+def _fetch_detail_page(url: str) -> tuple[bool | None, str | None, date_t | None]:
+    """상세 페이지를 한 번 요청해 (AI여부, og:image URL, 마감일) 반환.
 
     AI 판정이 불필요한 경우엔 첫 번째 값을 None 으로 해석해도 무방.
-    네트워크 실패 시 (None, None) 반환.
+    네트워크 실패 시 (None, None, None) 반환.
     """
     try:
         resp = http_get(url, encoding="utf-8")
         soup = BeautifulSoup(resp.text, "lxml")
         image_url = _extract_og_image(soup)
+        deadline = _extract_deadline(soup)
         for tag in soup(["script", "style", "nav", "header", "footer"]):
             tag.decompose()
         text = soup.get_text(" ", strip=True)
-        return _has_quick_ai(text), image_url
+        return _has_quick_ai(text), image_url, deadline
     except Exception as e:
         logger.debug(f"contestkorea detail 조회 실패: {url}: {e}")
-        return None, None
+        return None, None, None
 
 
 def _verify_hackathon_ai(url: str) -> tuple[bool, str | None]:
@@ -210,7 +235,7 @@ def _verify_hackathon_ai(url: str) -> tuple[bool, str | None]:
 
     실패 시 (False, None) — 검증 불가 = 수집 안 함(보수적).
     """
-    is_ai, image_url = _fetch_detail_page(url)
+    is_ai, image_url, _deadline = _fetch_detail_page(url)
     return bool(is_ai), image_url
 
 
@@ -269,12 +294,16 @@ def fetch() -> list[ContestDraft]:
         else:
             result[url] = d
 
-    # 4) 목록 페이지에서 이미지를 못 긁은 항목 → 상세 페이지 og:image 보완
+    # 4) 목록 페이지에서 이미지/마감일을 못 긁은 항목 → 상세 페이지로 보완.
+    #    마감일은 상세 '접수기간' 표에 연도까지 명시돼 있어 목록의 d-day 파싱이
+    #    실패해도(신규 등록 직후 위젯 누락 등) 여기서 정확히 복구된다.
     for url, d in result.items():
-        if not d.image_url:
-            _, og_img = _fetch_detail_page(url)
-            if og_img:
+        if not d.image_url or not d.deadline:
+            _, og_img, detail_deadline = _fetch_detail_page(url)
+            if og_img and not d.image_url:
                 d.image_url = og_img
+            if detail_deadline and not d.deadline:
+                d.deadline = detail_deadline
             time.sleep(0.3)
 
     logger.info(f"contestkorea: {len(result)}건 수집 (해커톤 미검증 제외 포함)")
