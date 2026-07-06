@@ -305,6 +305,10 @@ _SIMILARITY_THRESHOLD = 0.90
 # (예: 'AIUS 2026 MZ 페르소나 공모전' vs '2026 AI MZ 페르소나 공모전')를 보완.
 _SIMILARITY_THRESHOLD_NO_YEAR = 0.85
 _YEAR_DIGITS_RE = re.compile(r"\d{4}")
+# '제N회' 유무 차이 보완용 — 연도와 같은 성격의 소스별 표기 차이(한쪽만 회차를
+# 제목에 명시)라 별도 재비교 단계로 둔다. 예: contestkorea '제1회 AI 컷! 드라마
+# 공모전' vs wevity 'AI 컷! 드라마 공모전 - AI 숏폼 드라마 챌린지'(부제 추가형).
+_ORDINAL_RE = re.compile(r"제\d{1,3}회")
 
 
 def _same_contest(a: str, b: str) -> bool:
@@ -331,6 +335,14 @@ def _same_contest(a: str, b: str) -> bool:
     s2 = a2 if len(a2) <= len(b2) else b2
     if len(s2) >= 10 and SequenceMatcher(None, a2, b2).ratio() >= _SIMILARITY_THRESHOLD_NO_YEAR:
         return True
+    # '제N회' 제거 후 포함관계 재비교 — 한쪽 소스만 회차를 제목에 넣어 부분문자열
+    # 판정(길이 10자 기준)이 깨지는 경우 보완. 회차 제거는 표기 차이가 명확해
+    # 오탐 위험이 낮으므로 임계 길이를 8자로 다소 완화.
+    a3, b3 = _ORDINAL_RE.sub("", a), _ORDINAL_RE.sub("", b)
+    if (a3, b3) != (a, b):
+        s3, l3 = (a3, b3) if len(a3) <= len(b3) else (b3, a3)
+        if len(s3) >= 8 and s3 in l3:
+            return True
     return False
 
 
