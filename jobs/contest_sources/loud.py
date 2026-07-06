@@ -1,9 +1,13 @@
-"""라우드(loud.kr) — AI 공모전 전용 탭(/ai/contest/list).
+"""라우드(loud.kr) — /ai/contest/list 탭.
 
-라우드소싱 AI 공모전 플랫폼. 목록이 SPA라 헤드리스 렌더(_render)로 긁는다.
+라우드소싱 공모전 플랫폼의 'AI' 탭. 목록이 SPA라 헤드리스 렌더(_render)로 긁는다.
 LOUD_EMAIL/LOUD_PASSWORD 설정 시 로그인 세션에서 목록 파싱 + 상세 페이지의
 iframe[2] 내 포스터 이미지 URL 수집. 미설정 시 비로그인 렌더(이미지 없음).
-AI 공모전 전용 탭이므로 ai_exempt=True.
+
+주의: 이 탭 이름과 달리 실제로는 AI와 무관한 공고도 섞여 있다(예: 치과의원
+숏폼 영상 콘테스트, id=429 확인됨) — 'AI 탭이니 AI 관련'이라는 가정으로
+ai_exempt=True + field_tags=["AI"]를 걸었더니 그런 항목까지 무검증 통과했다.
+다른 소스와 동일하게 표준 AI 키워드 게이트(_is_ai_relevant)를 그대로 적용한다.
 """
 import logging
 import os
@@ -302,9 +306,7 @@ def fetch() -> list[ContestDraft]:
             image_url=d["image_url"],
             target=d["target"],
             category="공모전",
-            field_tags=["AI"],
             deadline=d["deadline"],
-            ai_exempt=True,
         )
         for d in drafts
     ]
