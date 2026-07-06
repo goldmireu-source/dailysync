@@ -108,6 +108,13 @@ def _parse_list_page(html: str) -> list[ContestDraft]:
     drafts: list[ContestDraft] = []
 
     for a in soup.find_all("a", href=_STR_NO_RE):
+        # 목록 항목 = <li><div class="title"><a>...</a></div></li>. 같은 페이지의
+        # '인기 대회·공모전' 랭킹 사이드바(<ol id="cate03"><li><a>1. 제목</a></li>)도
+        # str_no= 패턴을 공유하지만 div.title 래핑이 없고 순번("1. ")이 텍스트에
+        # 그대로 섞여 나온다 — div.title 조상 없으면 스킵해 오염 방지.
+        if not a.find_parent("div", class_="title"):
+            continue
+
         href = a.get("href", "")
         m = _STR_NO_RE.search(href)
         str_no = m.group(1) if m else None
