@@ -5,6 +5,7 @@
 """
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
@@ -67,7 +68,12 @@ def http_get(url: str, *, headers: dict | None = None, params: dict | None = Non
 
 # ---------- 텍스트/날짜 헬퍼 ----------
 def clean(text: str | None) -> str:
-    return re.sub(r"\s+", " ", text or "").strip()
+    """공백 정규화 + Unicode NFC 정규화.
+
+    일부 소스(예: allforyoung의 Playwright 렌더링 DOM)는 한글을 NFD(자모 분해)로
+    내보내 시각적으로 같은 텍스트가 다른 소스의 NFC 표기와 바이트 단위로 달라진다.
+    NFC로 통일하지 않으면 제목 중복 감지(_norm_title)가 깨진다."""
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", text or "")).strip()
 
 
 def today_kst() -> date:
