@@ -32,6 +32,24 @@ _CONTEST_AI_KEYWORDS = {
 }
 
 
+# 순수 라틴 키워드('ai', 'flux', 'r1' 등) 판별용 — 이런 키워드만 단어 경계를 적용한다.
+# 한글이 섞인 키워드('ai기반' 등)는 한글이 붙여쓰기가 흔해 경계 개념이 적용 안 되므로 제외.
+_LATIN_ONLY_KW_RE = re.compile(r"^[a-z0-9][a-z0-9.\-]*$")
+
+
+def _kw_in_text(kw: str, hay: str) -> bool:
+    """키워드가 haystack 안에 있는지.
+
+    순수 라틴 키워드는 앞뒤로 라틴 알파벳이 없을 때만 매칭(단어 경계) — 'flux'가
+    주최명 'FunnyFlux' 안에 우연히 끼어 있어도 매칭되지 않도록 한다(뮤지컬 배우
+    모집 공고가 이 때문에 AI 공모전으로 오수집된 사례 있음). 한글 키워드는 기존처럼
+    단순 포함 검사를 유지한다.
+    """
+    if _LATIN_ONLY_KW_RE.match(kw):
+        return re.search(rf"(?<![a-zA-Z]){re.escape(kw)}(?![a-zA-Z])", hay) is not None
+    return kw in hay
+
+
 def _is_ai_relevant(text: str) -> bool:
     """제목+분야+주최 합산 텍스트에 AI/데이터 키워드가 있는지.
 
@@ -39,9 +57,10 @@ def _is_ai_relevant(text: str) -> bool:
     """
     from jobs.news_collector import AI_KEYWORDS_KO, AI_KEYWORDS_EN
     hay = (text or "").lower()
-    if any(kw in hay for kw in _CONTEST_AI_KEYWORDS):
+    if any(_kw_in_text(kw, hay) for kw in _CONTEST_AI_KEYWORDS):
         return True
-    return any(kw in hay for kw in AI_KEYWORDS_KO) or any(kw in hay for kw in AI_KEYWORDS_EN)
+    return (any(_kw_in_text(kw, hay) for kw in AI_KEYWORDS_KO)
+            or any(_kw_in_text(kw, hay) for kw in AI_KEYWORDS_EN))
 
 
 # ---------- 게이트 2: 참여대상이 기업에 국한 ----------
