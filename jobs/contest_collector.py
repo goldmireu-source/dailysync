@@ -304,7 +304,7 @@ _SIMILARITY_THRESHOLD = 0.90
 # 연도 제거 후 재비교 시 임계값. 소스마다 연도 위치가 달라 원본 비율이 낮아지는 경우
 # (예: 'AIUS 2026 MZ 페르소나 공모전' vs '2026 AI MZ 페르소나 공모전')를 보완.
 _SIMILARITY_THRESHOLD_NO_YEAR = 0.85
-_YEAR_DIGITS_RE = re.compile(r"\d{4}")
+_YEAR_DIGITS_RE = re.compile(r"\d{4}년?")
 # '제N회' 유무 차이 보완용 — 연도와 같은 성격의 소스별 표기 차이(한쪽만 회차를
 # 제목에 명시)라 별도 재비교 단계로 둔다. 예: contestkorea '제1회 AI 컷! 드라마
 # 공모전' vs wevity 'AI 컷! 드라마 공모전 - AI 숏폼 드라마 챌린지'(부제 추가형).
@@ -332,7 +332,10 @@ def _same_contest(a: str, b: str) -> bool:
 
     연도 제거 후 재비교: 소스마다 연도 위치·표기가 달라 '2026 AI MZ 공모전' vs
     'AIUS 2026 MZ 공모전'처럼 연도가 제목을 쪼개면 유사도가 인위적으로 낮아진다.
-    연도 4자리 제거 후 ≥10자일 때 0.85 임계로 재판정.
+    연도(+'년') 제거 후 포함관계 우선 재판정, 안 되면 ≥10자에서 0.85 임계로 재판정.
+    (예: '2026년 한전산업개발 AI 활용 아이디어 공모전' vs contestkorea 의 부제 붙은
+    '한전산업개발 AI 활용 아이디어 공모전 AI, 난 이렇게 쓴다! 개최' — 연도 제거로
+    앞쪽이 정확히 접두 포함되는데 뒤쪽 부제가 길어 유사도만으론 임계 미달.)
     """
     if a == b:
         return True
@@ -343,7 +346,9 @@ def _same_contest(a: str, b: str) -> bool:
         return True
     # 연도 제거 후 재비교 — 소스별 연도 위치 차이로 인한 유사도 저하 보완
     a2, b2 = _YEAR_DIGITS_RE.sub("", a), _YEAR_DIGITS_RE.sub("", b)
-    s2 = a2 if len(a2) <= len(b2) else b2
+    s2, l2 = (a2, b2) if len(a2) <= len(b2) else (b2, a2)
+    if len(s2) >= 10 and s2 in l2:
+        return True
     if len(s2) >= 10 and SequenceMatcher(None, a2, b2).ratio() >= _SIMILARITY_THRESHOLD_NO_YEAR:
         return True
     # '제N회' 제거 후 포함관계 재비교 — 한쪽 소스만 회차를 제목에 넣어 부분문자열
