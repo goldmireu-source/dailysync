@@ -311,6 +311,17 @@ _YEAR_DIGITS_RE = re.compile(r"\d{4}")
 _ORDINAL_RE = re.compile(r"제\d{1,3}회")
 
 
+def _is_subsequence(short: str, long: str) -> bool:
+    """short 의 모든 글자가 순서대로(연속 아니어도) long 안에 등장하면 True."""
+    pos = 0
+    for ch in short:
+        pos = long.find(ch, pos)
+        if pos == -1:
+            return False
+        pos += 1
+    return True
+
+
 def _same_contest(a: str, b: str) -> bool:
     """두 정규화 제목이 같은 공모전인지.
 
@@ -343,6 +354,13 @@ def _same_contest(a: str, b: str) -> bool:
         s3, l3 = (a3, b3) if len(a3) <= len(b3) else (b3, a3)
         if len(s3) >= 8 and s3 in l3:
             return True
+    # 중간 삽입어 보완 — 한쪽 소스가 제목 중간에 수식어를 끼워넣으면(예: '~아이디어~')
+    # 포함관계·유사도 모두 깨진다. 짧은 제목 글자가 순서대로 전부 등장하면(연속 아니어도)
+    # 같은 공모전으로 본다. 순서 보존 부분열 매칭이라 오탐 위험이 낮지만, 긴 쪽이
+    # 짧은 쪽의 2배를 넘지 않을 때만 적용해 우연한 매칭을 방지한다.
+    # 예: '원주시 공공데이터 AI 활용 공모전' vs '제2회 원주시 공공데이터·AI 활용 아이디어 공모전'
+    if len(short) >= 12 and len(long) <= len(short) * 2 and _is_subsequence(short, long):
+        return True
     return False
 
 
