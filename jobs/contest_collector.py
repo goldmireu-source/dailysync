@@ -163,6 +163,14 @@ _TITLE_RESTRICTED_RE = re.compile(
 )
 
 
+# ---------- 게이트 0c: 퀴즈/이벤트성 콘텐츠 제외 ----------
+# 공모전(창작물·아이디어 제출 후 심사)이 아니라 정답이 정해진 '퀴즈 맞히기' 식
+# 마케팅 이벤트는 이 서비스의 큐레이션 취지(공모전)에 안 맞아 제외한다.
+# 예: '[EVENT] KAIA 빈칸 채우기 퀴즈 이벤트' — 제목에 'AI'와 무관한 'KAIA'가
+# 섞여 AI 관련 게이트를 우연히 통과해도, 애초에 공모전이 아니므로 여기서 걸러낸다.
+_QUIZ_EVENT_RE = re.compile(r"퀴즈")
+
+
 # ---------- 제목 기반 사업자 참가 주체 추론 ----------
 # target=None 인 공고에서도 소상공인·자영업자가 '참가자(주체)'임을 제목에서 추론.
 # 추론 결과를 _is_company_only() 에 그대로 넘겨 기존 필터와 동일하게 처리한다.
@@ -224,6 +232,9 @@ def _passes_gates(draft) -> tuple[bool, str]:
     # 0b. 제목에서 학교급/청소년 대상 명시 — target 미추출 시에도 사전 차단
     if draft.title and _TITLE_RESTRICTED_RE.search(draft.title):
         return False, "not_public"
+    # 0c. 퀴즈/이벤트성 콘텐츠 — 공모전이 아님
+    if draft.title and _QUIZ_EVENT_RE.search(draft.title):
+        return False, "quiz_event"
     # 1. AI 관련 (AI 전용 카테고리/플랫폼은 면제)
     if not draft.ai_exempt:
         hay = " ".join(filter(None, [draft.title, " ".join(draft.field_tags or []), draft.host or ""]))
@@ -451,6 +462,11 @@ def purge_restricted_contests() -> int:
     for c in rows:
         # 1) 제목에서 학교급/청소년 제한 감지
         if c.title and _TITLE_RESTRICTED_RE.search(c.title):
+            db.session.delete(c)
+            deleted += 1
+            continue
+        # 1b) 퀴즈/이벤트성 콘텐츠 — 정책 도입 전 수집된 행 소급 정리
+        if c.title and _QUIZ_EVENT_RE.search(c.title):
             db.session.delete(c)
             deleted += 1
             continue
