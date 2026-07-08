@@ -51,6 +51,11 @@ PAGES_MAX = 5
 _IT_BCODE = "030310001"
 
 _STR_NO_RE = re.compile(r"str_no=(\w+)")
+# int_gbn=1 은 '대회·공모전'(상금/시상 있는 진짜 공모전), int_gbn=2 는 '대외활동'
+# (서포터즈·기자단·교육·강연·멘토링·세미나 등 — 상금 없는 프로그램/활동)이다.
+# list.php?kind=con 목록엔 둘 다 섞여 나오므로 int_gbn=1 만 허용(화이트리스트).
+# 예: '?int_gbn=2&...' 로 링크된 'AI 시대 SaaS 고도화 전략 세미나' — 대외활동 카테고리라 제외.
+_INT_GBN_RE = re.compile(r"int_gbn=(\d+)")
 _MMDD_RANGE_RE = re.compile(r"(\d{1,2})[.\-](\d{1,2})\s*~\s*(\d{1,2})[.\-](\d{1,2})")
 # 상세페이지 '접수기간' 표는 연도가 명시돼 있어(YYYY.MM.DD ~ YYYY.MM.DD) 목록 페이지의
 # 연도 추정(MM.DD만) 보다 정확 — 목록에서 마감일 추출 실패 시 폴백으로 사용.
@@ -116,6 +121,12 @@ def _parse_list_page(html: str) -> list[ContestDraft]:
             continue
 
         href = a.get("href", "")
+
+        # int_gbn=2(대외활동: 서포터즈·교육·세미나 등)는 상금 있는 공모전이 아니므로 제외.
+        gm = _INT_GBN_RE.search(href)
+        if gm and gm.group(1) != "1":
+            continue
+
         m = _STR_NO_RE.search(href)
         str_no = m.group(1) if m else None
 
