@@ -254,6 +254,16 @@
   </div>
 </div>
 
+{% elif card.type == 'techpost_summary' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 요약</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+  <p class="body-text">{{ card.summary }}</p>
+</div>
+
 {% elif card.type == 'techpost_section' %}
 <div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
   <div class="head-row">

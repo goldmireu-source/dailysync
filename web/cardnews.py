@@ -573,8 +573,9 @@ def build_techpost_cards(post) -> list[dict]:
 
     구조:
       1. techpost_cover — 표지 (제목, 블로그명, 이미지, 언급 배지, 날짜)
-      2. techpost_section — 핵심 포인트 (key_points, 텍스트 양에 따라 자동 분할)
-      3. techpost_links — 원문 링크
+      2. techpost_summary — 요약 (summary_ko, 뉴스 'detail'/논문 'paper_section'과 동일 위상)
+      3. techpost_section — 핵심 포인트 (key_points, 텍스트 양에 따라 자동 분할)
+      4. techpost_links — 원문 링크
     """
     cards = []
 
@@ -595,6 +596,14 @@ def build_techpost_cards(post) -> list[dict]:
         "hot": bool(post.mentioned_by),
         "date_str": date_str,
     })
+
+    # 요약 — Claude 가 티저로 생성한 1~2문장 소개
+    if post.summary_ko:
+        cards.append({
+            "type": "techpost_summary",
+            "title": "요약",
+            "summary": post.summary_ko,
+        })
 
     # 핵심 포인트 — 텍스트 양에 따라 자동 분할 (뉴스 facts 청킹 재사용)
     point_chunks = _chunk_facts(post.key_points)
