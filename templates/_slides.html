@@ -225,13 +225,81 @@
   </div>
 </div>
 
+{% elif card.type == 'techpost_cover' %}
+<div class="slide paper-cover {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  {% if card.image_url %}
+  <img class="cover-image" src="{{ card.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+  {% endif %}
+  <div class="watermark">{{ '%02d' % seq_num }}</div>
+
+  <div class="cover-top">
+    <span class="paper-tag">{{ card.blog_name }}</span>
+  </div>
+
+  <div class="cover-stars-row">
+    {% if card.hot %}
+    <div class="paper-stats-row">
+      <span class="paper-stat-chip">🔥 오늘의 화제</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="paper-mid">
+    <h1>{{ card.title }}</h1>
+  </div>
+
+  <div class="cover-foot">
+    <span>{{ card.date_str }}</span>
+    <span>SWIPE →</span>
+  </div>
+</div>
+
+{% elif card.type == 'techpost_section' %}
+<div class="slide body {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 핵심 포인트</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+  <h2>{{ card.title }}</h2>
+  <div class="fact-items">
+    {% for point in card.points %}
+    <div class="fact-row">
+      <p>{{ point }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% elif card.type == 'techpost_links' %}
+<div class="slide body links-slide {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+  <div class="head-row">
+    <span class="label">CARD {{ idx + 1 }} · 원문</span>
+    <span class="pos">{{ idx + 1 }} / {{ total }}</span>
+  </div>
+
+  <div class="links-image-area">
+    {% if card.image_url %}
+    <img src="{{ card.image_url }}" alt="" loading="lazy"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div class="links-img-fallback default" style="display:none"></div>
+    {% else %}
+    <div class="links-img-fallback default"></div>
+    {% endif %}
+  </div>
+
+  <div class="links-mini">
+    <div class="label">📎 원문 링크</div>
+    <a href="{{ card.url }}" target="_blank" rel="noopener" onclick="event.stopPropagation();">→ {{ card.blog_name }} 원문 보기 ↗</a>
+  </div>
+</div>
+
 {% endif %}
 {% endmacro %}
 
 
 {% macro render_carousel(cid, kind, cards, hide_kind, hide_id, show_hidden, caption_meta, seq_num=0, is_saved=false, is_bookmarked=false, is_pinned=false, image_position="top center") %}
 <div class="carousel" id="car-{{ cid }}" data-{{ hide_kind }}-id="{{ hide_id }}" data-cat="{% if cards and cards[0].type == 'cover' %}{{ cards[0].category }}{% elif cards and cards[0].type == 'paper_cover' %}research{% endif %}">
-  <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover'] %}1{% else %}0{% endif %}" data-cat="{% if cards and cards[0].type == 'cover' %}{{ cards[0].category }}{% endif %}">
+  <div class="carousel-stage" data-cover="{% if cards[0].type in ['cover', 'paper_cover', 'techpost_cover'] %}1{% else %}0{% endif %}" data-cat="{% if cards and cards[0].type == 'cover' %}{{ cards[0].category }}{% endif %}">
     {# Jinja 매크로는 호출 템플릿의 context 변수(is_admin)에 접근 불가.
        Flask 의 g 글로벌은 매크로 안에서도 보이므로 g.is_admin 사용.
        routes.py 의 inject_admin_flag before_request 에서 g.is_admin 세팅. #}
@@ -304,7 +372,11 @@
   </div>
 
   <div class="carousel-caption">
+    {% if kind == 'techpost' %}
+    <a class="topic-link" href="{{ caption_meta.url }}" target="_blank" rel="noopener" title="{{ caption_meta.topic }}">{{ caption_meta.topic }}</a>
+    {% else %}
     <a class="topic-link" href="/{{ 'cluster' if kind == 'cluster' else 'paper' }}/{{ hide_id }}" title="{{ caption_meta.topic }}">{{ caption_meta.topic }}</a>
+    {% endif %}
     <span class="meta-right">{{ caption_meta.meta }}</span>
   </div>
 </div>

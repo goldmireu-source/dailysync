@@ -68,6 +68,7 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         job_refresh_now,
         job_cleanup_old_data,
         job_collect_contests,
+        job_collect_techblog,
         job_thumb_papers,
         job_screenshot_articles,
     )
@@ -132,6 +133,15 @@ def init_scheduler(app) -> BackgroundScheduler | None:
         **_JOB_DEFAULTS,
     )
 
+    # 06:15 KST — 기술블로그 수집 (하루 1회 — 발행 빈도 낮아 그 이상 불필요, 06:00 refresh_6h 직후)
+    sched.add_job(
+        _wrap(app, job_collect_techblog, triggered_by="scheduler"),
+        CronTrigger(hour=6, minute=15, timezone=KST),
+        id="collect_techblog_daily",
+        name="기술블로그 수집 (06:15)",
+        **_JOB_DEFAULTS,
+    )
+
     # 00:30, 06:30, 12:30, 18:30 — 논문 PDF 썸네일 (refresh_now 30분 뒤)
     sched.add_job(
         _wrap(app, job_thumb_papers, triggered_by="scheduler"),
@@ -183,6 +193,7 @@ def trigger_job_now(job_id: str, app, run_id: int | None = None) -> bool:
         "backfill_papers": pipeline.job_backfill_papers,
         "cleanup_old_data": pipeline.job_cleanup_old_data,
         "collect_contests": pipeline.job_collect_contests,
+        "collect_techblog": pipeline.job_collect_techblog,
         "thumb_papers": pipeline.job_thumb_papers,
         "screenshot_articles": pipeline.job_screenshot_articles,
     }

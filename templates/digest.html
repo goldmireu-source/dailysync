@@ -79,10 +79,16 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2M18 14h-8M15 18h-5M10 6h8v4h-8V6z"/></svg>
     뉴스·논문<span class="nav-num">{{ total_clusters + total_papers }}</span>
   </a>
+  <a href="?tab=techblog" class="nav-pill {% if tab == 'techblog' %}active{% endif %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+    테크블로그<span class="nav-num">{{ total_techposts }}</span>
+  </a>
+  {% if parties_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
   <a href="?tab=parties" class="nav-pill {% if tab == 'parties' %}active{% endif %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-    파티 찾기<span class="nav-num">{{ total_parties }}</span>
+    파티 찾기{% if not parties_enabled %}<span style="font-size:10px;opacity:.5;margin-left:3px;">비공개</span>{% else %}<span class="nav-num">{{ total_parties }}</span>{% endif %}
   </a>
+  {% endif %}
   {% if karrot_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
   <a href="?tab=karrot" class="nav-pill {% if tab == 'karrot' %}active{% endif %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V22H10V9.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 9c-1.5.5-3 2-3 4"/></svg>
@@ -336,6 +342,93 @@
 {% if tab == 'papers' and not paper_cardsets %}
 <div class="empty">
   논문이 없습니다.
+</div>
+{% endif %}
+
+{# ===== 테크블로그 탭 필터바 ===== #}
+{% if tab == 'techblog' and not show_hidden %}
+{% set tb_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=techblog' %}
+<div class="filter-bar">
+  <div class="cat-chips">
+    <a href="{{ tb_base }}&tech_sort={{ techpost_sort }}&tblog=all" class="cat-chip {% if techblog_filter == 'all' %}active{% endif %}">
+      전체 <span class="num">{{ techblog_counts.get('all', 0) }}</span>
+    </a>
+    {% for blog_key, blog_name in techblog_names.items() %}
+      {% if techblog_counts.get(blog_key) %}
+      <a href="{{ tb_base }}&tech_sort={{ techpost_sort }}&tblog={{ blog_key }}" class="cat-chip {% if techblog_filter == blog_key %}active{% endif %}">
+        {{ blog_name }} <span class="num">{{ techblog_counts.get(blog_key, 0) }}</span>
+      </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="sort-select">
+    <label for="tech-sort-sel">정렬</label>
+    <select id="tech-sort-sel" onchange="window.location.href='{{ tb_base }}&tblog={{ techblog_filter }}&tech_sort=' + this.value">
+      <option value="hot" {% if techpost_sort == 'hot' %}selected{% endif %}>핫한순</option>
+      <option value="recent" {% if techpost_sort == 'recent' %}selected{% endif %}>최신순</option>
+    </select>
+  </div>
+</div>
+{% endif %}
+
+{# ===== 테크블로그 탭 ===== #}
+{% if techpost_cardsets %}
+<div class="carousel-grid js-card-grid {% if tab == 'techblog' and page == 1 %}carousel-grid--bento{% endif %}">
+  {% for item in techpost_cardsets %}
+    {% set t = item.post %}
+    {% set caption_meta = {
+      'topic': t.title,
+      'meta': ('🔥 ' ~ techblog_names.get(t.blog, t.blog)) if t.mentioned_by else techblog_names.get(t.blog, t.blog),
+      'url': t.url
+    } %}
+    {{ render_carousel('t' ~ t.id, 'techpost', item.cards, 'techpost', t.id, show_hidden, caption_meta, ((page - 1) * 12 + loop.index), t.saved_at is not none, is_bookmarked=(t.id in user_bm_techpost_ids), is_pinned=(t.pinned_featured or false)) }}
+  {% endfor %}
+</div>
+
+{# 테크블로그 페이저 #}
+{% if total_pages > 1 %}
+{% set page_base = '?date=' ~ target_date.isoformat() ~ dt_param ~ '&tab=techblog&tech_sort=' ~ techpost_sort ~ '&tblog=' ~ techblog_filter %}
+<div class="pager">
+  {% if page > 1 %}
+    <a href="{{ page_base }}&page={{ page - 1 }}" class="pager-btn">← 이전</a>
+  {% else %}
+    <span class="pager-btn disabled">← 이전</span>
+  {% endif %}
+
+  <div class="pager-nums">
+    {% set start_p = [1, page - 2]|max %}
+    {% set end_p = [total_pages, page + 2]|min %}
+    {% if start_p > 1 %}
+      <a href="{{ page_base }}&page=1" class="pager-num">1</a>
+      {% if start_p > 2 %}<span class="pager-ellip">…</span>{% endif %}
+    {% endif %}
+    {% for p in range(start_p, end_p + 1) %}
+      {% if p == page %}
+        <span class="pager-num active">{{ p }}</span>
+      {% else %}
+        <a href="{{ page_base }}&page={{ p }}" class="pager-num">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if end_p < total_pages %}
+      {% if end_p < total_pages - 1 %}<span class="pager-ellip">…</span>{% endif %}
+      <a href="{{ page_base }}&page={{ total_pages }}" class="pager-num">{{ total_pages }}</a>
+    {% endif %}
+  </div>
+
+  {% if page < total_pages %}
+    <a href="{{ page_base }}&page={{ page + 1 }}" class="pager-btn">다음 →</a>
+  {% else %}
+    <span class="pager-btn disabled">다음 →</span>
+  {% endif %}
+</div>
+<div class="pager-info">{{ (page - 1) * 12 + 1 }}–{{ [(page * 12), total_techposts]|min }} of {{ total_techposts }}</div>
+{% endif %}
+{% endif %}
+
+{# 테크블로그 탭인데 결과 없을 때 #}
+{% if tab == 'techblog' and not techpost_cardsets %}
+<div class="empty">
+  테크블로그 글이 없습니다.
 </div>
 {% endif %}
 
@@ -2410,11 +2503,18 @@ function resetRefresh() {
     {% set news_total = total_clusters + total_papers %}
     {% if news_total %}<span class="bn-badge">{{ news_total }}</span>{% endif %}
   </button>
+  <a href="?tab=techblog" class="bn-item {% if tab == 'techblog' %}active{% endif %}">
+    <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+    <span class="bn-label">테크블로그</span>
+    {% if total_techposts %}<span class="bn-badge">{{ total_techposts }}</span>{% endif %}
+  </a>
+  {% if parties_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
   <a href="?tab=parties" class="bn-item {% if tab == 'parties' %}active{% endif %}">
     <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     <span class="bn-label">파티</span>
-    {% if total_parties %}<span class="bn-badge">{{ total_parties }}</span>{% endif %}
+    {% if not parties_enabled %}<span style="font-size:9px;opacity:.5;">비공개</span>{% elif total_parties %}<span class="bn-badge">{{ total_parties }}</span>{% endif %}
   </a>
+  {% endif %}
   {% if karrot_enabled or current_user.is_authenticated and current_user.role == 'admin' %}
   <a href="?tab=karrot" class="bn-item {% if tab == 'karrot' %}active{% endif %}">
     <svg class="bn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V22H10V9.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 9c-1.5.5-3 2-3 4"/></svg>

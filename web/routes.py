@@ -17,8 +17,8 @@ from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication, AppSetting, UserBookmark
-from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile
+from models import db, Cluster, Article, Paper, Source, JobRun, Contest, AdminUser, Party, PartyMember, PartyMessage, UserActivity, KarrotPost, KarrotApplication, AppSetting, UserBookmark, TechPost
+from web.cardnews import build_cluster_cards, build_paper_cards, build_contest_tile, build_techpost_cards, techblog_names
 
 bp = Blueprint("web", __name__)
 
@@ -405,7 +405,7 @@ def index():
         target_to = datetime.now(KST).date()
     # tab 은 아래 클러스터 쿼리보다 앞에서 미리 읽어야 articles_flat 분기에 활용 가능
     tab = request.args.get("tab", "contests")
-    if tab not in ("news", "papers", "contests", "parties", "karrot"):
+    if tab not in ("news", "papers", "contests", "parties", "karrot", "techblog"):
         tab = "contests"
 
     # 인사교당근 공개 여부 — 비공개 시 관리자 외 접근 차단
@@ -413,14 +413,20 @@ def index():
     if tab == "karrot" and not karrot_enabled and not is_admin():
         tab = "contests"
 
+    # 파티찾기 공개 여부 — 비공개 시 관리자 외 접근 차단
+    parties_enabled = _get_setting("parties_enabled", "false") == "true"
+    if tab == "parties" and not parties_enabled and not is_admin():
+        tab = "contests"
+
     # 회원별 즐겨찾기 ID 세트 (북마크 버튼 상태 표시용)
-    user_bm_contest_ids = user_bm_cluster_ids = user_bm_paper_ids = set()
+    user_bm_contest_ids = user_bm_cluster_ids = user_bm_paper_ids = user_bm_techpost_ids = set()
     if current_user.is_authenticated:
         try:
             _bms = UserBookmark.query.filter_by(user_id=current_user.id).all()
             user_bm_contest_ids = {b.item_id for b in _bms if b.item_type == "contest"}
             user_bm_cluster_ids = {b.item_id for b in _bms if b.item_type == "cluster"}
             user_bm_paper_ids = {b.item_id for b in _bms if b.item_type == "paper"}
+            user_bm_techpost_ids = {b.item_id for b in _bms if b.item_type == "techpost"}
         except Exception:
             pass
 
@@ -662,6 +668,58 @@ def index():
 
     total_articles = len(arts_today)
 
+    # ========== 테크블로그 탭 ==========
+    techpost_sort = request.args.get("tech_sort", "hot")
+    if techpost_sort == "recent":
+        techpost_order = [TechPost.published_at.desc()]
+    else:
+        techpost_sort = "hot"
+        techpost_order = [TechPost.hot_score.desc(), TechPost.published_at.desc()]
+
+    techblog_filter = request.args.get("tblog", "all")
+    techposts_q = TechPost.query
+    if techblog_filter != "all":
+        techposts_q = techposts_q.filter(TechPost.blog == techblog_filter)
+
+    if show_hidden:
+        techposts_all = techposts_q.filter(TechPost.hidden_at.isnot(None)).order_by(
+            TechPost.hidden_at.desc()
+        ).all()
+    else:
+        techposts_all = techposts_q.filter(
+            TechPost.hidden_at.is_(None), TechPost.saved_at.is_(None)
+        ).order_by(*techpost_order).all()
+        pinned_t = [t for t in techposts_all if t.pinned_featured]
+        rest_t = [t for t in techposts_all if not t.pinned_featured]
+        techposts_all = pinned_t + rest_t
+
+    hidden_techposts_count = techposts_q.filter(TechPost.hidden_at.isnot(None)).count()
+    total_techposts = TechPost.query.filter(
+        TechPost.hidden_at.is_(None), TechPost.saved_at.is_(None)
+    ).count()
+    # 블로그사 필터 칩용 카운트
+    techblog_counts = {"all": total_techposts}
+    for blog_key, cnt in (
+        db.session.query(TechPost.blog, db.func.count(TechPost.id))
+        .filter(TechPost.hidden_at.is_(None), TechPost.saved_at.is_(None))
+        .group_by(TechPost.blog).all()
+    ):
+        techblog_counts[blog_key] = cnt
+
+    techpost_cardsets = []
+    if tab == "techblog":
+        t_total_pages = max(1, (len(techposts_all) + PAGE_SIZE - 1) // PAGE_SIZE)
+        if page > t_total_pages:
+            page = t_total_pages
+        t_start = (page - 1) * PAGE_SIZE
+        techposts = techposts_all[t_start:t_start + PAGE_SIZE]
+        techpost_cardsets = [{"post": t, "cards": build_techpost_cards(t)} for t in techposts]
+        total_pages = t_total_pages
+        # 다른 탭 카드 비움
+        inline_clusters = []
+        paper_cardsets = []
+        contest_tiles = []
+
     # ========== 파티 탭 ==========
     parties_list = []
     my_party_ids = set()
@@ -675,6 +733,7 @@ def index():
         inline_clusters = []
         paper_cardsets = []
         contest_tiles = []
+        techpost_cardsets = []
 
     # ========== 인사교당근 탭 ==========
     karrot_list = []
@@ -695,6 +754,7 @@ def index():
         inline_clusters = []
         paper_cardsets = []
         contest_tiles = []
+        techpost_cardsets = []
 
     return render_template(
         "digest.html",
@@ -737,9 +797,18 @@ def index():
         karrot_filter=karrot_filter,
         karrot_class=karrot_class,
         karrot_enabled=karrot_enabled,
+        parties_enabled=parties_enabled,
+        techpost_cardsets=techpost_cardsets,
+        total_techposts=total_techposts,
+        hidden_techposts_count=hidden_techposts_count,
+        techpost_sort=techpost_sort,
+        techblog_filter=techblog_filter,
+        techblog_counts=techblog_counts,
+        techblog_names=techblog_names(),
         user_bm_contest_ids=user_bm_contest_ids,
         user_bm_cluster_ids=user_bm_cluster_ids,
         user_bm_paper_ids=user_bm_paper_ids,
+        user_bm_techpost_ids=user_bm_techpost_ids,
     )
 
 
@@ -1017,6 +1086,52 @@ def unsave_paper(paper_id: int):
     if not paper:
         return jsonify({"ok": False, "error": "not_found"}), 404
     paper.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/techpost/<int:techpost_id>/hide", methods=["POST"])
+@admin_required
+def hide_techpost(techpost_id: int):
+    post = TechPost.query.get(techpost_id)
+    if not post:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    post.hidden_at = datetime.utcnow()
+    post.saved_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/techpost/<int:techpost_id>/show", methods=["POST"])
+@admin_required
+def show_techpost(techpost_id: int):
+    post = TechPost.query.get(techpost_id)
+    if not post:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    post.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/techpost/<int:techpost_id>/save", methods=["POST"])
+@admin_required
+def save_techpost(techpost_id: int):
+    post = TechPost.query.get(techpost_id)
+    if not post:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    post.saved_at = datetime.utcnow()
+    post.hidden_at = None
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/techpost/<int:techpost_id>/unsave", methods=["POST"])
+@admin_required
+def unsave_techpost(techpost_id: int):
+    post = TechPost.query.get(techpost_id)
+    if not post:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    post.saved_at = None
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -1474,6 +1589,7 @@ JOB_LABELS = {
     "backfill_papers": "📚 논문 백필 (dirty 전부)",
     "cleanup_old_data": "🗑️ 4일 이상 데이터 삭제",
     "collect_contests": "🏆 공모전 수집 (위비티·데이콘 등)",
+    "collect_techblog": "🏢 기업 기술블로그 수집",
     "thumb_papers": "🖼️ 논문 PDF 썸네일 생성 (30건)",
     "screenshot_articles": "📸 기사 스크린샷 (20건)",
 }
@@ -1545,6 +1661,7 @@ def admin():
         recent_activity=recent_activity,
         register_ip_map=register_ip_map,
         karrot_enabled=_get_setting("karrot_enabled", "false") == "true",
+        parties_enabled=_get_setting("parties_enabled", "false") == "true",
     )
 
 
@@ -1553,7 +1670,7 @@ def admin():
 @login_required
 def toggle_bookmark(item_type: str, item_id: int):
     """즐겨찾기 토글 — 있으면 제거, 없으면 추가."""
-    if item_type not in ("contest", "cluster", "paper"):
+    if item_type not in ("contest", "cluster", "paper", "techpost"):
         return jsonify({"ok": False, "error": "invalid_type"}), 400
     existing = UserBookmark.query.filter_by(
         user_id=current_user.id, item_type=item_type, item_id=item_id
@@ -1617,6 +1734,16 @@ def admin_toggle_karrot():
     new_val = "false" if current == "true" else "true"
     _set_setting("karrot_enabled", new_val)
     return jsonify({"ok": True, "karrot_enabled": new_val == "true"})
+
+
+@bp.route("/admin/toggle-parties", methods=["POST"])
+@admin_required
+def admin_toggle_parties():
+    """파티찾기 탭 공개/비공개 토글."""
+    current = _get_setting("parties_enabled", "false")
+    new_val = "false" if current == "true" else "true"
+    _set_setting("parties_enabled", new_val)
+    return jsonify({"ok": True, "parties_enabled": new_val == "true"})
 
 
 @bp.route("/admin/run/<job_id>", methods=["POST"])

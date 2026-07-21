@@ -1,0 +1,71 @@
+# 기업 기술블로그 RSS 소스 시드
+#
+# blog_key: TechPost.blog 컬럼 값 (jobs/techblog_sources/rss_blogs.py 가 이 값으로 저장)
+# 각 URL은 requests + feedparser 로 실제 유효성(200 + item 파싱 성공)을 확인 후 등록했다.
+# (확인일자 2026-07-21). init_db.py 의 Source/sources.yaml 과는 무관한 별도 트랙 —
+# jobs/techblog_sources/rss_blogs.py 가 매 실행마다 이 파일을 직접 읽는다.
+
+- name: "네이버 D2"
+  url: "https://d2.naver.com/d2.atom"
+  lang: ko
+  blog_key: naver_d2
+
+- name: "카카오 테크"
+  url: "https://tech.kakao.com/feed/"
+  lang: ko
+  blog_key: kakao_tech
+
+- name: "토스"
+  url: "https://toss.tech/rss.xml"
+  lang: ko
+  blog_key: toss
+
+- name: "라인"
+  url: "https://engineering.linecorp.com/ko/feed/"
+  lang: ko
+  blog_key: line
+
+- name: "당근마켓"
+  url: "https://medium.com/feed/daangn"
+  lang: ko
+  blog_key: daangn
+
+- name: "쿠팡 엔지니어링"
+  url: "https://medium.com/feed/coupang-engineering"
+  lang: ko
+  blog_key: coupang
+
+- name: "무신사 기술블로그"
+  url: "https://medium.com/feed/musinsa-tech"
+  lang: ko
+  blog_key: musinsa
+
+# --- 아래는 확인 결과 비활성 (2026-07-21 확인) ---
+
+# 우아한형제들 기술블로그 — 403 Forbidden (봇 차단, 브라우저 UA로도 동일)
+- name: "우아한형제들"
+  url: "https://techblog.woowahan.com/feed/"
+  lang: ko
+  blog_key: woowahan
+  active: false
+
+# SK 데보션 — RSS 피드 미제공 확인 (/rss, /blog/rss, /blog/rss.xml 전부 404)
+- name: "SK 데보션"
+  url: "https://devocean.sk.com/blog/rss"
+  lang: ko
+  blog_key: sk_devocean
+  active: false
+
+# LG CNS — RSS 채널 자체는 유효(200, Tistory 제공)하나 <item> 0건 반환. 추후 재확인 필요
+- name: "LG CNS"
+  url: "https://blog.lgcns.com/feed"
+  lang: ko
+  blog_key: lg_cns
+  active: false
+
+# 마켓컬리 헬로월드 — 403 Forbidden (봇 차단)
+- name: "마켓컬리 헬로월드"
+  url: "https://helloworld.kurly.com/feed"
+  lang: ko
+  blog_key: kurly
+  active: false

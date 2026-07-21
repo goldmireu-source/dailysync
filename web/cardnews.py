@@ -1,8 +1,11 @@
 """카드뉴스 데이터 빌더.
 
-Cluster 또는 Paper 를 받아 슬라이드 카드 리스트로 변환.
+Cluster, Paper, Contest, TechPost 를 받아 슬라이드/타일 카드로 변환.
 """
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import yaml
 
 KST = timezone(timedelta(hours=9))
 
@@ -532,6 +535,85 @@ def build_paper_cards(paper) -> list[dict]:
         "arxiv_id": paper.arxiv_id,
         "source_type": paper.source_type,
         "figure_url": figure_url,
+    })
+
+    return cards
+
+
+# ---------- TechPost (기업 기술블로그) ----------
+_TECHBLOGS_YAML = Path(__file__).resolve().parent.parent / "data" / "techblogs.yaml"
+_blog_names: dict | None = None  # blog_key -> 표시명, techblogs.yaml 에서 지연 로딩
+
+
+def _load_blog_names() -> dict:
+    global _blog_names
+    if _blog_names is None:
+        _blog_names = {}
+        try:
+            with open(_TECHBLOGS_YAML, encoding="utf-8") as f:
+                items = yaml.safe_load(f) or []
+            _blog_names = {b["blog_key"]: b["name"] for b in items if b.get("blog_key")}
+        except Exception:
+            pass
+    return _blog_names
+
+
+def _blog_display_name(blog_key: str) -> str:
+    """blog_key(예: 'naver_d2') → 표시명(예: '네이버 D2'). data/techblogs.yaml 이 원천."""
+    return _load_blog_names().get(blog_key, blog_key)
+
+
+def techblog_names() -> dict:
+    """blog_key -> 표시명 매핑 전체 (필터 칩 라벨용). web/routes.py 에서 사용."""
+    return _load_blog_names()
+
+
+def build_techpost_cards(post) -> list[dict]:
+    """테크블로그 글 → 슬라이드 카드 리스트.
+
+    구조:
+      1. techpost_cover — 표지 (제목, 블로그명, 이미지, 언급 배지, 날짜)
+      2. techpost_section — 핵심 포인트 (key_points, 텍스트 양에 따라 자동 분할)
+      3. techpost_links — 원문 링크
+    """
+    cards = []
+
+    date_str = ""
+    if post.published_at:
+        try:
+            pub_kst = post.published_at.replace(tzinfo=timezone.utc).astimezone(KST)
+            date_str = pub_kst.strftime("%Y.%m.%d")
+        except Exception:
+            date_str = ""
+
+    cards.append({
+        "type": "techpost_cover",
+        "title": post.title,
+        "blog": post.blog,
+        "blog_name": _blog_display_name(post.blog),
+        "image_url": post.image_url,
+        "hot": bool(post.mentioned_by),
+        "date_str": date_str,
+    })
+
+    # 핵심 포인트 — 텍스트 양에 따라 자동 분할 (뉴스 facts 청킹 재사용)
+    point_chunks = _chunk_facts(post.key_points)
+    n_point_slides = len(point_chunks)
+    for i, chunk in enumerate(point_chunks):
+        title = "핵심만 정리하면" if i == 0 else f"핵심만 정리하면 ({i + 1}/{n_point_slides})"
+        cards.append({
+            "type": "techpost_section",
+            "title": title,
+            "points": chunk,
+        })
+
+    # 링크
+    cards.append({
+        "type": "techpost_links",
+        "title": "원문 보기",
+        "url": post.url,
+        "blog_name": _blog_display_name(post.blog),
+        "image_url": post.image_url,
     })
 
     return cards

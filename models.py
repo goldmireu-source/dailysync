@@ -268,6 +268,40 @@ class Contest(db.Model):
         return f"<Contest {self.id} {self.source} {self.title[:30]!r}>"
 
 
+# ---------- TechPost (기업 기술블로그) ----------
+class TechPost(db.Model):
+    """기업 기술블로그 "핫한 글" — 뉴스/논문/공모전과 완전히 별도 트랙.
+
+    회사 기술블로그 RSS를 수집하고, GeekNews 등 2차 소스에서 "오늘 언급된" 글을
+    매칭해 hot_score 를 매긴다. 본문 재현 없이 티저 요약만 저장 (README 원칙 1).
+    """
+    __tablename__ = "tech_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    blog = db.Column(db.String(50), nullable=False, index=True)  # "naver_d2" | "toss" | "woowahan" ...
+    url = db.Column(db.String(1000), nullable=False)
+    url_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    title = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.Text)
+    image_url = db.Column(db.String(1000), nullable=True)
+    published_at = db.Column(db.DateTime, index=True)
+    fetched_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    hot_score = db.Column(db.Float, default=0.0, index=True)
+    mentioned_by = db.Column(db.JSON, default=list)   # ["geeknews", "yozm_it"]
+    pinned_featured = db.Column(db.Boolean, default=False, nullable=False)
+    pinned_at = db.Column(db.DateTime, nullable=True)
+
+    summary_ko = db.Column(db.Text)          # 짧은 티저 요약 (본문 재현 금지 — README 원칙 1)
+    key_points = db.Column(db.JSON, default=list)  # 뉴스 agreed_facts처럼 짧은 포인트 리스트
+    summary_dirty = db.Column(db.Boolean, default=True, nullable=False)
+    hidden_at = db.Column(db.DateTime, nullable=True, index=True)
+    saved_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    def __repr__(self):
+        return f"<TechPost {self.id} {self.blog} {self.title[:40]!r}>"
+
+
 # ---------- Party (팀 빌딩) ----------
 class Party(db.Model):
     """공모전 팀 빌딩 파티."""
