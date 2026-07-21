@@ -3771,6 +3771,82 @@ footer a { color: var(--text-dim); }
 .slide.paper-cover .authors { color: #8a9aa8; }
 .slide.paper-cover .cover-foot { border-top: 1px solid rgba(255,255,255,0.08); color: #9aa0ad; opacity: 1; }
 
+/* ===== 테크블로그 표지 — paper-cover와 톤 구분(보라 기본) + 블로그별 브랜드 액센트 ===== */
+.slide.techpost-cover {
+  --tp-accent: #6f7dfa;
+  --tp-accent2: #4650c9;
+  background:
+    radial-gradient(120% 75% at 50% -8%, rgba(255,255,255,0.07), transparent 52%),
+    linear-gradient(168deg, #16191f 0%, #101218 100%);
+  border: 2px solid var(--tp-accent);
+  border-radius: 16px;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.slide.techpost-cover .cover-top {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.slide.techpost-cover .cover-top .paper-tag { font-size: 11px; letter-spacing: 0.2em; font-weight: 700; color: var(--tp-accent); }
+.slide.techpost-cover .paper-stat-chip { color: var(--tp-accent); border-color: var(--tp-accent); }
+.slide.techpost-cover .watermark {
+  position: absolute;
+  right: -16px; bottom: 56px;
+  font-size: 130px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: rgba(255,255,255,0.15);
+  opacity: 0.07;
+  pointer-events: none;
+}
+.slide.techpost-cover .paper-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 1; }
+.slide.techpost-cover h1 { margin: 0 0 6px; font-size: 19px; font-weight: 800; color: #f5f6f9; line-height: 1.35; letter-spacing: -0.015em; word-break: keep-all; }
+.slide.techpost-cover .cover-foot {
+  position: relative;
+  z-index: 1;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--tp-accent);
+  opacity: 0.9;
+}
+
+[data-theme="light"] .slide.techpost-cover {
+  background:
+    radial-gradient(ellipse 110% 50% at 50% -8%, rgba(255,255,255,0.92), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 90% 100%, rgba(0,0,0,0.05), transparent 60%),
+    linear-gradient(160deg, #fbfbfd 0%, #eef0f6 100%);
+  border: 2px solid var(--tp-accent);
+}
+[data-theme="light"] .slide.techpost-cover .cover-top { border-bottom-color: rgba(32,36,46,0.09); }
+[data-theme="light"] .slide.techpost-cover h1 { color: #1a1d26; }
+[data-theme="light"] .slide.techpost-cover .watermark { color: #20242e; }
+[data-theme="light"] .slide.techpost-cover .cover-foot { border-top-color: rgba(32,36,46,0.09); color: var(--tp-accent2); opacity: 1; }
+
+/* 블로그별 브랜드 액센트 색상 — data/techblogs.yaml 의 blog_key 와 1:1 */
+.slide.techpost-cover.blog-naver_d2   { --tp-accent: #2fce6a; --tp-accent2: #05a34a; }
+.slide.techpost-cover.blog-kakao_tech { --tp-accent: #e6c400; --tp-accent2: #a68a00; }
+.slide.techpost-cover.blog-toss       { --tp-accent: #4a90ff; --tp-accent2: #0064ff; }
+.slide.techpost-cover.blog-line       { --tp-accent: #3ddc70; --tp-accent2: #00b900; }
+.slide.techpost-cover.blog-daangn     { --tp-accent: #ff9159; --tp-accent2: #ff6f2c; }
+.slide.techpost-cover.blog-coupang    { --tp-accent: #5c8bff; --tp-accent2: #1d4ed8; }
+.slide.techpost-cover.blog-musinsa    { --tp-accent: #b8b8b8; --tp-accent2: #6b6b6b; }
+
 /* ============================================================
    v3.2 — 그리드 높이↑(잘림 방지) · 모달 높이↓(공백 제거) · 폰트
    ============================================================ */

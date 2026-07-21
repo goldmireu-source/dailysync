@@ -144,6 +144,7 @@ def job_collect_contests(triggered_by: str = "scheduler", run_id: int | None = N
 
 def job_collect_techblog(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.techblog_collector import collect_all_techblog
+    from jobs.techblog_summarizer import summarize_pending as summarize_techposts
     with _track("collect_techblog", triggered_by, run_id=run_id) as stats:
         s = collect_all_techblog()
         stats["total_fetched"] = s.get("total_fetched", 0)
@@ -152,6 +153,10 @@ def job_collect_techblog(triggered_by: str = "scheduler", run_id: int | None = N
         stats["mentions_matched"] = s.get("mentions_matched", 0)
         stats["by_blog"] = s.get("by_blog", {})
         stats["sources"] = s.get("sources", {})
+        sm = summarize_techposts()
+        stats["summarized_picked"] = sm.get("picked", 0)
+        stats["summarized_success"] = sm.get("success", 0)
+        stats["summarized_failed"] = sm.get("failed", 0)
         return stats
 
 
@@ -406,11 +411,14 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
             logger.exception("collect_all_contests failed in refresh_now")
             stats["contests_new"] = 0
 
-        # 9. 기술블로그 수집 (느리게 바뀜 — best-effort)
+        # 9. 기술블로그 수집 + 요약 (느리게 바뀜 — best-effort)
         _update_phase(run_id, "기술블로그 수집 중")
         try:
             t_res = collect_all_techblog()
             stats["techposts_new"] = t_res.get("total_new", 0)
+            from jobs.techblog_summarizer import summarize_pending as summarize_techposts
+            t_sum = summarize_techposts()
+            stats["techposts_summarized"] = t_sum.get("success", 0)
         except Exception:
             logger.exception("collect_all_techblog failed in refresh_now")
             stats["techposts_new"] = 0

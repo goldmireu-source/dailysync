@@ -226,7 +226,7 @@
 </div>
 
 {% elif card.type == 'techpost_cover' %}
-<div class="slide paper-cover {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
+<div class="slide techpost-cover blog-{{ card.blog }} {% if is_active %}active{% endif %}" data-idx="{{ idx }}">
   {% if card.image_url %}
   <img class="cover-image" src="{{ card.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
   {% endif %}
