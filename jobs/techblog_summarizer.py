@@ -6,7 +6,7 @@ techblog_body_fetcher.py 가 가져온 본문(body)이 있으면 그걸 1차 입
 
 흐름:
   1. summary_dirty=True 인 TechPost 를 hot_score 내림차순으로 최대 N개 선정
-  2. title + (body 또는 description) 을 Claude 에 전달해 핵심 포인트 2~4개 + 짧은 요약 요청
+  2. title + (body 또는 description) 을 Claude 에 전달해 핵심 포인트 3~5개 + 3~5문장 요약 요청
   3. key_points / summary_ko 저장, summary_dirty=False
 """
 import logging
@@ -38,14 +38,18 @@ def _build_prompt(post: TechPost) -> str:
     if post.body and post.body_status == "success":
         content = post.body[:BODY_CONTENT_MAX]
         source_label = "본문 발췌"
+        depth_note = (
+            "본문 발췌가 충분히 길다면, 다루는 배경·문제·구체적인 방법(기술 스택·수치·"
+            "용어 등)·결과를 최대한 구체적으로 담아 작성하세요."
+        )
     else:
         content = _strip_html(post.description)[:DESCRIPTION_MAX]
         source_label = "RSS 도입부(티저)"
+        depth_note = "티저가 짧으면 그 안에서 확인되는 내용만으로 간결하게 작성하세요 (없는 내용을 부풀리지 마세요)."
 
     return f"""당신은 기업 기술블로그 글을 바쁜 개발자에게 소개하는 편집자입니다.
-
-아래는 글 제목과 {source_label}입니다. 여기 없는 내용을 추측해서 지어내지
-마세요.
+뉴스·논문 요약과 동일한 수준의 정보량을 목표로 하되, 아래 {source_label}에
+없는 내용을 추측해서 지어내지 마세요. {depth_note}
 
 블로그: {post.blog}
 제목: {post.title}
@@ -55,10 +59,16 @@ def _build_prompt(post: TechPost) -> str:
 
 JSON 스키마:
 {{
-  "key_points": ["이 글의 핵심 포인트 1 (한 문장)", "핵심 포인트 2", "핵심 포인트 3(있으면)", "핵심 포인트 4(있으면)"],
-  "summary_ko": "1~2문장으로 이 글을 소개하는 짧은 티저 요약"
+  "key_points": [
+    "핵심 포인트 1 — 구체적인 기술·수치·용어를 포함해 1~2문장",
+    "핵심 포인트 2",
+    "핵심 포인트 3",
+    "핵심 포인트 4(있으면)",
+    "핵심 포인트 5(있으면)"
+  ],
+  "summary_ko": "이 글이 다루는 문제·접근 방식·결과를 자연스럽게 잇는 3~5문장 요약"
 }}
-내용이 너무 짧아 핵심 포인트를 뽑기 어려우면 key_points 는 1개만 반환해도 됩니다.
+내용이 짧아 이만큼 뽑기 어려우면 있는 만큼만 반환해도 됩니다 (key_points 최소 1개).
 """
 
 
