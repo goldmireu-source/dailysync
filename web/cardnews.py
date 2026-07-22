@@ -27,7 +27,12 @@ _LABEL_TITLE_MAX = 38  # 기사 링크 라벨 제목 최대 길이
 
 
 def _fact_cost(text: str) -> int:
-    """fact 한 항목의 슬라이드 점유 비용(px) 추정."""
+    """fact 한 항목의 슬라이드 점유 비용(px) 추정.
+
+    버킷 경계(25/55/90...)는 델타 +30/+35/+40... 로 늘어나는 걸 유지 —
+    90자 이후 무조건 4줄로 뭉개면 (techpost key_points 처럼) 긴 포인트가
+    실제 렌더 높이보다 낮게 추정돼 카드가 overflow:hidden 에 잘릴 수 있다.
+    """
     n = len(text or "")
     # 줄 수 추정 (한 줄 ≈ 23자, 카드 폭 약 280px 기준)
     if n <= 25:
@@ -36,9 +41,17 @@ def _fact_cost(text: str) -> int:
         lines = 2
     elif n <= 90:
         lines = 3
-    else:
+    elif n <= 130:
         lines = 4
-    # 1줄 22px + 패딩 18px = 40px(1줄), 2줄 62px, 3줄 84px, 4줄 106px
+    elif n <= 175:
+        lines = 5
+    elif n <= 225:
+        lines = 6
+    elif n <= 280:
+        lines = 7
+    else:
+        lines = 8
+    # 1줄 22px + 패딩 18px = 40px(1줄), 2줄 62px, 3줄 84px, 4줄 106px ...
     return 18 + lines * 22 + 10  # gap 포함
 
 
