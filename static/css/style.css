@@ -5154,6 +5154,37 @@ body::after {
   width: 50%;
 }
 
+/* 테크블로그: 이미지 50% (기사/논문과 동일) */
+.carousel-grid--bento > .carousel:first-child .slide.techpost-cover {
+  padding-right: calc(50% + 18px);
+}
+.carousel-grid--bento > .carousel:first-child .slide.techpost-cover .cover-image {
+  display: block;
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  height: 100%;
+  width: 50%;
+  object-fit: cover;
+  object-position: top center;
+  z-index: 1;
+  border-radius: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
+}
+/* 이미지 없을 때 우측 패널: 블로그 액센트 그라디언트 폴백 */
+.carousel-grid--bento > .carousel:first-child .slide.techpost-cover:not(:has(.cover-image))::before {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 50%;
+  border-radius: 0 16px 16px 0;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(160deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.09) 100%);
+  border-left: 1px solid var(--tp-accent);
+  opacity: 0.5;
+}
+
 /* 이미지 없을 때 우측 패널: 카테고리 그라디언트 폴백 */
 .carousel-grid--bento > .carousel:first-child .slide.cover:not(:has(.cover-image))::before,
 .carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
@@ -5294,20 +5325,21 @@ body::after {
     height: 460px;
     min-height: 460px;
   }
-  /* 모바일에서 피처드 이미지 영역 조정 — 기사/논문 별도 */
-  .carousel-grid--bento > .carousel:first-child .slide.cover {
-    padding-right: calc(38% + 14px);
-  }
-  .carousel-grid--bento > .carousel:first-child .slide.paper-cover {
+  /* 모바일에서 피처드 이미지 영역 조정 — 기사/논문/테크블로그 별도 */
+  .carousel-grid--bento > .carousel:first-child .slide.cover,
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover,
+  .carousel-grid--bento > .carousel:first-child .slide.techpost-cover {
     padding-right: calc(38% + 14px);
   }
   .carousel-grid--bento > .carousel:first-child .slide.cover .cover-image,
-  .carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image {
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover .cover-image,
+  .carousel-grid--bento > .carousel:first-child .slide.techpost-cover .cover-image {
     right: 14px; top: 0; bottom: 0;
     width: calc(38% - 14px);
   }
   .carousel-grid--bento > .carousel:first-child .slide.cover:not(:has(.cover-image))::before,
-  .carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before {
+  .carousel-grid--bento > .carousel:first-child .slide.paper-cover:not(:has(.cover-image))::before,
+  .carousel-grid--bento > .carousel:first-child .slide.techpost-cover:not(:has(.cover-image))::before {
     right: 14px; top: 0; bottom: 0;
     width: calc(38% - 14px);
   }

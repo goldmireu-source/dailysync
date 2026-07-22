@@ -1136,6 +1136,19 @@ def unsave_techpost(techpost_id: int):
     return jsonify({"ok": True})
 
 
+@bp.route("/api/techpost/<int:techpost_id>/feature", methods=["POST"])
+@admin_required
+def toggle_techpost_feature(techpost_id: int):
+    """테크블로그 피처드 고정/해제 토글."""
+    post = TechPost.query.get(techpost_id)
+    if not post:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    post.pinned_featured = not post.pinned_featured
+    post.pinned_at = datetime.utcnow() if post.pinned_featured else None
+    db.session.commit()
+    return jsonify({"ok": True, "pinned": post.pinned_featured})
+
+
 @bp.route("/api/contest/<int:contest_id>/hide", methods=["POST"])
 @admin_required
 def hide_contest(contest_id: int):
