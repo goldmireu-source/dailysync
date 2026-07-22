@@ -1590,6 +1590,7 @@ JOB_LABELS = {
     "cleanup_old_data": "🗑️ 4일 이상 데이터 삭제",
     "collect_contests": "🏆 공모전 수집 (위비티·데이콘 등)",
     "collect_techblog": "🏢 기업 기술블로그 수집",
+    "backfill_techposts": "🏢 기술블로그 백필 (본문 fetch + 재요약, 1회성)",
     "thumb_papers": "🖼️ 논문 PDF 썸네일 생성 (30건)",
     "screenshot_articles": "📸 기사 스크린샷 (20건)",
 }

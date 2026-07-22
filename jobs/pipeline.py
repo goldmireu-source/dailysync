@@ -288,6 +288,20 @@ def job_backfill_papers(triggered_by: str = "manual", run_id: int | None = None)
         return stats
 
 
+# ---------- 백필 (dirty 테크블로그 일괄 처리) ----------
+def job_backfill_techposts(triggered_by: str = "manual", run_id: int | None = None) -> dict:
+    """숨김 안 된 TechPost 전부 summary_dirty=True 리셋 → 본문 fetch → 재요약.
+
+    body fetch 로직 도입 이전에 티저만으로 요약된 기존 글들 소급 개선용 1회성 백필.
+    """
+    with _track("backfill_techposts", triggered_by, run_id=run_id) as stats:
+        from jobs.techblog_summarizer import backfill_dirty_techposts
+        _update_phase(run_id, "테크블로그 백필 시작")
+        s = backfill_dirty_techposts()
+        stats.update(s)
+        return stats
+
+
 # ---------- 원버튼 새로고침 (전체 흐름) ----------
 def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> dict:
     """뉴스/논문 수집 → (변경 있으면) 본문 페치 → 임베딩 → 요약.

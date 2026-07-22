@@ -191,6 +191,7 @@ def trigger_job_now(job_id: str, app, run_id: int | None = None) -> bool:
         "morning_pipeline": pipeline.job_morning_pipeline,
         "refresh_now": pipeline.job_refresh_now,
         "backfill_papers": pipeline.job_backfill_papers,
+        "backfill_techposts": pipeline.job_backfill_techposts,
         "cleanup_old_data": pipeline.job_cleanup_old_data,
         "collect_contests": pipeline.job_collect_contests,
         "collect_techblog": pipeline.job_collect_techblog,

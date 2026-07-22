@@ -103,6 +103,35 @@ def summarize_pending(limit: int = DEFAULT_LIMIT) -> dict:
     return stats
 
 
+def backfill_dirty_techposts() -> dict:
+    """숨김 처리 안 된 TechPost 전부를 summary_dirty=True 로 리셋 후 본문 fetch + 재요약.
+
+    body fetch 도입 이전(RSS 티저만으로 요약)에 이미 처리된 기존 글들을 소급
+    개선하기 위한 1회성 백로그 청소 — pick 우선순위/limit 무시.
+    """
+    from jobs.techblog_body_fetcher import fetch_pending as fetch_bodies
+
+    reset = TechPost.query.filter(TechPost.hidden_at.is_(None)).update({"summary_dirty": True})
+    db.session.commit()
+
+    body_stats = {"processed": 0, "success": 0, "failed": 0, "blocked": 0}
+    while True:
+        b = fetch_bodies(limit=40)
+        if b["processed"] == 0:
+            break
+        for k in body_stats:
+            body_stats[k] += b[k]
+
+    dirty = TechPost.query.filter_by(summary_dirty=True).all()
+    stats = {"reset": reset, "total": len(dirty), "success": 0, "failed": 0, "body": body_stats}
+    for i, post in enumerate(dirty, 1):
+        print(f"  [{i}/{len(dirty)}] [{post.blog}] {post.title[:50]}")
+        ok = summarize_techpost(post)
+        stats["success" if ok else "failed"] += 1
+        db.session.commit()
+    return stats
+
+
 if __name__ == "__main__":
     app = create_app(with_scheduler=False)
     with app.app_context():
