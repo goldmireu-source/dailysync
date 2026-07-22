@@ -144,6 +144,7 @@ def job_collect_contests(triggered_by: str = "scheduler", run_id: int | None = N
 
 def job_collect_techblog(triggered_by: str = "scheduler", run_id: int | None = None) -> dict:
     from jobs.techblog_collector import collect_all_techblog
+    from jobs.techblog_body_fetcher import fetch_pending as fetch_techpost_bodies
     from jobs.techblog_summarizer import summarize_pending as summarize_techposts
     with _track("collect_techblog", triggered_by, run_id=run_id) as stats:
         s = collect_all_techblog()
@@ -153,6 +154,11 @@ def job_collect_techblog(triggered_by: str = "scheduler", run_id: int | None = N
         stats["mentions_matched"] = s.get("mentions_matched", 0)
         stats["by_blog"] = s.get("by_blog", {})
         stats["sources"] = s.get("sources", {})
+        b = fetch_techpost_bodies()
+        stats["body_processed"] = b.get("processed", 0)
+        stats["body_success"] = b.get("success", 0)
+        stats["body_failed"] = b.get("failed", 0)
+        stats["body_blocked"] = b.get("blocked", 0)
         sm = summarize_techposts()
         stats["summarized_picked"] = sm.get("picked", 0)
         stats["summarized_success"] = sm.get("success", 0)
@@ -301,6 +307,7 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
         from jobs.paper_summarizer import summarize_today_picks
         from jobs.contest_collector import collect_all_contests
         from jobs.techblog_collector import collect_all_techblog
+        from jobs.techblog_body_fetcher import fetch_pending as fetch_techpost_bodies
         from models import Cluster, Paper
 
         # 1. 뉴스 RSS 수집
@@ -416,6 +423,8 @@ def job_refresh_now(triggered_by: str = "manual", run_id: int | None = None) -> 
         try:
             t_res = collect_all_techblog()
             stats["techposts_new"] = t_res.get("total_new", 0)
+            b_res = fetch_techpost_bodies()
+            stats["techposts_body_success"] = b_res.get("success", 0)
             from jobs.techblog_summarizer import summarize_pending as summarize_techposts
             t_sum = summarize_techposts()
             stats["techposts_summarized"] = t_sum.get("success", 0)

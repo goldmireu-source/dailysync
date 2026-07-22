@@ -67,6 +67,7 @@ jobs:
           venv/bin/python3 migrate_oss_contest.py
           venv/bin/python3 migrate_feed_type.py
           venv/bin/python3 migrate_techpost.py
+          venv/bin/python3 migrate_techpost_body.py
           sudo systemctl restart daily-sync
           sleep 3
           sudo systemctl is-active daily-sync

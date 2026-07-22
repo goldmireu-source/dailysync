@@ -273,7 +273,8 @@ class TechPost(db.Model):
     """기업 기술블로그 "핫한 글" — 뉴스/논문/공모전과 완전히 별도 트랙.
 
     회사 기술블로그 RSS를 수집하고, GeekNews 등 2차 소스에서 "오늘 언급된" 글을
-    매칭해 hot_score 를 매긴다. 본문 재현 없이 티저 요약만 저장 (README 원칙 1).
+    매칭해 hot_score 를 매긴다. body 는 Article.body와 동일한 원칙으로 요약
+    입력에만 쓰고 이메일/UI 에는 절대 노출하지 않는다 (README 원칙 1).
     """
     __tablename__ = "tech_posts"
 
@@ -295,6 +296,11 @@ class TechPost(db.Model):
     summary_ko = db.Column(db.Text)          # 짧은 티저 요약 (본문 재현 금지 — README 원칙 1)
     key_points = db.Column(db.JSON, default=list)  # 뉴스 agreed_facts처럼 짧은 포인트 리스트
     summary_dirty = db.Column(db.Boolean, default=True, nullable=False)
+
+    # 본문 — 요약 입력 전용 (Article.body와 동일한 원칙: 이메일/UI 렌더링 절대 금지)
+    body = db.Column(db.Text)
+    body_fetched_at = db.Column(db.DateTime)
+    body_status = db.Column(db.String(20), default="pending", nullable=False)
     hidden_at = db.Column(db.DateTime, nullable=True, index=True)
     saved_at = db.Column(db.DateTime, nullable=True, index=True)
 

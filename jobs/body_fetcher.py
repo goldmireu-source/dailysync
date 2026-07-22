@@ -23,8 +23,8 @@ MAX_BODY_LEN = 50_000   # DB 저장 상한
 MIN_BODY_LEN = 200      # 이보다 짧으면 실패로 간주
 
 
-def _extract(url: str) -> tuple[str | None, str | None]:
-    """본문 텍스트와 OG 이미지 URL 동시 추출."""
+def extract_body(url: str) -> tuple[str | None, str | None]:
+    """본문 텍스트와 OG 이미지 URL 동시 추출 (techblog_body_fetcher.py 도 재사용)."""
     downloaded = trafilatura.fetch_url(url)
     if not downloaded:
         return None, None
@@ -62,7 +62,7 @@ def fetch_pending(limit: int = 30) -> dict:
             time.sleep(wait)
 
         try:
-            body, image_url = _extract(art.url)
+            body, image_url = extract_body(art.url)
             last_request[domain] = time.time()
 
             if image_url and not art.image_url:
