@@ -261,7 +261,11 @@
     <span class="pos">{{ idx + 1 }} / {{ total }}</span>
   </div>
   <h2>{{ card.title }}</h2>
-  <p class="body-text">{{ card.summary }}</p>
+  <div class="detail-paragraphs">
+    {% for para in card.paragraphs %}
+    <p>{{ para }}</p>
+    {% endfor %}
+  </div>
 </div>
 
 {% elif card.type == 'techpost_section' %}

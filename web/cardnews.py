@@ -83,6 +83,18 @@ def _chunk_facts(facts: list, budget: int = FACT_BUDGET) -> list[list]:
     return _chunk_by_cost(clean, _fact_cost, budget)
 
 
+# techpost_detail(자세히 보기) 문단 청킹 — .body-text 는 line-height 1.8 로
+# .fact-row p(1.6)보다 줄당 살짝 더 차지하므로, _fact_cost 를 그대로 쓰되
+# 예산을 낮춰 여유를 둔다 (별도 cost 함수를 새로 튜닝할 근거가 없어 재사용).
+DETAIL_BUDGET = 260
+
+
+def _chunk_detail_paragraphs(text: str, budget: int = DETAIL_BUDGET) -> list[list]:
+    """긴 문단형 텍스트(\\n\\n 구분)를 '자세히 보기' 슬라이드 단위로 분할."""
+    paragraphs = [p.strip() for p in (text or "").split("\n\n") if p and p.strip()]
+    return _chunk_by_cost(paragraphs, _fact_cost, budget)
+
+
 def _src_cost(claim: str) -> int:
     """source-card 한 장의 점유 비용 추정."""
     n = len(claim or "")
@@ -587,7 +599,8 @@ def build_techpost_cards(post) -> list[dict]:
     구조 (뉴스 cover→facts→detail→links 와 동일한 순서/위상):
       1. techpost_cover — 표지 (제목, 블로그명, 이미지, 언급 배지, 날짜)
       2. techpost_section — 핵심 포인트 (key_points, 뉴스 'facts'와 동일 — 텍스트 양에 따라 자동 분할)
-      3. techpost_detail — 자세히 보기 (summary_ko 긴 요약, 뉴스 'detail'/논문 'paper_section'과 동일 위상)
+      3. techpost_detail — 자세히 보기 (summary_ko 문단들, 뉴스 'detail'/논문 'paper_section'과 동일 위상.
+         뉴스 detail 과 달리 카드 1장으로 고정하지 않고, 내용이 많으면 여러 장으로 분할)
       4. techpost_links — 원문 링크
     """
     cards = []
@@ -621,12 +634,16 @@ def build_techpost_cards(post) -> list[dict]:
             "points": chunk,
         })
 
-    # 자세히 보기 — Claude 가 생성한 문단형 상세 요약 (뉴스 'detail' 과 동일 위상)
-    if post.summary_ko:
+    # 자세히 보기 — Claude 가 생성한 문단형 상세 요약 (뉴스 'detail' 과 동일 위상).
+    # 문단(\n\n 구분)이 많으면 여러 장으로 분할 — 내용 파악에 필요한 만큼 카드 매수로 흡수.
+    detail_chunks = _chunk_detail_paragraphs(post.summary_ko)
+    n_detail_slides = len(detail_chunks)
+    for i, chunk in enumerate(detail_chunks):
+        title = "자세히 보기" if i == 0 else f"자세히 보기 ({i + 1}/{n_detail_slides})"
         cards.append({
             "type": "techpost_detail",
-            "title": "자세히 보기",
-            "summary": post.summary_ko,
+            "title": title,
+            "paragraphs": chunk,
         })
 
     # 링크

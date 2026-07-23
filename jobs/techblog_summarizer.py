@@ -7,8 +7,9 @@ techblog_body_fetcher.py 가 가져온 본문(body)이 있으면 그걸 1차 입
 흐름:
   1. summary_dirty=True 인 TechPost 를 hot_score 내림차순으로 최대 N개 선정
   2. title + (body 또는 description) 을 Claude 에 전달해 핵심 포인트(내용만큼, 최대 8개) +
-     3~5문장 문단형 상세 요약(자세히 보기 카드용) 요청
-  3. key_points / summary_ko 저장, summary_dirty=False
+     문단형 상세 요약(최대 4문단, 자세히 보기 카드용) 요청
+  3. key_points 저장, detail_paragraphs 는 "\n\n" 로 이어붙여 summary_ko 에 저장
+     (cardnews.py 가 렌더링 시 다시 분리해 카드 매수를 정함), summary_dirty=False
 """
 import logging
 
@@ -69,8 +70,17 @@ JSON 스키마:
     "핵심 포인트 3",
     "... 내용이 더 있으면 계속 (최대 8개)"
   ],
-  "summary_ko": "핵심 포인트들을 하나의 글로 자연스럽게 잇는 3~5문장 상세 요약 — 카드뉴스의 '자세히 보기' 페이지에 실립니다. key_points 가 나열식이라면 이쪽은 문단형 서술로, 배경과 맥락을 붙여 읽히게 써주세요"
+  "detail_paragraphs": [
+    "첫 번째 문단 — 배경/문제 상황을 서술형으로 (2~4문장)",
+    "두 번째 문단 — 접근 방식·과정 (있으면, 2~4문장)",
+    "세 번째 문단 — 결과·의의 (있으면, 2~4문장)",
+    "... 내용이 더 있으면 계속 (최대 4문단)"
+  ]
 }}
+detail_paragraphs 는 key_points 를 그대로 나열하는 게 아니라, 카드뉴스의
+'자세히 보기' 페이지에 실릴 문단형 서술입니다 — 문단 하나하나가 이야기처럼
+자연스럽게 읽혀야 합니다. 내용이 짧으면 문단 1개로 충분하고, 풍부하면
+문단을 나눠(최대 4개) 배경→과정→결과 흐름을 살리세요.
 내용이 짧아 이만큼 뽑기 어려우면 있는 만큼만 반환해도 됩니다 (key_points 최소 1개).
 """
 
@@ -91,7 +101,9 @@ def summarize_techpost(post: TechPost) -> bool:
 
     points = [p.strip() for p in (result.get("key_points") or []) if p and p.strip()]
     post.key_points = points
-    post.summary_ko = (result.get("summary_ko") or "").strip()
+    paragraphs = [p.strip() for p in (result.get("detail_paragraphs") or []) if p and p.strip()]
+    # DB 컬럼은 Text 하나 — 문단 구분자(\n\n)로 이어붙이고, 렌더링 시 cardnews.py 가 다시 분리해 청킹
+    post.summary_ko = "\n\n".join(paragraphs)
     post.summary_dirty = False
     return True
 

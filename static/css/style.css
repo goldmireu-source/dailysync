@@ -1518,7 +1518,8 @@ body.modal-open .bottom-nav { display: none !important; }
   font-size: 12px;
 }
 .card-modal-body .slide .fact-row p,
-.card-modal-body .slide .body-text {
+.card-modal-body .slide .body-text,
+.card-modal-body .slide .detail-paragraphs p {
   font-size: 16px;
   line-height: 1.65;
 }
@@ -1709,7 +1710,8 @@ body.modal-open .bottom-nav { display: none !important; }
     font-size: 21px;
   }
   .card-modal-body .slide .fact-row p,
-  .card-modal-body .slide .body-text {
+  .card-modal-body .slide .body-text,
+  .card-modal-body .slide .detail-paragraphs p {
     font-size: 15.5px;
     line-height: 1.65;
   }
@@ -2443,6 +2445,23 @@ body.modal-open {
 }
 .slide .body-text strong { color: var(--text); font-weight: 700; }
 
+/* techpost_detail — 여러 문단(paragraph) 스택. body-text 와 폰트 지표 동일,
+   문단이 여러 개면 gap 으로 구분 (문단당 카드 분할은 cardnews.py 청킹이 담당) */
+.slide .detail-paragraphs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+.slide .detail-paragraphs p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-body);
+  word-break: keep-all;
+}
+
 /* Sources — 매체 카드 균등 분할 */
 .slide .src-grid {
   display: flex;
@@ -2862,6 +2881,7 @@ body.modal-open {
   .slide.body h2 { font-size: 19px; }
   .slide .fact-row p { font-size: 14px; }
   .slide .body-text { font-size: 14px; }
+  .slide .detail-paragraphs p { font-size: 14px; }
   .slide .quote-large p { font-size: 16px; }
   .slide .src-card-mini p { font-size: 13px; }
   .slide.paper-cover h1 { font-size: 20px; }
@@ -3426,6 +3446,7 @@ body.modal-open {
 .slide .fact-row { padding: 11px 14px; border-radius: 10px; }
 .slide .fact-row p { font-size: 13.5px; line-height: 1.62; }
 .slide .body-text { font-size: 13.5px; line-height: 1.72; }
+.slide .detail-paragraphs p { font-size: 13.5px; line-height: 1.72; }
 
 /* 캡션 — 카드 아래 제목/메타 */
 .carousel-caption {
