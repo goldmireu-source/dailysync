@@ -5175,8 +5175,11 @@ body::after {
   width: 50%;
 }
 
-/* 테크블로그: 이미지 50% (기사/논문과 동일) */
-.carousel-grid--bento > .carousel:first-child .slide.techpost-cover {
+/* 테크블로그: 이미지 있을 때만 50% 우측 패널 예약 (기사/논문과 동일 크롭).
+   많은 테크블로그(특히 JS 렌더링 SPA)가 RSS·og:image 어디에도 이미지를
+   안 주는 경우가 흔해서, 뉴스/논문과 달리 이미지 없으면 빈 그라디언트
+   패널을 만들지 않고 원래(비-bento) 레이아웃처럼 전체 폭을 그대로 씀. */
+.carousel-grid--bento > .carousel:first-child .slide.techpost-cover:has(.cover-image) {
   padding-right: calc(50% + 18px);
 }
 .carousel-grid--bento > .carousel:first-child .slide.techpost-cover .cover-image {
@@ -5191,19 +5194,6 @@ body::after {
   border-radius: 0;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
   mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.6) 20%, black 55%);
-}
-/* 이미지 없을 때 우측 패널: 블로그 액센트 그라디언트 폴백 */
-.carousel-grid--bento > .carousel:first-child .slide.techpost-cover:not(:has(.cover-image))::before {
-  content: '';
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: 50%;
-  border-radius: 0 16px 16px 0;
-  pointer-events: none;
-  z-index: 0;
-  background: linear-gradient(160deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.09) 100%);
-  border-left: 1px solid var(--tp-accent);
-  opacity: 0.5;
 }
 
 /* 이미지 없을 때 우측 패널: 카테고리 그라디언트 폴백 */
@@ -5346,10 +5336,11 @@ body::after {
     height: 460px;
     min-height: 460px;
   }
-  /* 모바일에서 피처드 이미지 영역 조정 — 기사/논문/테크블로그 별도 */
+  /* 모바일에서 피처드 이미지 영역 조정 — 기사/논문/테크블로그 별도.
+     테크블로그는 이미지 있을 때만 패딩 예약(위 :has() 규칙과 동일 이유) */
   .carousel-grid--bento > .carousel:first-child .slide.cover,
   .carousel-grid--bento > .carousel:first-child .slide.paper-cover,
-  .carousel-grid--bento > .carousel:first-child .slide.techpost-cover {
+  .carousel-grid--bento > .carousel:first-child .slide.techpost-cover:has(.cover-image) {
     padding-right: calc(38% + 14px);
   }
   .carousel-grid--bento > .carousel:first-child .slide.cover .cover-image,

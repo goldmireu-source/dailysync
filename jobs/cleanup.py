@@ -1,11 +1,14 @@
-"""오래된 데이터 자동 삭제 — 4일 이상된 기사/논문 제거.
+"""오래된 데이터 자동 삭제 — 4일 이상된 기사/논문/테크블로그 제거.
 
 규칙:
   - `published_at` 기준 retention_days 이전이면 삭제 대상.
   - `Paper.saved_at IS NOT NULL` (저장된 논문) → 영구 보존.
   - `Cluster.saved_at IS NOT NULL` (저장된 클러스터) → 클러스터와 그 안의 모든 기사 영구 보존.
   - 저장 안 된 클러스터에서 오래된 기사만 제거됨. 결과적으로 비어버린 unsaved 클러스터도 함께 정리.
-  - 삭제된 기사/논문의 static/thumbs/ 이미지 파일도 함께 삭제.
+  - `TechPost.saved_at IS NOT NULL` 또는 `hidden_at IS NOT NULL` → 영구 보존(숨김도 예외).
+    published_at=NULL(발행일 미상)인 글도 나이를 알 수 없어 삭제하지 않음.
+  - 삭제된 기사/논문의 static/thumbs/ 이미지 파일도 함께 삭제
+    (TechPost.image_url 은 항상 외부 URL이라 로컬 파일 정리 대상이 아님).
 
 호출:
   cleanup_old_data(retention_days=4)
@@ -16,7 +19,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select
 
-from models import db, Article, Cluster, Paper, Contest, KarrotPost
+from models import db, Article, Cluster, Paper, Contest, KarrotPost, TechPost
 
 _THUMBS = pathlib.Path("static/thumbs")
 
@@ -138,7 +141,21 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
         _delete_thumb(url)
     stats["papers_deleted"] = deleted_papers
 
-    # 5. 마감 지난 공모전 삭제 — deadline 이 (오늘 - grace) 이전, 저장 안 된 것만.
+    # 5. 오래된 테크블로그 글 삭제 — 숨김/저장된 것은 예외 (image_url 은 항상
+    #    외부 URL 이라 Article/Paper 처럼 로컬 썸네일 정리는 불필요).
+    #    published_at=NULL(발행일 미상)은 나이를 알 수 없으니 삭제 대상에서 제외.
+    stats["techposts_before"] = TechPost.query.count()
+    deleted_techposts = (
+        TechPost.query
+        .filter(TechPost.published_at.isnot(None))
+        .filter(TechPost.published_at < cutoff)
+        .filter(TechPost.saved_at.is_(None))
+        .filter(TechPost.hidden_at.is_(None))
+        .delete(synchronize_session=False)
+    )
+    stats["techposts_deleted"] = deleted_techposts
+
+    # 6. 마감 지난 공모전 삭제 — deadline 이 (오늘 - grace) 이전, 저장 안 된 것만.
     #    deadline=None(마감 미상)은 보존. saved_at 처리된 것도 보존.
     from datetime import date, timezone, timedelta as _td
     from config import Config
@@ -161,9 +178,11 @@ def cleanup_old_data(retention_days: int = 4) -> dict:
     stats["articles_after"] = Article.query.count()
     stats["clusters_after"] = Cluster.query.count()
     stats["papers_after"] = Paper.query.count()
+    stats["techposts_after"] = TechPost.query.count()
 
     logger.info(
         f"cleanup_old_data — retention={retention_days}d, "
-        f"articles -{deleted_articles}, clusters -{deleted_clusters}, papers -{deleted_papers}"
+        f"articles -{deleted_articles}, clusters -{deleted_clusters}, papers -{deleted_papers}, "
+        f"techposts -{deleted_techposts}"
     )
     return stats
