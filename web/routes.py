@@ -691,6 +691,16 @@ def index():
         ).order_by(*techpost_order).all()
         pinned_t = [t for t in techposts_all if t.pinned_featured]
         rest_t = [t for t in techposts_all if not t.pinned_featured]
+        # 수동 고정(핀)이 없으면, 1등 카드는 이미지가 있어야 피처드 레이아웃이 안 비어
+        # 보이므로 — 상위 랭킹권(TECHPOST_IMAGE_LOOKAHEAD개) 안에서 이미지 있는 첫
+        # 글을 1번으로 당김. 너무 멀리서 끌어오면 관련성이 떨어지니 범위를 제한.
+        if not pinned_t:
+            TECHPOST_IMAGE_LOOKAHEAD = 8
+            for i, t in enumerate(rest_t[:TECHPOST_IMAGE_LOOKAHEAD]):
+                if t.image_url:
+                    if i != 0:
+                        rest_t.insert(0, rest_t.pop(i))
+                    break
         techposts_all = pinned_t + rest_t
 
     hidden_techposts_count = techposts_q.filter(TechPost.hidden_at.isnot(None)).count()
