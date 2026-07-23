@@ -584,10 +584,10 @@ def techblog_names() -> dict:
 def build_techpost_cards(post) -> list[dict]:
     """테크블로그 글 → 슬라이드 카드 리스트.
 
-    구조:
+    구조 (뉴스 cover→facts→detail→links 와 동일한 순서/위상):
       1. techpost_cover — 표지 (제목, 블로그명, 이미지, 언급 배지, 날짜)
-      2. techpost_summary — 요약 (summary_ko, 뉴스 'detail'/논문 'paper_section'과 동일 위상)
-      3. techpost_section — 핵심 포인트 (key_points, 텍스트 양에 따라 자동 분할)
+      2. techpost_section — 핵심 포인트 (key_points, 뉴스 'facts'와 동일 — 텍스트 양에 따라 자동 분할)
+      3. techpost_detail — 자세히 보기 (summary_ko 긴 요약, 뉴스 'detail'/논문 'paper_section'과 동일 위상)
       4. techpost_links — 원문 링크
     """
     cards = []
@@ -610,14 +610,6 @@ def build_techpost_cards(post) -> list[dict]:
         "date_str": date_str,
     })
 
-    # 요약 — Claude 가 티저로 생성한 1~2문장 소개
-    if post.summary_ko:
-        cards.append({
-            "type": "techpost_summary",
-            "title": "요약",
-            "summary": post.summary_ko,
-        })
-
     # 핵심 포인트 — 텍스트 양에 따라 자동 분할 (뉴스 facts 청킹 재사용)
     point_chunks = _chunk_facts(post.key_points)
     n_point_slides = len(point_chunks)
@@ -627,6 +619,14 @@ def build_techpost_cards(post) -> list[dict]:
             "type": "techpost_section",
             "title": title,
             "points": chunk,
+        })
+
+    # 자세히 보기 — Claude 가 생성한 문단형 상세 요약 (뉴스 'detail' 과 동일 위상)
+    if post.summary_ko:
+        cards.append({
+            "type": "techpost_detail",
+            "title": "자세히 보기",
+            "summary": post.summary_ko,
         })
 
     # 링크

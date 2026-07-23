@@ -6,7 +6,8 @@ techblog_body_fetcher.py 가 가져온 본문(body)이 있으면 그걸 1차 입
 
 흐름:
   1. summary_dirty=True 인 TechPost 를 hot_score 내림차순으로 최대 N개 선정
-  2. title + (body 또는 description) 을 Claude 에 전달해 핵심 포인트 3~5개 + 3~5문장 요약 요청
+  2. title + (body 또는 description) 을 Claude 에 전달해 핵심 포인트(내용만큼, 최대 8개) +
+     3~5문장 문단형 상세 요약(자세히 보기 카드용) 요청
   3. key_points / summary_ko 저장, summary_dirty=False
 """
 import logging
@@ -68,7 +69,7 @@ JSON 스키마:
     "핵심 포인트 3",
     "... 내용이 더 있으면 계속 (최대 8개)"
   ],
-  "summary_ko": "이 글이 무엇을 다루는지 핵심만 짚는 2~3문장 요약 (자세한 내용은 key_points 몫)"
+  "summary_ko": "핵심 포인트들을 하나의 글로 자연스럽게 잇는 3~5문장 상세 요약 — 카드뉴스의 '자세히 보기' 페이지에 실립니다. key_points 가 나열식이라면 이쪽은 문단형 서술로, 배경과 맥락을 붙여 읽히게 써주세요"
 }}
 내용이 짧아 이만큼 뽑기 어려우면 있는 만큼만 반환해도 됩니다 (key_points 최소 1개).
 """
